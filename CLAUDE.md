@@ -21,7 +21,22 @@ Household finance web app: personal (private) and household (shared) finances, c
    - Bottom nav on phones, sidebar from `md` up.
    - Tables become card lists on phones.
    - Meet WCAG AA.
-7. **Secrets** live in `.env` files, which are gitignored, and in platform env vars. Never commit them. Update `.env.example` when adding a variable.
+7. **Secrets: never hardcode them.** This covers API keys, DB passwords, JWT secrets, SMTP keys, the job secret and anything similar.
+   - Secrets are never written in code, tests, fixtures, Dockerfiles, `render.yaml`, workflow files or docs. No default values for secrets, not even for "dev".
+   - **API:** all config comes from `hemfin.core.config.Settings` (pydantic-settings). It reads, in priority order: env vars, then **secret files** in `SECRETS_DIR` (default `/etc/secrets`, where Render mounts Secret Files), then a local `.env` for development only.
+     - Secret fields are typed `SecretStr`, so they're masked when printed.
+     - Read them with `.get_secret_value()` only where they're used.
+     - Never log settings or secret values.
+     - A required secret that's missing must stop the app at startup with a clear error naming the variable, not its value.
+   - **Web:** server-only secrets never get a `NEXT_PUBLIC_` prefix. Only public values (API URL, Supabase URL and anon key) may be exposed to the browser.
+   - **Where secrets live:**
+     - Local: `.env` / `.env.local` (gitignored).
+     - Render: Environment Group or Secret Files.
+     - Vercel: Project Environment Variables.
+     - CI: GitHub Actions secrets.
+     - `render.yaml` lists keys with `sync: false` only, never values.
+   - Every new variable goes in the matching `.env.example` with an empty or placeholder value and a comment.
+   - **CI runs gitleaks.** A detected secret blocks the merge. If a secret is ever committed, rotate it immediately; deleting the commit is not enough.
 8. **Tests:** every ticket adds or updates tests. Run `pytest` in `api/` and `npm run lint && npm run build` in `web/` before opening a PR.
 
 ## Commands
