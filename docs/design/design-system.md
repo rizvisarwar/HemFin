@@ -22,7 +22,7 @@ HemFin is a household finance app. Most users are not finance experts, and they 
 
 ## 2. Colour tokens
 
-All colours are CSS variables that hold **HSL channel values without the `hsl()` wrapper**, so Tailwind can add opacity with `hsl(var(--token) / <alpha-value>)`. The names follow shadcn/ui so its components work unchanged. HemFin adds the semantic tokens `--success`, `--warning`, `--destructive` and the space accents `--personal` and `--household`.
+Each colour is a CSS variable that holds a full **`hsl(...)` value** (for example `hsl(218 45% 26%)`). The variables are set on `:root` and `.dark`, and Tailwind CSS v4 maps them to utilities in `@theme inline` (section 2.2). The names follow shadcn/ui so its components work unchanged. HemFin adds the semantic tokens `--success`, `--warning`, `--destructive` and the space accents `--personal` and `--household`.
 
 Tokens live on `:root` (light) and `.dark` (dark). The theme class is applied by `next-themes` with `attribute="class"`, and it follows the OS setting by default.
 
@@ -72,89 +72,98 @@ Space accents are **not** the only signal. Every space appears with its icon and
 ### 2.2 CSS
 
 ```css
-/* app/globals.css (HEM-003). Tailwind v3.4 with the shadcn/ui HSL setup. */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* app/globals.css (HEM-003). Tailwind CSS v4 with current shadcn/ui. */
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
 
 @layer base {
   :root {
-    --background: 40 20% 98%;
-    --foreground: 215 25% 14%;
-    --card: 0 0% 100%;
-    --card-foreground: 215 25% 14%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 14%;
-    --primary: 218 45% 26%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 40 14% 93%;
-    --secondary-foreground: 215 25% 18%;
-    --muted: 40 14% 94%;
-    --muted-foreground: 215 12% 36%;
-    --accent: 172 30% 93%;
-    --accent-foreground: 175 50% 20%;
-    --destructive: 0 60% 42%;
-    --destructive-foreground: 0 0% 100%;
-    --destructive-subtle: 0 70% 95%;
-    --success: 152 55% 26%;
-    --success-foreground: 0 0% 100%;
-    --success-subtle: 152 40% 93%;
-    --warning: 32 90% 33%;
-    --warning-foreground: 0 0% 100%;
-    --warning-subtle: 40 95% 92%;
-    --border: 40 12% 88%;
-    --input: 215 10% 52%;
-    --ring: 218 60% 40%;
-    --personal: 175 55% 27%;
-    --personal-foreground: 0 0% 100%;
-    --personal-subtle: 170 35% 93%;
-    --household: 265 40% 42%;
-    --household-foreground: 0 0% 100%;
-    --household-subtle: 265 40% 95%;
-    --chart-1: 175 55% 27%;
-    --chart-2: 265 40% 42%;
-    --chart-3: 218 45% 26%;
-    --chart-4: 32 90% 33%;
+    --background: hsl(40 20% 98%);
+    --foreground: hsl(215 25% 14%);
+    --card: hsl(0 0% 100%);
+    --card-foreground: hsl(215 25% 14%);
+    --popover: hsl(0 0% 100%);
+    --popover-foreground: hsl(215 25% 14%);
+    --primary: hsl(218 45% 26%);
+    --primary-foreground: hsl(0 0% 100%);
+    --secondary: hsl(40 14% 93%);
+    --secondary-foreground: hsl(215 25% 18%);
+    --muted: hsl(40 14% 94%);
+    --muted-foreground: hsl(215 12% 36%);
+    --accent: hsl(172 30% 93%);
+    --accent-foreground: hsl(175 50% 20%);
+    --destructive: hsl(0 60% 42%);
+    --destructive-foreground: hsl(0 0% 100%);
+    --destructive-subtle: hsl(0 70% 95%);
+    --success: hsl(152 55% 26%);
+    --success-foreground: hsl(0 0% 100%);
+    --success-subtle: hsl(152 40% 93%);
+    --warning: hsl(32 90% 33%);
+    --warning-foreground: hsl(0 0% 100%);
+    --warning-subtle: hsl(40 95% 92%);
+    --border: hsl(40 12% 88%);
+    --input: hsl(215 10% 52%);
+    --ring: hsl(218 60% 40%);
+    --personal: hsl(175 55% 27%);
+    --personal-foreground: hsl(0 0% 100%);
+    --personal-subtle: hsl(170 35% 93%);
+    --household: hsl(265 40% 42%);
+    --household-foreground: hsl(0 0% 100%);
+    --household-subtle: hsl(265 40% 95%);
+    --chart-1: hsl(175 55% 27%);
+    --chart-2: hsl(265 40% 42%);
+    --chart-3: hsl(218 45% 26%);
+    --chart-4: hsl(32 90% 33%);
     --radius: 0.75rem;
   }
 
   .dark {
-    --background: 215 28% 8%;
-    --foreground: 210 20% 94%;
-    --card: 215 24% 11%;
-    --card-foreground: 210 20% 94%;
-    --popover: 215 24% 11%;
-    --popover-foreground: 210 20% 94%;
-    --primary: 218 70% 78%;
-    --primary-foreground: 218 40% 12%;
-    --secondary: 215 18% 18%;
-    --secondary-foreground: 210 20% 92%;
-    --muted: 215 18% 16%;
-    --muted-foreground: 215 14% 68%;
-    --accent: 175 30% 18%;
-    --accent-foreground: 172 50% 75%;
-    --destructive: 0 70% 68%;
-    --destructive-foreground: 215 30% 10%;
-    --destructive-subtle: 0 35% 17%;
-    --success: 152 50% 58%;
-    --success-foreground: 215 30% 10%;
-    --success-subtle: 152 30% 16%;
-    --warning: 38 90% 62%;
-    --warning-foreground: 215 30% 10%;
-    --warning-subtle: 35 40% 17%;
-    --border: 215 16% 22%;
-    --input: 215 12% 45%;
-    --ring: 218 75% 78%;
-    --personal: 172 50% 60%;
-    --personal-foreground: 215 30% 10%;
-    --personal-subtle: 175 30% 16%;
-    --household: 265 65% 78%;
-    --household-foreground: 215 30% 10%;
-    --household-subtle: 265 30% 18%;
-    --chart-1: 172 50% 60%;
-    --chart-2: 265 65% 78%;
-    --chart-3: 218 70% 78%;
-    --chart-4: 38 90% 62%;
+    --background: hsl(215 28% 8%);
+    --foreground: hsl(210 20% 94%);
+    --card: hsl(215 24% 11%);
+    --card-foreground: hsl(210 20% 94%);
+    --popover: hsl(215 24% 11%);
+    --popover-foreground: hsl(210 20% 94%);
+    --primary: hsl(218 70% 78%);
+    --primary-foreground: hsl(218 40% 12%);
+    --secondary: hsl(215 18% 18%);
+    --secondary-foreground: hsl(210 20% 92%);
+    --muted: hsl(215 18% 16%);
+    --muted-foreground: hsl(215 14% 68%);
+    --accent: hsl(175 30% 18%);
+    --accent-foreground: hsl(172 50% 75%);
+    --destructive: hsl(0 70% 68%);
+    --destructive-foreground: hsl(215 30% 10%);
+    --destructive-subtle: hsl(0 35% 17%);
+    --success: hsl(152 50% 58%);
+    --success-foreground: hsl(215 30% 10%);
+    --success-subtle: hsl(152 30% 16%);
+    --warning: hsl(38 90% 62%);
+    --warning-foreground: hsl(215 30% 10%);
+    --warning-subtle: hsl(35 40% 17%);
+    --border: hsl(215 16% 22%);
+    --input: hsl(215 12% 45%);
+    --ring: hsl(218 75% 78%);
+    --personal: hsl(172 50% 60%);
+    --personal-foreground: hsl(215 30% 10%);
+    --personal-subtle: hsl(175 30% 16%);
+    --household: hsl(265 65% 78%);
+    --household-foreground: hsl(215 30% 10%);
+    --household-subtle: hsl(265 30% 18%);
+    --chart-1: hsl(172 50% 60%);
+    --chart-2: hsl(265 65% 78%);
+    --chart-3: hsl(218 70% 78%);
+    --chart-4: hsl(38 90% 62%);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 
   body {
@@ -162,9 +171,53 @@ Space accents are **not** the only signal. Every space appears with its icon and
     font-feature-settings: "cv11", "ss01";
   }
 }
+
+/* Map the tokens to Tailwind utilities (bg-primary, text-muted-foreground, bg-personal-subtle, rounded-lg ...). */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-subtle: var(--destructive-subtle);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-personal: var(--personal);
+  --color-personal-foreground: var(--personal-foreground);
+  --color-personal-subtle: var(--personal-subtle);
+  --color-household: var(--household);
+  --color-household-foreground: var(--household-foreground);
+  --color-household-subtle: var(--household-subtle);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
 ```
 
-`tailwind.config.ts` maps each token with `hsl(var(--token) / <alpha-value>)`, for example `background`, `foreground`, `card` (with `DEFAULT` and `foreground`), `primary`, `muted`, `accent`, `destructive`, `success`, `warning`, `border`, `input`, `ring`, `personal`, `household`, `chart`, and `borderRadius` built from `--radius`. Map the `-subtle` and `-foreground` tokens the same way.
+There is no `tailwind.config` file. Tailwind v4 reads the `@theme inline` block above, so each token becomes a utility: `bg-background`, `text-muted-foreground`, `border-border`, `ring-ring`, `bg-personal-subtle`, `text-household`, `rounded-lg`. Opacity modifiers such as `bg-primary/50` work on the full `hsl()` value through v4's colour mixing, so the tokens do not need an `<alpha-value>` wrapper. Components from shadcn/ui use the same names, so they work unchanged.
 
 ### 2.3 Contrast (WCAG 2.2 AA)
 

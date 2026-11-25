@@ -153,7 +153,7 @@ All ten product items from the plan are listed, plus Notifications. Notification
 
 **Bottom nav (phone) has exactly five slots:** Dashboard, Contracts, Reports, Alerts (Notifications) and More. Everything else lives behind More.
 
-**Why "Alerts" in the bottom nav:** at 375 px each slot is about 75 px wide. "Notifications" at 12 px does not fit on one line, and two-line labels look untidy. The full name "Notifications" is used in the page title, the sidebar, the rail tooltip and the accessible name. This is an open question for the PM (section 11).
+**Why "Alerts" in the bottom nav:** at 375 px each slot is about 75 px wide. "Notifications" at 12 px does not fit on one line, and two-line labels look untidy. The full name "Notifications" is used in the page title, the sidebar, the rail tooltip and the accessible name. PM decision: keep "Alerts" on the phone bottom nav (section 11).
 
 ### 3.2 Bottom navigation (phone)
 
@@ -237,7 +237,7 @@ The space switcher is the most important control in the shell. It is always visi
 - Selecting a space changes the accent line, the trigger fill and the badges immediately.
 - The current page stays the same. The user is not sent back to the dashboard.
 - While the new space's data loads, page content shows skeletons. It never shows the previous space's numbers under the new space's badge.
-- The active space is kept in a cookie (for example `hemfin-space`) so server components render the right space first time. This is a recommendation for HEM-003 and is not a visual decision.
+- The active space is kept in a cookie (for example `hemfin-space`) so server components render the right space first time. PM decision: the active space is stored in the `hemfin-space` cookie.
 
 **Edge cases**
 - The user has only a personal space: the menu shows the personal space and a "Create a household" item. The trigger still shows the badge, so the personal space is visibly labelled.
@@ -356,7 +356,9 @@ Used by `/sign-in` and, later, the sign-up and reset pages, which reuse the same
 |                 [H] HemFin                       |  logo, centred
 |                                                  |
 |  Sign in                                         |  text-h1
-|  Welcome back. Your finances stay private.       |  text-lead
+|  Your personal finances stay private.            |  text-lead
+|  Household finances are shared only with         |
+|  the family members you invite.                  |
 |                                                  |
 |  Email                                           |  label above input
 |  [ name@example.com                           ]  |  44 px input, 16 px text
@@ -384,19 +386,21 @@ Used by `/sign-in` and, later, the sign-up and reset pages, which reuse the same
 |                                                                      |
 |          +------------------------------------------------+          |
 |          | Sign in                                        |          |
-|          | Welcome back. Your finances stay private.      |          |
+|          | Your personal finances stay private.           |          |
+|          | Household finances are shared only with        |          |
+|          | the family members you invite.                 |          |
 |          |                                                |          |
 |          | Email                                          |          |
-|          | [ name@example.com                         ]   |          |
+|          | [ name@example.com                    ]        |          |
 |          | Password                                       |          |
-|          | [ ********                             ]       |          |
+|          | [ ********                        ]            |          |
 |          |                               Forgot password? |          |
 |          |                                                |          |
-|          | [ Sign in                                   ]  |          |
+|          | [ Sign in                              ]       |          |
 |          |                                                |          |
 |          | ----------------- or -----------------         |          |
 |          |                                                |          |
-|          | [ G  Continue with Google                   ]  |          |
+|          | [ G  Continue with Google              ]       |          |
 |          +------------------------------------------------+          |
 |                                                                      |
 |                   New to HemFin? Create an account                   |
@@ -411,16 +415,18 @@ Used by `/sign-in` and, later, the sign-up and reset pages, which reuse the same
 +------------------------------------------+-----------------------------------------------+
 |                                          |                                               |
 | Household finances,                      | Sign in                                       |
-| calm and in one place.                   | Welcome back. Your finances stay private.     |
-|                                          |                                               |
-| Personal money stays personal.           | Email                                         |
-| Share a household with family only       | [ name@example.com                   ]        |
-| when you choose.                         | Password                                      |
-|                                          | [ ********                          ]         |
-| - Contracts and renewal reminders        |                          Forgot password?     |
-| - Expenses and income, any currency      | [ Sign in                            ]        |
-| - Shared household view, by invite       | ------------- or -------------                |
-|                                          | [ G  Continue with Google            ]        |
+| calm and in one place.                   | Your personal finances stay private.          |
+|                                          | Household finances are shared only with       |
+| Personal money stays personal.           | the family members you invite.                |
+| Share a household with family only       |                                               |
+| when you choose.                         | Email                                         |
+|                                          | [ name@example.com                  ]         |
+| - Contracts and renewal reminders        | Password                                      |
+| - Expenses and income, any currency      | [ ********                         ]          |
+| - Shared household view, by invite       |                         Forgot password?      |
+|                                          | [ Sign in                           ]         |
+|                                          | ------------ or ------------                  |
+|                                          | [ G  Continue with Google           ]         |
 |                                          | New to HemFin? Create an account              |
 |                                          |                                               |
 +------------------------------------------+-----------------------------------------------+
@@ -433,7 +439,7 @@ Rules:
 - Errors show under the field in `--destructive`, with an icon. Example: "Enter the email you signed up with."
 - The "Continue with Google" button follows Google's branding guidelines (their logo, their label, a neutral background). It is never restyled as a HemFin button.
 - Invitation sign-in (from the Phase 2 accept page): the invitation token must be carried through the sign-in and sign-up forms. The layout does not change, but the page can show a one-line banner above the form: "You were invited to [household name]. Sign in with [email] to accept."
-- The privacy line under the heading is a fixed part of the layout. It is short on purpose.
+- The privacy line under the heading is fixed copy (PM decision): "Your personal finances stay private. Household finances are shared only with the family members you invite." It wraps to three lines on phone and two or three on desktop. Do not shorten it.
 
 ---
 
@@ -750,8 +756,12 @@ Build notes for HEM-003:
 
 ## 11. Open questions for the PM
 
-1. **Bottom-nav label.** "Alerts" is proposed for the Notifications slot on phone so the label fits in 75 px. Approve, or do you want "Notifications" with a two-line label?
-2. **Assistant placement.** The Assistant (Phase 9) is under More, as the ticket asks. Once it ships, consider promoting it to the bottom nav in place of Reports. Decide at Phase 9.
-3. **Tailwind version.** shadcn/ui now defaults to Tailwind v4 with `oklch` colours. This spec uses HSL channels (Tailwind v3.4), as the ticket asks. HEM-003 should pin the v3.4 shadcn setup.
-4. **Space persistence.** The shell assumes a cookie (`hemfin-space`) so the active space is known on the server. Confirm this is acceptable for the API calls made from server components.
-5. **Sign-in copy.** "Your finances stay private" is a claim about the product. Please confirm it matches the privacy model before Phase 1 ships.
+PM decisions, all resolved:
+
+1. **Bottom-nav label.** Keep "Alerts" for Notifications on the phone bottom nav.
+2. **Notifications in the nav.** Keep Notifications in the nav alongside the ten product items.
+3. **Tailwind version.** Tailwind CSS v4 with current shadcn/ui. The HSL values are unchanged, written as full `hsl()` values on `:root` and `.dark` and mapped through `@theme inline` in `globals.css`. There is no `tailwind.config`.
+4. **Space persistence.** The active space is stored in the `hemfin-space` cookie.
+5. **Sign-in copy.** "Your personal finances stay private. Household finances are shared only with the family members you invite."
+
+Still open for a later phase: the Assistant placement. It stays under More until Phase 9, when it can be promoted to the bottom nav in place of Reports.
