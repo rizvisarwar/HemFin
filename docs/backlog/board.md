@@ -30,6 +30,15 @@ Deferred (not planned yet): native mobile app, WhatsApp notifications, push noti
 | HEM-006 | CI, scheduled jobs workflow and deployment config | Engineer | Done | #6 |
 | HEM-007 | Fix the dev-mode prerender error on the landing page | Engineer | Done | #12 |
 
+## Phase 1 tickets
+
+| Ticket | Title | Owner | Status | PR |
+|---|---|---|---|---|
+| HEM-008 | API: Supabase JWT auth, users and personal space | Engineer | Done | #15 |
+| HEM-009 | API: profile and addresses | Engineer | In Review | #16 |
+| HEM-010 | Web: auth flows | Engineer | In Progress | |
+| HEM-011 | Web: profile page | Engineer | Todo | |
+
 ## Follow-ups (not yet ticketed)
 - Phase 2 (space switcher with real households): the phone switcher sheet gets the SpaceBadge heading row from spec 4.2, and long household names stay readable (from the HEM-003 design review).
 - Test hardening: assert the `hemfin-space` cookie attributes (httpOnly, sameSite, path) in the smoke tests (from the HEM-003 code review).
