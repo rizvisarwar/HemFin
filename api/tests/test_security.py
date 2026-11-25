@@ -227,3 +227,57 @@ async def test_unconfigured_supabase_is_503(
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
         r = await c.get("/api/v1/me", headers={"Authorization": "Bearer abc.def.ghi"})
     assert r.status_code == 503
+
+
+async def test_failed_fetch_on_empty_cache_is_rate_limited(key: TestKey, clock: Clock) -> None:
+    calls = 0
+
+    async def boom() -> list[dict[str, object]]:
+        nonlocal calls
+        calls += 1
+        raise httpx.ConnectError("down")
+
+    v = TokenVerifier(issuer="i", audience="a", jwks=JWKSCache(boom, 600, 30, clock))
+    for kid in ("a", "b"):  # two lookups inside the cooldown
+        with pytest.raises(AuthUnavailableError):
+            await v.verify(key.token(SUB, kid=kid))
+    assert calls == 1
+    clock.now += 31  # after the cooldown it tries again
+    with pytest.raises(AuthUnavailableError):
+        await v.verify(key.token(SUB))
+    assert calls == 2
+
+
+async def test_jwk_declared_alg_must_match() -> None:
+    key = TestKey("kid-rs")
+    jwks = FakeJwks(key)  # the JWK declares alg ES256
+
+    v = TokenVerifier(
+        issuer="http://supabase.test/auth/v1", audience="authenticated", jwks=JWKSCache(jwks)
+    )
+    # A token whose header claims RS256 for that kid (signature irrelevant: rejected earlier).
+    _, payload, sig = key.token(SUB).split(".")
+    header = _b64({"alg": "RS256", "typ": "JWT", "kid": key.kid})
+    with pytest.raises(InvalidTokenError) as exc:
+        await v.verify(f"{header}.{payload}.{sig}")
+    assert exc.value.reason == "alg_mismatch"
+
+
+def test_app_env_defaults_to_production_so_hs256_is_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    from hemfin.core.config import Settings
+
+    monkeypatch.delenv("APP_ENV", raising=False)
+    s = Settings(_env_file=None, SUPABASE_JWT_SECRET="s" * 40)  # type: ignore[call-arg,arg-type]
+    assert s.APP_ENV == "production"
+    secret = s.SUPABASE_JWT_SECRET
+    assert secret is not None
+    v = build_verifier(
+        supabase_url="http://supabase.test",
+        audience="authenticated",
+        app_env=s.APP_ENV,
+        hs256_secret=secret.get_secret_value(),
+        jwks_ttl=600,
+        jwks_min_refetch=30,
+        fetcher=FakeJwks(),
+    )
+    assert v._hs256_secret is None
