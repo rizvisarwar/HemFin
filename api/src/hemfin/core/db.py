@@ -27,9 +27,7 @@ _sessionmaker: async_sessionmaker[AsyncSession] | None = None
 def get_engine() -> AsyncEngine:
     global _engine, _sessionmaker
     if _engine is None:
-        url = get_settings().DATABASE_URL
-        if not url:
-            raise RuntimeError("DATABASE_URL is not configured")
+        url = get_settings().require_database_url()
         _engine = create_async_engine(
             url,
             pool_pre_ping=True,

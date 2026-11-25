@@ -40,6 +40,10 @@ Create `api/` as a uv-managed Python 3.11 project (package `hemfin` under `api/s
 6. Client `X-Request-ID` accepted only if it matches `^[A-Za-z0-9._-]{1,64}$`, else generated; test added.
 7. Status set to In Review, met acceptance criteria ticked.
 
+### 2026-11-25 Engineer, secrets requirement (CLAUDE.md rule 7)
+- `Settings` source order is env > secret files in `SECRETS_DIR` (default `/etc/secrets`, skipped if missing) > `.env`. `DATABASE_URL` is `SecretStr | None`; asyncpg rewrite happens in a before-validator that handles SecretStr. `get_engine()`, `/health/ready` (503) and Alembic use `require_database_url()`, which raises `MissingSecretError` naming the variable only. Settings are never logged.
+- `.env.example` has placeholders and production source comments. Tests cover secrets_dir file, env override, missing dir, masking in repr/str, missing-variable error. `export_openapi.py` needs no DB env.
+
 ## Review
 
 ### Round 1 (2026-11-25)

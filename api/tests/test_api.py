@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from hemfin.core import db
-from hemfin.core.config import Settings
+from hemfin.core.config import MissingSecretError, Settings, load_settings
 
 
 def test_health(client: TestClient) -> None:
@@ -80,11 +80,50 @@ def test_openapi_title(client: TestClient) -> None:
 def test_settings_parsing() -> None:
     s = Settings(
         _env_file=None,  # type: ignore[call-arg]
-        DATABASE_URL="postgresql://u:p@h/db",
+        DATABASE_URL="postgresql://u@h/db",  # type: ignore[arg-type]
         CORS_ORIGINS="http://a.com, http://b.com",  # type: ignore[arg-type]
     )
-    assert s.DATABASE_URL == "postgresql+asyncpg://u:p@h/db"
+    assert s.DATABASE_URL is not None
+    assert s.DATABASE_URL.get_secret_value() == "postgresql+asyncpg://u@h/db"
     assert s.CORS_ORIGINS == ["http://a.com", "http://b.com"]
+
+
+MARKER = "fake-marker-value"
+
+
+def test_secret_read_from_secrets_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    (tmp_path / "DATABASE_URL").write_text(f"postgresql://u:{MARKER}@h/db\n")
+    s = load_settings(tmp_path)
+    assert s.require_database_url() == f"postgresql+asyncpg://u:{MARKER}@h/db"
+
+
+def test_env_overrides_secrets_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "DATABASE_URL").write_text("postgresql://from-file/db")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://from-env/db")
+    s = load_settings(tmp_path)
+    assert s.require_database_url().endswith("from-env/db")
+
+
+def test_missing_secrets_dir_is_skipped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    s = load_settings(tmp_path / "does-not-exist")
+    assert s.DATABASE_URL is None
+
+
+def test_secret_masked_in_repr_and_str(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DATABASE_URL", f"postgresql://u:{MARKER}@h/db")
+    s = load_settings()
+    assert MARKER not in repr(s)
+    assert MARKER not in str(s)
+    assert MARKER not in repr(s.DATABASE_URL)
+
+
+def test_missing_database_url_names_variable(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    s = Settings(_env_file=None)  # type: ignore[call-arg]
+    with pytest.raises(MissingSecretError, match="DATABASE_URL"):
+        s.require_database_url()
 
 
 @pytest.mark.db
