@@ -186,6 +186,7 @@ def test_malformed_url_never_leaks(
 def test_startup_fails_without_database_url(monkeypatch: pytest.MonkeyPatch) -> None:
     _reset(monkeypatch)
     monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.delenv("HEMFIN_TEST_MODE", raising=False)
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setenv("SECRETS_DIR", "/nonexistent-dir")
     with (
@@ -200,8 +201,32 @@ def test_startup_fails_without_database_url(monkeypatch: pytest.MonkeyPatch) -> 
 def test_startup_fails_with_malformed_url(monkeypatch: pytest.MonkeyPatch) -> None:
     _reset(monkeypatch)
     monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.delenv("HEMFIN_TEST_MODE", raising=False)
     monkeypatch.setenv("DATABASE_URL", f"postgresql+asyncpg://u:{MARKER}")
     with pytest.raises(InvalidSecretError) as ei, TestClient(create_app()):
         pass
     assert MARKER not in str(ei.value)
+    config.get_settings.cache_clear()
+
+
+@pytest.mark.parametrize("env", ["production", "staging", "Production "])
+def test_test_mode_flag_refused_outside_local_and_test(
+    monkeypatch: pytest.MonkeyPatch, env: str
+) -> None:
+    _reset(monkeypatch)
+    monkeypatch.setenv("APP_ENV", env)
+    monkeypatch.setenv("HEMFIN_TEST_MODE", "1")
+    with pytest.raises(RuntimeError, match="HEMFIN_TEST_MODE"), TestClient(create_app()):
+        pass
+    config.get_settings.cache_clear()
+
+
+def test_test_mode_flag_skips_fail_fast(monkeypatch: pytest.MonkeyPatch) -> None:
+    _reset(monkeypatch)
+    monkeypatch.setenv("APP_ENV", "local")
+    monkeypatch.setenv("HEMFIN_TEST_MODE", "1")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setenv("SECRETS_DIR", "/nonexistent-dir")
+    with TestClient(create_app()):
+        pass
     config.get_settings.cache_clear()

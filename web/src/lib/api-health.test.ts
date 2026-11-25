@@ -37,6 +37,9 @@ describe("fetchApiStatus", () => {
 
   it("is offline when the API is slower than the timeout", async () => {
     const started = Date.now();
+    // AbortSignal.timeout() timers are unref'd, so on Node 22.18 the event loop can drain
+    // before it fires. A ref'd timer keeps the loop alive for the duration of this test.
+    const keepAlive = setTimeout(() => {}, 5000);
     const status = await fetchApiStatus(
       fake(
         (opts) =>
@@ -45,7 +48,7 @@ describe("fetchApiStatus", () => {
           }),
       ),
       50,
-    );
+    ).finally(() => clearTimeout(keepAlive));
     assert.equal(status, "offline");
     assert.ok(Date.now() - started < 1500);
   });

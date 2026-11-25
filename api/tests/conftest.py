@@ -4,7 +4,7 @@ from collections.abc import Iterator
 import pytest
 from fastapi.testclient import TestClient
 
-os.environ["APP_ENV"] = "test"
+os.environ["HEMFIN_TEST_MODE"] = "1"  # test-only: skips the startup DATABASE_URL fail-fast
 
 from hemfin.main import create_app  # noqa: E402
 

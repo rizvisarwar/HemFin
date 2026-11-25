@@ -1,0 +1,11 @@
+# gitleaks config. Default rules stay on; findings fail CI.
+[extend]
+useDefault = true
+
+# Narrow allowlist only. Do not add broad path allowlists.
+# Placeholders in .env.example files (angle-bracket placeholders only).
+[[allowlists]]
+description = ".env.example placeholders"
+condition = "AND"
+paths = ['''(^|/)\.env\.example$''']
+regexes = ['''<[A-Za-z_-]+>''']
