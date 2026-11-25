@@ -6,38 +6,31 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { CHECK_EMAIL_MESSAGE, GENERIC_ERROR, mapAuthError } from "@/lib/auth/errors";
 import { isEmailValid } from "@/lib/auth/password";
-import { cooldownRemaining, LAST_SENT_KEY, PENDING_EMAIL_KEY, RESEND_COOLDOWN_SECONDS } from "@/lib/auth/pending";
+import { cooldownRemaining, parsePending, readPendingRaw, rememberPending } from "@/lib/auth/pending";
 import { Field, FormMessage } from "./form-parts";
 
-function read(key: string): string | null {
-  try {
-    return sessionStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
+const noopSubscribe = () => () => {};
 
 export function CheckEmail() {
-  // Read after mount: sessionStorage does not exist on the server.
-  const [email, setEmail] = React.useState<string | null>(null);
-  const [ready, setReady] = React.useState(false);
-  const [remaining, setRemaining] = React.useState(0);
+  // sessionStorage exists only in the browser: the server snapshot is null (shown after hydration).
+  const raw = React.useSyncExternalStore(noopSubscribe, readPendingRaw, () => null);
+  const ready = raw !== null;
+  const stored = parsePending(raw ?? "	");
+  const [override, setOverride] = React.useState<{ email: string; sentAt: number } | null>(null);
+  const email = override?.email ?? stored.email;
+  const sentAt = override?.sentAt ?? stored.sentAt;
+  // The clock starts at the send time and is advanced by the interval below (no clock read while rendering).
+  const [now, setNow] = React.useState<number | null>(null);
+  const remaining = cooldownRemaining(sentAt, now ?? sentAt ?? 0);
   const [message, setMessage] = React.useState<{ kind: "error" | "success"; text: string } | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [emailError, setEmailError] = React.useState<string>();
 
   React.useEffect(() => {
-    const last = read(LAST_SENT_KEY);
-    setEmail(read(PENDING_EMAIL_KEY));
-    setRemaining(cooldownRemaining(last ? Number(last) : null, Date.now()));
-    setReady(true);
-  }, []);
-
-  React.useEffect(() => {
-    if (remaining <= 0) return;
-    const t = setTimeout(() => setRemaining((n) => Math.max(0, n - 1)), 1000);
-    return () => clearTimeout(t);
-  }, [remaining]);
+    if (sentAt === null || remaining <= 0) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [sentAt, remaining]);
 
   async function resend(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -64,14 +57,10 @@ export function CheckEmail() {
         setMessage({ kind: "error", text: mapped.message });
       } else {
         setMessage({ kind: "success", text: CHECK_EMAIL_MESSAGE });
-        try {
-          sessionStorage.setItem(PENDING_EMAIL_KEY, target);
-          sessionStorage.setItem(LAST_SENT_KEY, String(Date.now()));
-        } catch {
-          // ignore blocked storage
-        }
-        setEmail(target);
-        setRemaining(RESEND_COOLDOWN_SECONDS);
+        rememberPending(target);
+        const sent = Date.now();
+        setOverride({ email: target, sentAt: sent });
+        setNow(sent);
       }
     } catch {
       setMessage({ kind: "error", text: GENERIC_ERROR });

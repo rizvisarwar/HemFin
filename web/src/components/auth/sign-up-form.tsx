@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { GENERIC_ERROR, mapAuthError } from "@/lib/auth/errors";
 import { isEmailValid, isPasswordValid } from "@/lib/auth/password";
 import { sanitizeNext } from "@/lib/auth/next-path";
-import { LAST_SENT_KEY, PENDING_EMAIL_KEY } from "@/lib/auth/pending";
+import { rememberPending } from "@/lib/auth/pending";
 import { Field, FormMessage, PasswordRules, useFocusFirstInvalid } from "./form-parts";
 import { GoogleButton, OrDivider } from "./google-button";
 
@@ -52,12 +52,7 @@ export function SignUpForm() {
         setBusy(false);
         return;
       }
-      try {
-        sessionStorage.setItem(PENDING_EMAIL_KEY, email);
-        sessionStorage.setItem(LAST_SENT_KEY, String(Date.now()));
-      } catch {
-        // Storage can be blocked; the check-email page then asks for the address again.
-      }
+      rememberPending(email);
       router.push("/check-email");
     } catch {
       setFormError(GENERIC_ERROR);

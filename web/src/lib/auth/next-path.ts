@@ -6,7 +6,6 @@ export const DEFAULT_NEXT = "/dashboard";
 
 const BASE = "http://hemfin.invalid";
 // Control characters (URL parsing strips tabs and newlines, which could turn "/\t/x" into "//x").
-// eslint-disable-next-line no-control-regex
 const CONTROL = /[\u0000-\u001f\u007f]/;
 // Paths that must never be a redirect target (loops, or flows that need their own entry).
 const BLOCKED_PREFIXES = ["/sign-in", "/sign-up", "/forgot-password", "/check-email", "/auth/"];
