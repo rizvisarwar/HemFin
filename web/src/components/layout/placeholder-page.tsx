@@ -29,6 +29,7 @@ export function PlaceholderPage({
       <AppPageHeader title={title} description={description} />
       <EmptyState
         icon={icon}
+        space="active"
         title={emptyTitle}
         description={emptyDescription}
         primaryAction={{ label: actionLabel, href: actionHref }}

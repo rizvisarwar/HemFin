@@ -58,3 +58,15 @@ Checks passed by reading (not run):
 Accepted deviations (per PM): `/dashboard` route, base-nova (Base UI) primitives, tablet project, plain Google button.
 
 Verdict: CHANGES_REQUESTED on findings 1 and 2. Once those are fixed, rerun `npm run lint && npm run build && npx playwright test` and check the three projects (phone, tablet, desktop) before approval.
+
+### 2026-11-25 Engineer, round 1 fixes
+- Design 0 / Code 1: `web/src/lib/*` committed (main's `.gitignore` fix merged); clean-clone `npm ci && npm run build` checked.
+- Design 1-2 / Code 4: `cn()` now uses clsx + `extendTailwindMerge` with the design-system type utilities in the font-size group; `cn` npm package removed and all `ui/*` import `@/lib/utils`. Bottom-nav label back to bold. Tests: `tests/cn.spec.ts`, and computed font-size assertions (bottom-nav label 12px, sidebar group label 14px).
+- Code 2: removed `outline-none` from bottom-nav, side-nav and space-switcher so the global focus ring applies; Playwright test checks a visible outline.
+- Code 3: `hemfin-space` cookie is `httpOnly` (only the server reads it) and `secure` in production over https (via x-forwarded-proto, so plain-http local `next start` still works in WebKit).
+- Code 5: tap-target test now covers More and the space switcher trigger.
+- Design 4: sidebar item gap removed at xl so the space note fits at 1280x800.
+- Design 5: dashboard cards no longer have buttons. Design 6: empty-state icon circles follow the active space tint (CSS via `data-space` on main).
+- Design 7: sign-in brand panel markers removed, `text-balance`/`text-pretty` on headings. Design 9: phone switcher truncates (max-w-44, ellipsis) with the full name in `title`.
+- Design 8: Playwright runs with reduced motion and `animations: "disabled"`; screenshots wait for the sheet/menu to be visible; re-shot.
+- npm audit: 4 moderate, all minimatch via shadcn > ts-morph (CLI tooling, not in the app runtime). Only fix is `--force` to shadcn@1.0.0 (breaking), so left as is.

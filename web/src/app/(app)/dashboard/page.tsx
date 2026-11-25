@@ -30,7 +30,7 @@ export default function DashboardPage() {
             icon={CalendarClock}
             title="Nothing due yet"
             description="Payments due in the next 30 days will show here."
-            primaryAction={{ label: "Add a contract", href: "/contracts" }}
+            space="active"
           />
         </HemCard>
         <HemCard>
@@ -40,7 +40,7 @@ export default function DashboardPage() {
             icon={FileText}
             title="No renewals yet"
             description="Add a contract and we will remind you before it renews."
-            primaryAction={{ label: "Add a contract", href: "/contracts" }}
+            space="active"
           />
         </HemCard>
         <HemCard>
@@ -50,7 +50,7 @@ export default function DashboardPage() {
             icon={Receipt}
             title="No expenses this month"
             description="Record one-off payments to see where the money goes."
-            primaryAction={{ label: "Add an expense", href: "/expenses" }}
+            space="active"
           />
         </HemCard>
         <HemCard>
@@ -60,7 +60,7 @@ export default function DashboardPage() {
             icon={Lightbulb}
             title="No suggestions yet"
             description="Suggestions appear once we have a few months of contracts and expenses."
-            primaryAction={{ label: "Add a contract", href: "/contracts" }}
+            space="active"
           />
         </HemCard>
       </div>

@@ -60,6 +60,7 @@ export function AppShell({
         <SideNav items={items} currentPath={currentPath} spaceNote={spaceNote} />
         <main
           id="main"
+          data-space={active.type}
           className="min-w-0 flex-1 px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-4 md:px-6 md:pb-8 md:pt-6 xl:px-8"
         >
           <div className="mx-auto w-full max-w-[1120px]">{children}</div>

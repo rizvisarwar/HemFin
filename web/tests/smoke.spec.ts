@@ -26,6 +26,7 @@ async function shot(page: Page, info: TestInfo, name: string) {
   await page.screenshot({
     path: `test-results/screenshots/${info.project.name}-${name}.png`,
     fullPage: true,
+    animations: "disabled",
   });
 }
 
@@ -60,8 +61,15 @@ test.describe("app shell", () => {
     if (info.project.name === "phone") {
       await expect(bottomNav).toBeVisible();
       await expect(sideNav).toBeHidden();
-      // Tap targets are at least 44 px.
-      for (const link of await bottomNav.getByRole("link").all()) {
+      // Tap targets are at least 44 px: bottom nav links, More, and the space switcher trigger.
+      const targets = [
+        ...(await bottomNav.getByRole("link").all()),
+        bottomNav.getByRole("button", { name: "More" }),
+        page.getByRole("button", { name: /Active space/ }),
+      ];
+      // Type scale survives cn(): caption labels are 12 px, not the 16 px body size.
+      await expect(bottomNav.getByText("Contracts", { exact: true })).toHaveCSS("font-size", "12px");
+      for (const link of targets) {
         const box = await link.boundingBox();
         expect(box?.width).toBeGreaterThanOrEqual(44);
         expect(box?.height).toBeGreaterThanOrEqual(44);
@@ -76,11 +84,26 @@ test.describe("app shell", () => {
       } else {
         expect(box?.width).toBe(256); // expanded sidebar
         await expect(sideNav.getByText("Overview")).toBeVisible();
+        await expect(sideNav.getByText("Overview")).toHaveCSS("font-size", "14px");
         await expect(sideNav.getByRole("link", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
       }
     }
     await expectNoHorizontalScroll(page);
     await shot(page, info, "dashboard");
+  });
+
+  test("keyboard focus is visible on navigation links", async ({ page }, info) => {
+    await page.goto("/dashboard");
+    const nav = page.getByTestId(info.project.name === "phone" ? "bottom-nav" : "side-nav");
+    const link = nav.getByRole("link").first();
+    await link.focus();
+    await expect(link).toBeFocused();
+    const style = await link.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { width: cs.outlineWidth, style: cs.outlineStyle, shadow: cs.boxShadow };
+    });
+    const visible = (style.style !== "none" && parseFloat(style.width) > 0) || style.shadow !== "none";
+    expect(visible).toBe(true);
   });
 
   test("every nav destination renders an empty state without horizontal scroll", async ({ page }) => {
@@ -116,6 +139,7 @@ test.describe("app shell", () => {
     await expect(header).toHaveAttribute("data-space", "personal");
 
     await page.getByRole("button", { name: /Active space: Personal/ }).click();
+    await expect(page.getByRole(info.project.name === "phone" ? "dialog" : "menu")).toBeVisible();
     await shot(page, info, "space-switcher-open");
     const phone = info.project.name === "phone";
     await page.getByRole(phone ? "radio" : "menuitemradio", { name: /Sample household/ }).click();

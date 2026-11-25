@@ -12,9 +12,9 @@ export interface EmptyStateProps {
   icon: LucideIcon;
   title: string; // at most 4 words
   description: string; // one or two sentences
-  primaryAction: EmptyStateAction;
+  primaryAction?: EmptyStateAction; // optional only for inline states inside a card whose page already has the action
   secondaryAction?: { label: string; href: string };
-  space?: SpaceType; // tints the icon circle with the space accent
+  space?: SpaceType | "active"; // "active" follows the shell's active space via CSS. Tints the icon circle with the space accent
   variant?: "page" | "inline"; // default "page"
 }
 
@@ -33,7 +33,9 @@ export function EmptyState({
       ? "bg-personal-subtle text-personal"
       : space === "household"
         ? "bg-household-subtle text-household"
-        : "bg-muted text-muted-foreground";
+        : space === "active"
+          ? "bg-personal-subtle text-personal in-data-[space=household]:bg-household-subtle in-data-[space=household]:text-household"
+          : "bg-muted text-muted-foreground";
 
   return (
     <div
@@ -57,8 +59,8 @@ export function EmptyState({
         <p className={cn("mt-2 text-body text-muted-foreground", inline && "text-small")}>
           {description}
         </p>
-        <div className={cn("mt-6 flex w-full flex-col", inline ? "items-start" : "items-center")}>
-          {primaryAction.href !== undefined ? (
+        <div className={cn(primaryAction || secondaryAction ? "mt-6 flex w-full flex-col" : "hidden", inline ? "items-start" : "items-center")}>
+          {!primaryAction ? null : primaryAction.href !== undefined ? (
             <Button
               nativeButton={false}
               render={<Link href={primaryAction.href} />}

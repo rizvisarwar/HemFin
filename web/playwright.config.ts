@@ -13,6 +13,7 @@ export default defineConfig({
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
     trace: "retain-on-failure",
+    reducedMotion: "reduce", // sheets and menus appear without animation, so screenshots are stable
   },
   projects: [
     // Phone (375 px class): WebKit through the iPhone 13 profile.

@@ -22,11 +22,11 @@ export function AuthLayout({ children, title, description, banner, brandPanel = 
         <aside className="hidden border-r border-border bg-card px-12 py-8 xl:flex xl:w-1/2 xl:flex-col">
           <Logo href="/" />
           <div className="my-auto max-w-lg">
-            <p className="text-display">Household finances, calm and in one place.</p>
+            <p className="text-display text-balance">Household finances, calm and in one place.</p>
             <p className="mt-6 text-lead text-muted-foreground">
               Personal money stays personal. Share a household with family only when you choose.
             </p>
-            <ul className="mt-6 list-disc space-y-2 pl-5 text-body">
+            <ul className="mt-6 space-y-2 text-body">
               {POINTS.map((p) => (
                 <li key={p}>{p}</li>
               ))}
@@ -43,8 +43,8 @@ export function AuthLayout({ children, title, description, banner, brandPanel = 
             {banner ? (
               <p className="mb-4 rounded-md bg-accent px-3 py-2 text-small text-accent-foreground">{banner}</p>
             ) : null}
-            <h1 className="text-h1">{title}</h1>
-            {description ? <p className="mt-2 text-lead text-muted-foreground">{description}</p> : null}
+            <h1 className="text-h1 text-balance">{title}</h1>
+            {description ? <p className="mt-2 text-lead text-pretty text-muted-foreground">{description}</p> : null}
             <div className="mt-6">{children}</div>
           </div>
         </main>

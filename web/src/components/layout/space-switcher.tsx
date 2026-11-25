@@ -54,7 +54,7 @@ function SpaceIcon({ type, className }: { type: SpaceType; className?: string })
 
 function triggerClasses(type: SpaceType) {
   return cn(
-    "inline-flex h-11 max-w-full items-center gap-2 rounded-full border border-border px-3 text-small font-medium text-foreground outline-none transition-colors duration-150 ease-out",
+    "inline-flex h-11 w-full max-w-44 items-center md:max-w-none gap-2 rounded-full border border-border px-3 text-small font-medium text-foreground transition-colors duration-150 ease-out",
     type === "personal" ? "bg-personal-subtle" : "bg-household-subtle",
   );
 }
@@ -83,10 +83,11 @@ export function SpaceSwitcher({
   return (
     <>
       {/* Phone: bottom sheet. Hidden from md up. */}
-      <div className="md:hidden">
+      <div className="min-w-0 md:hidden">
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <SheetTrigger
             aria-label={accessibleName}
+            title={active.name}
             className={triggerClasses(active.type)}
             data-testid="space-switcher-sheet-trigger"
           >
@@ -143,6 +144,7 @@ export function SpaceSwitcher({
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={accessibleName}
+            title={active.name}
             className={triggerClasses(active.type)}
             data-testid="space-switcher-menu-trigger"
           >

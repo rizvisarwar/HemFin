@@ -22,7 +22,7 @@ export interface BottomNavProps {
 }
 
 const slot =
-  "relative flex min-h-16 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-caption outline-none";
+  "relative flex min-h-16 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-caption";
 
 export function BottomNav({ items, moreItems, currentPath, notificationCount = 0 }: BottomNavProps) {
   const [moreOpen, setMoreOpen] = React.useState(false);
@@ -45,7 +45,7 @@ export function BottomNav({ items, moreItems, currentPath, notificationCount = 0
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 aria-label={count > 0 ? `${item.shortLabel ?? item.label}, ${count} unread` : undefined}
-                className={cn(slot, active ? "font-semibold text-foreground" : "text-muted-foreground")}
+                className={cn(slot, active ? "font-bold text-foreground" : "text-muted-foreground")}
               >
                 <span
                   className={cn(
@@ -72,7 +72,7 @@ export function BottomNav({ items, moreItems, currentPath, notificationCount = 0
           <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
             <SheetTrigger
               aria-current={moreActive ? "page" : undefined}
-              className={cn(slot, moreActive ? "font-semibold text-foreground" : "text-muted-foreground")}
+              className={cn(slot, moreActive ? "font-bold text-foreground" : "text-muted-foreground")}
             >
               <span
                 className={cn(

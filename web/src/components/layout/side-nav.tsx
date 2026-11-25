@@ -40,7 +40,7 @@ export function SideNav({ items, currentPath, spaceNote }: SideNavProps) {
               {idx > 0 ? (
                 <div aria-hidden="true" className="mx-4 mb-3 border-t border-border xl:hidden" />
               ) : null}
-              <ul className="flex flex-col items-center gap-1 px-3 xl:items-stretch">
+              <ul className="flex flex-col items-center gap-1 px-3 xl:items-stretch xl:gap-0">
                 {groupItems.map((item) => {
                   const active = isActivePath(currentPath, item.href);
                   const Icon = item.icon;
@@ -55,7 +55,7 @@ export function SideNav({ items, currentPath, spaceNote }: SideNavProps) {
                               aria-label={count > 0 ? `${item.label}, ${count} unread` : item.label}
                               aria-current={active ? "page" : undefined}
                               className={cn(
-                                "relative flex size-12 items-center justify-center rounded-md text-foreground outline-none transition-colors duration-150 ease-out hover:bg-accent xl:h-11 xl:w-full xl:justify-start xl:gap-3 xl:px-3",
+                                "relative flex size-12 items-center justify-center rounded-md text-foreground transition-colors duration-150 ease-out hover:bg-accent xl:h-11 xl:w-full xl:justify-start xl:gap-3 xl:px-3",
                                 active &&
                                   "bg-accent text-accent-foreground before:absolute before:inset-y-2 before:-left-3 before:w-0.5 before:rounded-full before:bg-primary xl:before:-left-3",
                               )}
