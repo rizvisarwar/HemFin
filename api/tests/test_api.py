@@ -1,11 +1,13 @@
+import logging
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
-from hemfin.core import db
-from hemfin.core.config import MissingSecretError, Settings, load_settings
+from hemfin.core import config, db
+from hemfin.core.config import InvalidSecretError, MissingSecretError, Settings, load_settings
+from hemfin.main import create_app
 
 
 def test_health(client: TestClient) -> None:
@@ -153,3 +155,53 @@ def test_migration_roundtrip() -> None:
     command.upgrade(cfg, "head")
     command.downgrade(cfg, "base")
     command.upgrade(cfg, "head")
+
+
+def _reset(monkeypatch: pytest.MonkeyPatch) -> None:
+    config.get_settings.cache_clear()
+    monkeypatch.setattr(db, "_engine", None)
+    monkeypatch.setattr(db, "_sessionmaker", None)
+
+
+def test_malformed_url_never_leaks(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    _reset(monkeypatch)
+    monkeypatch.setenv("DATABASE_URL", f"postgresql+asyncpg://u:{MARKER}")
+    with caplog.at_level(logging.DEBUG):
+        r = client.get("/health/ready")
+    assert r.status_code == 503
+    assert MARKER not in r.text
+    assert MARKER not in caplog.text
+    for rec in caplog.records:
+        assert MARKER not in rec.getMessage()
+    with pytest.raises(InvalidSecretError) as ei:
+        db.parse_database_url(f"postgresql+asyncpg://u:{MARKER}")
+    assert MARKER not in str(ei.value)
+    assert ei.value.__cause__ is None
+    assert ei.value.__context__ is None
+    config.get_settings.cache_clear()
+
+
+def test_startup_fails_without_database_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    _reset(monkeypatch)
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setenv("SECRETS_DIR", "/nonexistent-dir")
+    with (
+        pytest.raises(MissingSecretError, match="DATABASE_URL") as ei,
+        TestClient(create_app()),
+    ):
+        pass
+    assert "postgres" not in str(ei.value)
+    config.get_settings.cache_clear()
+
+
+def test_startup_fails_with_malformed_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    _reset(monkeypatch)
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("DATABASE_URL", f"postgresql+asyncpg://u:{MARKER}")
+    with pytest.raises(InvalidSecretError) as ei, TestClient(create_app()):
+        pass
+    assert MARKER not in str(ei.value)
+    config.get_settings.cache_clear()

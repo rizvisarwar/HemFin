@@ -3,16 +3,17 @@ import asyncio
 from alembic import context
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import create_async_engine
 
 from hemfin.core.config import get_settings
-from hemfin.core.db import APP_SCHEMA, Base
+from hemfin.core.db import APP_SCHEMA, Base, build_engine, parse_database_url
 
 target_metadata = Base.metadata
 
 
 def _url() -> str:
-    return get_settings().require_database_url()
+    raw = get_settings().require_database_url()
+    parse_database_url(raw)  # fixed-text error if malformed
+    return raw
 
 
 def run_migrations_offline() -> None:
@@ -42,9 +43,7 @@ def _run(connection: Connection) -> None:
 
 
 async def run_migrations_online() -> None:
-    engine = create_async_engine(
-        _url(), connect_args={"statement_cache_size": 0, "prepared_statement_cache_size": 0}
-    )
+    engine = build_engine(_url())
     async with engine.connect() as conn:
         await conn.run_sync(_run)
         await conn.commit()

@@ -18,6 +18,10 @@ class MissingSecretError(RuntimeError):
     """A required secret is not configured. The message names the variable, never a value."""
 
 
+class InvalidSecretError(RuntimeError):
+    """A secret is configured but unusable. Fixed message only, never the value."""
+
+
 class Settings(BaseSettings):
     """App config. Source priority: env vars > secret files in SECRETS_DIR > .env.
 

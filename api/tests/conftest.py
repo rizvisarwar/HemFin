@@ -4,7 +4,9 @@ from collections.abc import Iterator
 import pytest
 from fastapi.testclient import TestClient
 
-from hemfin.main import create_app
+os.environ["APP_ENV"] = "test"
+
+from hemfin.main import create_app  # noqa: E402
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:

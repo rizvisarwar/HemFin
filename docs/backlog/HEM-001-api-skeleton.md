@@ -44,6 +44,12 @@ Create `api/` as a uv-managed Python 3.11 project (package `hemfin` under `api/s
 - `Settings` source order is env > secret files in `SECRETS_DIR` (default `/etc/secrets`, skipped if missing) > `.env`. `DATABASE_URL` is `SecretStr | None`; asyncpg rewrite happens in a before-validator that handles SecretStr. `get_engine()`, `/health/ready` (503) and Alembic use `require_database_url()`, which raises `MissingSecretError` naming the variable only. Settings are never logged.
 - `.env.example` has placeholders and production source comments. Tests cover secrets_dir file, env override, missing dir, masking in repr/str, missing-variable error. `export_openapi.py` needs no DB env.
 
+### 2026-11-25 Engineer, review round 2 fixes
+- A: `db.parse_database_url`/`build_engine` replace any parser or engine error with fixed-text `InvalidSecretError` raised outside the except block (no cause/context). Used by `get_engine()` and `alembic/env.py`. Test checks the response, captured logs and exception cause/context for the marker.
+- B: lifespan calls `require_database_url()` and validates the URL unless `APP_ENV == "test"`; conftest sets `APP_ENV=test`. Tests: startup fails without DATABASE_URL (names variable) and with a malformed URL. `export_openapi.py` does not run the lifespan and still works with no DB env.
+- C: `SECRETS_DIR=` removed from `.env.example`, replaced by a comment that it must be a real env var.
+- D, E: no action. db-marked tests run in CI (HEM-006), not a merge blocker.
+
 ## Review
 
 ### Round 1 (2026-11-25)

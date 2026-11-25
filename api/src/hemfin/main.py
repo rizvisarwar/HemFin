@@ -22,6 +22,9 @@ log = logging.getLogger("hemfin.health")
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    # Fail fast at startup if the DB secret is missing or malformed (names the variable only).
+    if get_settings().APP_ENV != "test":
+        db.parse_database_url(get_settings().require_database_url())
     yield
     await db.dispose_engine()
 
