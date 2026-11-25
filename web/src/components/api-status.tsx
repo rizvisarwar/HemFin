@@ -1,3 +1,5 @@
+import { createApiClient } from "@hemfin/api-client";
+import { fetchApiStatus } from "@/lib/api-health";
 import { API_URL } from "@/lib/env";
 import { cn } from "@/lib/utils";
 
@@ -23,15 +25,6 @@ export function ApiStatusBadge({ status }: { status: Status }) {
 
 /** Server component. Never throws: an unreachable API just shows "offline". */
 export async function ApiStatus() {
-  let status: Status = "offline";
-  try {
-    const res = await fetch(`${API_URL}/health`, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(2000),
-    });
-    status = res.ok ? "online" : "offline";
-  } catch {
-    status = "offline";
-  }
+  const status = await fetchApiStatus(createApiClient(API_URL));
   return <ApiStatusBadge status={status} />;
 }

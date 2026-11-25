@@ -92,18 +92,39 @@ test.describe("app shell", () => {
     await shot(page, info, "dashboard");
   });
 
-  test("keyboard focus is visible on navigation links", async ({ page }, info) => {
+  test("keyboard focus is visible on navigation controls", async ({ page }, info) => {
     await page.goto("/dashboard");
-    const nav = page.getByTestId(info.project.name === "phone" ? "bottom-nav" : "side-nav");
-    const link = nav.getByRole("link").first();
+    // WebKit (the phone project) does not Tab to plain links, so there we check the space switcher button.
+    const link =
+      info.project.name === "phone"
+        ? page.getByRole("button", { name: /Active space/ })
+        : page.getByTestId("side-nav").getByRole("link").first();
+    // Tab from the top of the page until the target has focus, as a keyboard user would.
+    for (let i = 0; i < 30 && !(await link.evaluate((el) => el === document.activeElement)); i++) {
+      await page.keyboard.press("Tab");
+    }
+    await expect(link).toBeFocused();
+    const style = await link.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { width: parseFloat(cs.outlineWidth), style: cs.outlineStyle };
+    });
+    expect(style.style).not.toBe("none");
+    expect(style.width).toBeGreaterThan(0);
+  });
+
+  test("bottom-nav links show a focus outline when focused programmatically (phone)", async ({ page }, info) => {
+    test.skip(info.project.name !== "phone", "bottom nav is phone-only");
+    await page.goto("/dashboard");
+    await page.keyboard.press("Tab"); // put the page in keyboard-modality so :focus-visible applies
+    const link = page.getByTestId("bottom-nav").getByRole("link").first();
     await link.focus();
     await expect(link).toBeFocused();
     const style = await link.evaluate((el) => {
       const cs = getComputedStyle(el);
-      return { width: cs.outlineWidth, style: cs.outlineStyle, shadow: cs.boxShadow };
+      return { width: parseFloat(cs.outlineWidth), style: cs.outlineStyle };
     });
-    const visible = (style.style !== "none" && parseFloat(style.width) > 0) || style.shadow !== "none";
-    expect(visible).toBe(true);
+    expect(style.style).not.toBe("none");
+    expect(style.width).toBeGreaterThan(0);
   });
 
   test("every nav destination renders an empty state without horizontal scroll", async ({ page }) => {
