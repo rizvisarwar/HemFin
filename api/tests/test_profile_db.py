@@ -45,10 +45,10 @@ async def test_profile_defaults_and_patch(aclient: httpx.AsyncClient, key: TestK
 
 async def test_invalid_phone_is_422(aclient: httpx.AsyncClient, key: TestKey) -> None:
     r = await aclient.patch(
-        "/api/v1/me/profile", headers=_h(key, uuid4()), json={"phone_e164": "12345"}
+        "/api/v1/me/profile", headers=_h(key, uuid4()), json={"phone_e164": "+987 6543 21"}
     )
     assert r.status_code == 422
-    assert "12345" not in r.text
+    assert "6543" not in r.text
     assert r.headers["content-type"].startswith("application/problem+json")
 
 

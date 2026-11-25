@@ -10,7 +10,7 @@ def test_phone_normalised_to_e164() -> None:
     assert ProfilePatch(phone_e164="+1 (415) 555-2671").phone_e164 == "+14155552671"
 
 
-@pytest.mark.parametrize("bad", ["0612345678", "+31", "+999999999999", "abc", "+1 123", ""])
+@pytest.mark.parametrize("bad", ["0698765432", "+31", "+999999999999", "abc", "+1 123", ""])
 def test_phone_invalid(bad: str) -> None:
     with pytest.raises(ValidationError) as exc:
         ProfilePatch(phone_e164=bad)
