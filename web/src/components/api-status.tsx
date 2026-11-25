@@ -1,4 +1,5 @@
 import { createApiClient } from "@hemfin/api-client";
+import { connection } from "next/server";
 import { fetchApiStatus } from "@/lib/api-health";
 import { API_URL } from "@/lib/env";
 import { cn } from "@/lib/utils";
@@ -23,8 +24,13 @@ export function ApiStatusBadge({ status }: { status: Status }) {
   );
 }
 
-/** Server component. Never throws: an unreachable API just shows "offline". */
+/**
+ * Server component. Never throws: an unreachable API just shows "offline".
+ * With cacheComponents, the health check (AbortSignal.timeout reads the clock) is request-time
+ * work, so it must come after `await connection()`. The caller wraps this in <Suspense>.
+ */
 export async function ApiStatus() {
+  await connection();
   const status = await fetchApiStatus(createApiClient(API_URL));
   return <ApiStatusBadge status={status} />;
 }

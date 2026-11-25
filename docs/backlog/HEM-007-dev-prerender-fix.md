@@ -16,3 +16,10 @@
 ## Handoff log
 
 ## Review
+
+### 2026-11-25 Engineer
+- Cause: `ApiStatus` called `fetchApiStatus`, whose `AbortSignal.timeout()` reads the clock during prerender. With `cacheComponents: true` that is flagged unless request-time work follows a dynamic API.
+- Fix: `await connection()` (from `next/server`) at the top of `ApiStatus` (`web/src/components/api-status.tsx`). It is already inside `<Suspense>` on the landing page. No other server component uses `Date.now`, `AbortSignal.timeout`, `Math.random` or `fetch`, so nothing else needed changing.
+- Regression check: `web/playwright.dev.config.ts` + `web/tests-dev/` start `next dev` (log teed to `test-results/dev-server.log`), load `/` and `/dashboard`, and fail on the error overlay or on error lines in the server log. Verified it fails without the fix. New CI step "Playwright (next dev regression)" in the web job.
+- Verify: `cd web && npx playwright test -c playwright.dev.config.ts`, or `npm run dev` and open `/`.
+- Note: Next docs also describe `io()` (from `next/cache`) as the preferred option under Cache Components; the ticket specifies `connection()`, which is used. Possible follow-up.
