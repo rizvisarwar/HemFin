@@ -73,6 +73,13 @@ async def get_session() -> AsyncIterator[AsyncSession]:
         yield session
 
 
+def get_session_ctx() -> AsyncSession:
+    """A session usable as `async with get_session_ctx() as s` (services, scripts, tests)."""
+    get_engine()
+    assert _sessionmaker is not None
+    return _sessionmaker()
+
+
 async def dispose_engine() -> None:
     global _engine, _sessionmaker
     if _engine is not None:
