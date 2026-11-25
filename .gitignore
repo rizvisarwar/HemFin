@@ -221,3 +221,25 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- HemFin additions ---
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+.env.local
+.env.*.local
+playwright-report/
+test-results/
+web/blob-report/
+# .NET (Aspire AppHost)
+[Bb]in/
+[Oo]bj/
+*.user
+.vs/
+# Supabase CLI
+supabase/.temp/
+supabase/.branches/
+# Claude Code local settings
+.claude/settings.local.json
