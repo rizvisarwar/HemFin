@@ -40,3 +40,64 @@ Notes and limitations:
 - Follow-ups: build `/internal/jobs/*` endpoints and the `JOB_SECRET` check; Playwright's webServer builds web again after the lint/build step (about 30 s extra; kept because the build step doubles as a standalone check).
 
 ## Review
+
+### 2026-11-25 Reviewer: Round 1
+
+**CHANGES_REQUESTED** (2 blocking findings)
+
+**Evidence.** CI on PR #6 is green: api, docker, web, gitleaks (run 45696511902). The api log shows 29 passed and 0 skipped, including `test_ready_ok_with_db`, `test_app_schema_exists` and `test_migration_roundtrip`. The docker log shows `/health/ready` returned `{"status":"ready"}`. Locally, ruff, ruff format, mypy, the api pytest run (26 passed, 3 db tests skipped because there is no Postgres on this host, and CI covers them), `npm ci`, the workspace tests and `npm run check:api-drift` all pass.
+
+**Secrets (rule 7).** Checked and passing:
+- No `pull_request_target` anywhere. `ci.yml` uses only `pull_request` and `push` and references no secrets. `jobs-cron.yml` has no PR trigger. Fork PRs get no secrets.
+- Both workflows set top-level `permissions: contents: read`.
+- `JOB_SECRET` reaches the call only through env and the `X-Job-Secret` header (`jobs-cron.yml:36`, `:70`). It is not in the URL, there is no `set -x`, and no value is echoed.
+- The no-op path is correct: with `API_BASE_URL` or `JOB_SECRET` unset, the call step is skipped and a notice names the variables only (`jobs-cron.yml:56-61`, `:63`). I simulated the shell logic locally.
+- No `NEXT_PUBLIC_` secrets were added. Changed files contain no real credentials, apart from the CI password in finding 1.
+- Gitleaks binary: the SHA-256 `551f6fc8...470eb` matches the upstream `gitleaks_8.30.1_checksums.txt`. The CI scan covered 44 commits with no leaks.
+
+**Findings**
+
+1. **blocking**: `.github/workflows/ci.yml:33`, `:43`, `:73`, `:99`. The Postgres password `ci-only-throwaway-pg-password` is written literally into the workflow file four times. CLAUDE.md rule 7 says secrets are never written in workflow files, with no defaults "not even for dev". The gitleaks allowlist (`.gitleaks.toml:7-12`) makes the scan pass, but it does not change the rule, and `docs/deploy.md:120` calls this a deliberate exception. Fix: stop storing the value in the file. Start the throwaway Postgres in a step with `POSTGRES_PASSWORD="$(openssl rand -hex 16)"`, run `echo "::add-mask::$PW"`, write `DATABASE_URL` to `$GITHUB_ENV`, and wait with `pg_isready`. Then remove the allowlist entry and the doc exception. If the team wants to keep the exception, the PM must record it in CLAUDE.md first. The reviewer cannot waive a rule.
+
+2. **blocking**: `docs/deploy.md:123` and `:185`. The required status checks are listed as `api`, `docker`, `web`, `gitleaks`. GitHub reports the job `name:` values, which are the names shown by `gh pr checks 6`: "api (ruff, mypy, pytest + postgres)", "docker (build + smoke run)", "web (tests, drift, lint, build, playwright)", "gitleaks (secret scan)". Following the doc as written would require checks that never report, so no PR could merge. Fix: either give the jobs short `name:` values (for example `name: api`) and keep the doc, or list the exact names. Confirm in the branch-protection picker after the first run.
+
+3. **nit**: `.github/workflows/jobs-cron.yml:69-70`. `--retry-all-errors` retries the POST on every failure, including 404 and 500. Once `/internal/jobs/*` exists, a 500 after a partly completed job would run it again. Fix: drop `--retry-all-errors` and keep the retries for cold-start failures (timeouts, connection errors, 502-504). Make the endpoints idempotent when they land.
+
+4. **nit**: `.github/workflows/jobs-cron.yml:27` and `:45`. The concurrency group for scheduled runs is keyed on the cron string and the manual group on the job name, so a manual `daily` can overlap a scheduled `daily`. The weekly match on the literal `"30 6 * * 1"` falls back to daily silently if the cron string changes. Fix: key the group on the resolved job name from the `job` step output, and fail loudly on an unknown schedule.
+
+5. **nit**: pinning. Every third-party action is pinned to a tag, not a SHA: `ci.yml:48, 49, 82, 83, 85, 118, 119, 125, 135, 146, 163`. Images float too: `postgres:16` (`ci.yml:26`, `:67`), `python:3.11-slim` (`api/Dockerfile:1`), `node:22-bookworm-slim` (`docker-compose.yml`, web service). Fix: pin actions to full commit SHAs with a `# vX` comment, add a Dependabot `github-actions` config, and pin images by digest later. The SHAs for the tags in use are visible in the CI log.
+
+6. **nit**: `api/src/hemfin/main.py:27` and `api/src/hemfin/core/config.py:42`. The refusal only checks `APP_ENV == "production"`. The ticket says the flag is never set in deployments, so any other deployed environment (for example `APP_ENV=staging`) would skip the DB fail-fast. Fix: allow the flag only when `APP_ENV` is in `{"local", "test"}`, normalize the value, and add a test for `staging`.
+
+7. **nit**: `docs/deploy.md:60` (`https://hemfin.vercel.app`) and `:82` (`https://hemfin-api.onrender.com`). These look like live domains, and the brief says no real values anywhere. Use `https://<your-app>.vercel.app` and `https://<service>.onrender.com`.
+
+8. **nit**: `docs/deploy.md:66`, `:91`, `:99`. The Render 15-minute sleep, the Resend free-tier limits and the UptimeRobot 5-minute minimum are stated as fact without the UNVERIFIED tag that line 103 uses. Add the tag or a "check current pricing" note.
+
+9. **nit**: `docker-compose.yml` web service (lines 49-76). The change is not validated by any CI step, and the author could not run Docker. The README's `docker compose config` check is manual only. Consider a CI step for `docker compose config -q` (with a non-secret placeholder). The root-workspace layout itself is sound: root `node_modules` and `web/node_modules` are named volumes, so host installs do not clash.
+
+**Acceptance criteria (reviewer status)**
+- [x] `ci.yml` api, web, drift and cache: met (see 1 and 5).
+- [x] `jobs-cron.yml`: met. Not run on GitHub yet, as the ticket notes.
+- [x] Gitleaks job and config: met. Allowlist is narrow. Pre-commit hook present. Depends on the fix in 1.
+- [x] HEM-001 carry-overs: met. The db tests run in CI, the docker build and smoke run pass, `APP_ENV=production` is set. The HEMFIN_TEST_MODE tests exist; see 6.
+- [x] HEM-004/005 carry-overs: met. `.nvmrc` 22.18.0 and `engines >=22.18`, CI uses `.nvmrc`, web job runs root `npm ci`, tests and drift. No `web/Dockerfile`, compose uses root workspaces; see 9.
+- [x] `render.yaml`: met. Keys only, `sync: false` on secrets, `APP_ENV=production`, `/health`, free plan. Not validated against Render (disclosed).
+- [x] Vercel: met. No `vercel.json`; root directory `web` is documented.
+- [ ] `docs/deploy.md`: not met until 2 is fixed. Sections are complete and the UNVERIFIED marking is mostly right. See 7 and 8.
+
+**Commands run (Windows, Git Bash)**
+- `git fetch origin && git checkout -B review-hem-006 origin/hem-006-ci-deploy`: ok.
+- `gh pr checks 6 -R rizvisarwar/HemFin`: all four checks pass.
+- `gh run view 45696511902 -R rizvisarwar/HemFin --job <id> --log`: api and docker logs as above, gitleaks "no leaks found", web Playwright 25 passed and 2 skipped. The ticket cites run 45696029191. It is also green, and the current head run is 45696511902.
+- `py -m uv sync`: ok.
+- `py -m uv run ruff check .`: All checks passed.
+- `py -m uv run ruff format --check .`: 14 files already formatted.
+- `py -m uv run mypy src`: no issues in 9 source files.
+- `py -m uv run pytest -v -rs`: 26 passed, 3 skipped (the db tests, no DATABASE_URL on this host).
+- `npm ci`: ok. npm reports 4 moderate audit findings. The lockfile is not changed by this PR.
+- `npm test --workspaces --if-present`: web 5/5 pass, api-client 5/5 pass.
+- `npm run check:api-drift`: "API client is up to date."
+- Gitleaks download: checksum matches upstream. The Linux binary cannot run on this Windows host, so no local scan; the CI scan is the evidence.
+- Cron config simulation (unset secret, unset URL, weekly schedule, manual weekly): the job name and no-op behaviour are correct.
+- YAML parse of `ci.yml`, `jobs-cron.yml`, `render.yaml`, `docker-compose.yml`, `.pre-commit-config.yaml`: ok.
+- Not run: `docker compose config` (no Docker daemon), Render Blueprint validation (no account), `npm run lint` and `npm run build` (covered by CI).
