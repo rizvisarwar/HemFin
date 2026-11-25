@@ -16,18 +16,21 @@ function exportOpenApi() {
     ["python3", ["-m", "uv", ...script]],
     ["python", ["-m", "uv", ...script]],
   ];
+  const tried = [];
   for (const [cmd, args] of candidates) {
     const res = spawnSync(cmd, args, { cwd: resolve(root, "api"), stdio: "inherit" });
-    if (res.error) continue; // command not found, try the next one
-    if (res.status === 0) return;
-    throw new Error(`${cmd} ${args.join(" ")} failed with exit code ${res.status}`);
+    if (!res.error && res.status === 0) return;
+    // Spawn error (not installed) or non-zero exit: try the next candidate.
+    tried.push(`${cmd} ${args.join(" ")} (${res.error ? res.error.message : `exit code ${res.status}`})`);
   }
-  throw new Error("Could not run uv (tried: uv, py -m uv, python3 -m uv, python -m uv).");
+  throw new Error(`Could not export the OpenAPI spec. Tried:\n  ${tried.join("\n  ")}`);
 }
 
 function git(args) {
   const res = spawnSync("git", args, { cwd: root, encoding: "utf8" });
-  if (res.error || res.status !== 0) throw new Error(`git ${args.join(" ")} failed`);
+  if (res.error || res.status !== 0) {
+    throw new Error(`git ${args.join(" ")} failed: ${res.error ? res.error.message : res.stderr}`);
+  }
   return res.stdout;
 }
 

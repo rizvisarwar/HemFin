@@ -112,6 +112,21 @@ test.describe("app shell", () => {
     expect(style.width).toBeGreaterThan(0);
   });
 
+  test("bottom-nav links show a focus outline when focused programmatically (phone)", async ({ page }, info) => {
+    test.skip(info.project.name !== "phone", "bottom nav is phone-only");
+    await page.goto("/dashboard");
+    await page.keyboard.press("Tab"); // put the page in keyboard-modality so :focus-visible applies
+    const link = page.getByTestId("bottom-nav").getByRole("link").first();
+    await link.focus();
+    await expect(link).toBeFocused();
+    const style = await link.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { width: parseFloat(cs.outlineWidth), style: cs.outlineStyle };
+    });
+    expect(style.style).not.toBe("none");
+    expect(style.width).toBeGreaterThan(0);
+  });
+
   test("every nav destination renders an empty state without horizontal scroll", async ({ page }) => {
     for (const route of APP_ROUTES) {
       await page.goto(route.path);
