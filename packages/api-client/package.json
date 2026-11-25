@@ -15,7 +15,7 @@
     "openapi-fetch": "0.14.0"
   },
   "devDependencies": {
-    "openapi-typescript": "7.9.1",
+    "openapi-typescript": "7.13.0",
     "typescript": "^5"
   }
 }
