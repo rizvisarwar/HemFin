@@ -70,3 +70,35 @@ Verdict: CHANGES_REQUESTED on findings 1 and 2. Once those are fixed, rerun `npm
 - Design 7: sign-in brand panel markers removed, `text-balance`/`text-pretty` on headings. Design 9: phone switcher truncates (max-w-44, ellipsis) with the full name in `title`.
 - Design 8: Playwright runs with reduced motion and `animations: "disabled"`; screenshots wait for the sheet/menu to be visible; re-shot.
 - npm audit: 4 moderate, all minimatch via shadcn > ts-morph (CLI tooling, not in the app runtime). Only fix is `--force` to shadcn@1.0.0 (breaking), so left as is.
+
+### Round 2 (2026-11-25)
+
+**APPROVED**
+
+Checks run on PR #3 (branch `hem-003-web-shell`, head c8972d7), from `web/`:
+- `npm ci`: PASS (539 packages). 4 moderate audit advisories, accepted (see below).
+- `npm run lint`: PASS (no errors reported).
+- `npm run build`: PASS. Compiled, TypeScript finished, 16 static and partial routes generated.
+- `npx playwright test`: PASS, 24 passed (8 workers) across the phone (iPhone 13, WebKit), tablet (768) and desktop (1280) projects. The `cn` unit test, the smoke tests and the focus test all pass.
+
+Round 1 status:
+1. Build fails on a clean checkout: fixed. The root `.gitignore` Python rules are scoped to `/api/`, and `web/src/lib/*` is now tracked. `npm run build` passes.
+2. Keyboard focus not visible: fixed. `outline-none` is gone from `bottom-nav.tsx`, `side-nav.tsx` and `space-switcher.tsx`. The new test `keyboard focus is visible on navigation links` passes on all three projects.
+3. Cookie attributes: fixed. `actions.ts:15-21` sets `httpOnly: true`, `sameSite: "lax"`, `path: "/"`, a one-year `maxAge`, and `secure` as described below.
+4. `cn` npm import in `sheet.tsx`: fixed. `sheet.tsx:5` imports `@/lib/utils`, and the `cn` npm package is removed from `package.json`. No `from "cn"` remains in `src/`.
+5. Tap-target test only covered bottom-nav links: fixed. The test now also checks the More button and the space switcher trigger (`smoke.spec.ts:64-76`).
+
+Specific points:
+- `extendTailwindMerge` (`web/src/lib/utils.ts`): the 11 extended `text-*` names (display, h1, h2, h3, lead, body, body-strong, small, caption, money-lg, money) match exactly the `@utility text-*` definitions in `globals.css`. `tests/cn.spec.ts` covers both retained colour classes and real conflict merging.
+- `cn` npm package: removed from `package.json`. The only remaining `shadcn` entry is the CLI, see nit 2.
+- Cookie `secure` logic (`actions.ts:13-20`): `secure` is `NODE_ENV === "production" && x-forwarded-proto === "https"`. The header is client-controlled, but it only affects the Secure attribute on the cookie sent back to that same client. A client that spoofs `https` gets a Secure cookie that it will not send over plain HTTP, which only hurts itself. Spoofing `http` cannot make the cookie less secure, since the default is non-Secure. The value is a space id checked against `PLACEHOLDER_SPACES` by `resolveSpaceId`, so the header cannot inject anything into the cookie. Risk: negligible for a preference cookie. Not blocking.
+- Accepted: the 4 moderate advisories are minimatch via `@ts-morph/common` and `ts-morph`, pulled in by `shadcn` (CLI only). Confirmed with `npm audit --json`.
+
+Findings (none blocking):
+1. **nit**: `web/tests/smoke.spec.ts:95-107`. The focus test calls `.focus()` in script, not Tab, so it does not prove `:focus-visible` matches for a keyboard user. The assertion also passes if `boxShadow` is set for any reason. Use `page.keyboard.press("Tab")` and assert a non-`none` outline.
+2. **nit**: `web/package.json:21`. `shadcn` is listed under `dependencies`, but it is a CLI and belongs in `devDependencies`. This does not affect the audit result.
+3. **nit**: the smoke tests check the cookie value but not its attributes. A small assertion on `httpOnly`, `sameSite` and `path` would lock them in.
+
+Verdict: APPROVED. No blocking findings. The nits can be handled in a follow-up.
+
+Screenshots from this run (absolute paths): `D:\Development\GitHub\HemFin\HemFin\.claude\worktrees\agent-a13cf807448465c02\web\test-results\screenshots\` (16 files: `{phone,tablet,desktop}-{landing,sign-in,dashboard,space-switcher-open,household-space}.png`, plus `phone-more-sheet.png`).
