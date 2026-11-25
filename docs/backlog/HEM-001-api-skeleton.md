@@ -22,4 +22,13 @@ Create `api/` as a uv-managed Python 3.11 project (package `hemfin` under `api/s
 
 ## Handoff log
 
+### 2026-11-25 Engineer
+- Built `api/` skeleton: `src/hemfin/{main.py, core/{config,logging,errors,db}.py, modules/}`, Alembic (async, baseline `0001` creates schema `app`, `version_table_schema='app'`), `scripts/export_openapi.py` (committed `openapi.json`), tests, Dockerfile and `docker-entrypoint.sh` (LF, enforced by `.gitattributes`).
+- Tooling: `uv` was not installed; used `py -m pip install --user uv` and run it as `py -m uv ...` (uv 0.13.10). On a machine with uv on PATH use `uv ...`.
+- Verify: `cd api && py -m uv sync && py -m uv run ruff check . && py -m uv run ruff format --check . && py -m uv run mypy src && py -m uv run pytest`. Result: 8 passed, 2 skipped (db-marked, no DATABASE_URL).
+- Alembic checked only offline (`alembic upgrade head --sql` shows `CREATE SCHEMA IF NOT EXISTS app` and `app.alembic_version`); no Postgres available locally.
+- Not verified: the Dockerfile was NOT built (Docker daemon unavailable). Please build it in CI or locally.
+- `/health/ready` and the two `@pytest.mark.db` tests were not run against a real DB.
+- Follow-ups: CI workflow to run the checks and Docker build; `render.yaml`; ensure the Supabase pooler URL works with `statement_cache_size=0` against a real instance.
+
 ## Review
