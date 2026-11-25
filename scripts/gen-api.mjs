@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Regenerates api/openapi.json (via uv, no DB needed) and the TypeScript types in
-// packages/api-client. With --check, fails if that leaves any diff (used by CI).
+// packages/api-client. With --check, fails if that leaves any diff. CI runs it as
+// `npm run check:api-drift`, which is exactly `node scripts/gen-api.mjs --check`.
 import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
