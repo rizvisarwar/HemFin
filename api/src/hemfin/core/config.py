@@ -33,9 +33,14 @@ class Settings(BaseSettings):
     # Secrets. Optional at load time so non-DB code and tests run without a database;
     # `require_database_url()` fails loudly when the DB is actually used.
     DATABASE_URL: SecretStr | None = None
+    # Local/test only: HS256 secret of the local Supabase CLI stack (see core/security.py).
+    # Ignored (HS256 stays off) unless APP_ENV is local or test.
+    SUPABASE_JWT_SECRET: SecretStr | None = None
 
     # Non-secret settings
-    APP_ENV: str = "local"
+    # Defaults to production so nothing local-only (HS256 tokens, test mode) is on unless the
+    # environment says so explicitly. Local dev sets APP_ENV=local (api/.env.example).
+    APP_ENV: str = "production"
     # Test-only switch: skips the startup fail-fast on DATABASE_URL. Set by tests/conftest.py
     # only. Never set it in a deployment; the app refuses to start if it is set while
     # APP_ENV is anything other than local or test.
@@ -44,6 +49,10 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     SUPABASE_URL: str = ""
     SUPABASE_JWT_AUDIENCE: str = "authenticated"
+    # How long fetched signing keys are trusted, and the minimum gap between forced refetches
+    # (triggered by an unknown `kid`, so a flood of bad tokens cannot hammer Supabase).
+    SUPABASE_JWKS_TTL_SECONDS: int = 600
+    SUPABASE_JWKS_MIN_REFETCH_SECONDS: int = 30
 
     @classmethod
     def settings_customise_sources(
