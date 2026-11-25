@@ -1,3 +1,5 @@
-# False positive: `key = self._hs256_secret` (a local variable assigned from the configured HS256 secret, not a literal) in the first
+# False positive: a local variable assigned from the configured HS256 secret (not a literal) in the first
 # HEM-008 commit. The variable was renamed in the next commit. Exact fingerprint only.
 762b545e56bbb17f814d5a27b0cf2d49eb69a6cf:api/src/hemfin/core/security.py:generic-api-key:156
+5fe6130f8a86eef468c40a0ed93670fb06a06d47:docs/backlog/HEM-008-api-auth-spaces.md:generic-api-key:36
+5fe6130f8a86eef468c40a0ed93670fb06a06d47:.gitleaksignore:generic-api-key:1

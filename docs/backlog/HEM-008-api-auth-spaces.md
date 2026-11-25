@@ -33,7 +33,7 @@ The API verifies Supabase access tokens, creates the user and their personal spa
 1. Blocking, JWKS outage refetch: `_fetched_at` is now set before the fetch, so failed attempts are rate limited too. With an empty cache the API keeps answering 503 during the cooldown without calling the fetcher. Test: two lookups in the cooldown call the fetcher once, then once more after it.
 2. `jwt.decode` now gets a fixed allow-list (`ES256`/`RS256` for JWKS, `["HS256"]` for HS256), not the header alg.
 3. The JWK's declared `alg` is stored next to the `PyJWK` when the cache is built; no more `_jwk_data`. Test for `alg_mismatch`.
-4. `.gitleaksignore` comment corrected (flagged line was `key = self._hs256_secret`); fingerprint unchanged.
+4. `.gitleaksignore` comment corrected (flagged line was the assignment of the configured HS256 secret to a local variable); fingerprint unchanged.
 5. `APP_ENV` now defaults to `production`. `.env.example`, Aspire, docker-compose and CI set `local` explicitly; `tests/conftest.py` sets `test`. Test: unset `APP_ENV` plus a secret leaves HS256 off. README and `.env.example` updated.
 6. Comment added explaining the single-flight fetch under the lock.
 
