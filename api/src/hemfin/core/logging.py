@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import sys
 import uuid
 from contextvars import ContextVar
@@ -10,6 +11,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 request_id_var: ContextVar[str | None] = ContextVar("request_id", default=None)
 REQUEST_ID_HEADER = "X-Request-ID"
+_VALID_REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 _STD_ATTRS = set(logging.makeLogRecord({}).__dict__) | {"message", "asctime"}
 
 
@@ -54,7 +56,8 @@ class RequestIdMiddleware:
             await self.app(scope, receive, send)
             return
         incoming = dict(scope["headers"]).get(REQUEST_ID_HEADER.lower().encode())
-        rid = incoming.decode()[:128] if incoming else uuid.uuid4().hex
+        candidate = incoming.decode("latin-1") if incoming else ""
+        rid = candidate if _VALID_REQUEST_ID.fullmatch(candidate) else uuid.uuid4().hex
         token = request_id_var.set(rid)
         status = 500
 

@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -8,8 +9,15 @@ from sqlalchemy import text
 
 from hemfin.core import db
 from hemfin.core.config import get_settings
-from hemfin.core.errors import PROBLEM_JSON, problem_response, register_exception_handlers
+from hemfin.core.errors import (
+    PROBLEM_JSON,
+    UnhandledErrorMiddleware,
+    problem_response,
+    register_exception_handlers,
+)
 from hemfin.core.logging import RequestIdMiddleware, configure_logging
+
+log = logging.getLogger("hemfin.health")
 
 
 @asynccontextmanager
@@ -23,6 +31,9 @@ def create_app() -> FastAPI:
     configure_logging(settings.LOG_LEVEL)
     app = FastAPI(title="HemFin API", version="0.1.0", lifespan=lifespan)
 
+    # Order matters (last added is outermost): errors are caught innermost so the 500
+    # still passes through CORS and request-id handling.
+    app.add_middleware(UnhandledErrorMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
@@ -49,6 +60,7 @@ def create_app() -> FastAPI:
             async with db.get_engine().connect() as conn:
                 await conn.execute(text("SELECT 1"))
         except Exception:
+            log.warning("database readiness check failed", exc_info=True)
             return problem_response(503, detail="Database is unavailable.")
         return JSONResponse({"status": "ready"})
 

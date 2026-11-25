@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
@@ -16,6 +18,21 @@ def test_health(client: TestClient) -> None:
 def test_request_id_is_propagated(client: TestClient) -> None:
     r = client.get("/health", headers={"X-Request-ID": "abc-123"})
     assert r.headers["x-request-id"] == "abc-123"
+
+
+def test_invalid_request_id_is_replaced(client: TestClient) -> None:
+    for bad in ("has space!", "x" * 65, "a/b"):
+        r = client.get("/health", headers={"X-Request-ID": bad})
+        assert r.headers["x-request-id"] != bad
+        assert len(r.headers["x-request-id"]) == 32
+
+
+def test_500_has_request_id_and_cors(client: TestClient) -> None:
+    r = client.get("/boom", headers={"Origin": "http://localhost:3000", "X-Request-ID": "rid-1"})
+    assert r.status_code == 500
+    assert r.headers["x-request-id"] == "rid-1"
+    assert r.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert r.json()["request_id"] == "rid-1"
 
 
 def test_404_is_problem_json(client: TestClient) -> None:
@@ -85,3 +102,15 @@ async def test_app_schema_exists() -> None:
         )
         assert res.scalar() == 1
     await db.dispose_engine()
+
+
+@pytest.mark.db
+def test_migration_roundtrip() -> None:
+    from alembic import command
+    from alembic.config import Config
+
+    cfg = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
+    cfg.set_main_option("script_location", str(Path(__file__).resolve().parent.parent / "alembic"))
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "base")
+    command.upgrade(cfg, "head")

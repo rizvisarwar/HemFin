@@ -18,4 +18,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute("DROP SCHEMA IF EXISTS app CASCADE")
+    # Intentionally a no-op: schema `app` holds `app.alembic_version`, so dropping it would
+    # break `alembic downgrade base` (the version row delete would fail).
+    pass

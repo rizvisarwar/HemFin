@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from hemfin.core.logging import request_id_var
 
@@ -71,3 +72,38 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(StarletteHTTPException, _http_exc)
     app.add_exception_handler(RequestValidationError, _validation_exc)
     app.add_exception_handler(Exception, _unhandled_exc)
+
+
+class UnhandledErrorMiddleware:
+    """Innermost middleware: turns unhandled exceptions into a problem+json 500.
+
+    Starlette runs `Exception` handlers in ServerErrorMiddleware, outside every user
+    middleware, so the 500 would miss CORS headers and the request id. Catching here lets
+    the response flow back out through those middlewares.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        started = False
+
+        async def send_wrapper(message: Message) -> None:
+            nonlocal started
+            if message["type"] == "http.response.start":
+                started = True
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_wrapper)
+        except Exception as exc:
+            if started:
+                raise
+            log.error("unhandled exception", exc_info=exc)
+            response = problem_response(
+                500, detail="An unexpected error occurred.", request=Request(scope)
+            )
+            await response(scope, receive, send)
