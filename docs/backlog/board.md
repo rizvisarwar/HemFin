@@ -6,7 +6,7 @@ Full scope of each phase: `docs/PROJECT_PLAN.md`, section 4.
 | # | Phase | Status |
 |---|---|---|
 | 0 | Foundations & team setup | **Done** (HEM-001 to HEM-007). The first real deploy is waiting for the user's Supabase, Render and Vercel accounts (`docs/deploy.md`). |
-| 1 | Auth & Profile | Waiting for user approval |
+| 1 | Auth & Profile | **In progress**: the Engineer (Sonnet 5.5) is implementing HEM-008 to HEM-011 (API auth and spaces, API profile, web auth, web profile) |
 | 2 | Households & Invitations | Not started |
 | 3 | Core Finance | Not started |
 | 4 | Documents | Not started |
