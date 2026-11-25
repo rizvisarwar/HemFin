@@ -1,0 +1,170 @@
+/* app/globals.css (HEM-003). Tailwind CSS v4 with current shadcn/ui. */
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@layer base {
+  :root {
+    --background: hsl(40 20% 98%);
+    --foreground: hsl(215 25% 14%);
+    --card: hsl(0 0% 100%);
+    --card-foreground: hsl(215 25% 14%);
+    --popover: hsl(0 0% 100%);
+    --popover-foreground: hsl(215 25% 14%);
+    --primary: hsl(218 45% 26%);
+    --primary-foreground: hsl(0 0% 100%);
+    --secondary: hsl(40 14% 93%);
+    --secondary-foreground: hsl(215 25% 18%);
+    --muted: hsl(40 14% 94%);
+    --muted-foreground: hsl(215 12% 36%);
+    --accent: hsl(172 30% 93%);
+    --accent-foreground: hsl(175 50% 20%);
+    --destructive: hsl(0 60% 42%);
+    --destructive-foreground: hsl(0 0% 100%);
+    --destructive-subtle: hsl(0 70% 95%);
+    --success: hsl(152 55% 26%);
+    --success-foreground: hsl(0 0% 100%);
+    --success-subtle: hsl(152 40% 93%);
+    --warning: hsl(32 90% 33%);
+    --warning-foreground: hsl(0 0% 100%);
+    --warning-subtle: hsl(40 95% 92%);
+    --border: hsl(40 12% 88%);
+    --input: hsl(215 10% 52%);
+    --ring: hsl(218 60% 40%);
+    --personal: hsl(175 55% 27%);
+    --personal-foreground: hsl(0 0% 100%);
+    --personal-subtle: hsl(170 35% 93%);
+    --household: hsl(265 40% 42%);
+    --household-foreground: hsl(0 0% 100%);
+    --household-subtle: hsl(265 40% 95%);
+    --chart-1: hsl(175 55% 27%);
+    --chart-2: hsl(265 40% 42%);
+    --chart-3: hsl(218 45% 26%);
+    --chart-4: hsl(32 90% 33%);
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: hsl(215 28% 8%);
+    --foreground: hsl(210 20% 94%);
+    --card: hsl(215 24% 11%);
+    --card-foreground: hsl(210 20% 94%);
+    --popover: hsl(215 24% 11%);
+    --popover-foreground: hsl(210 20% 94%);
+    --primary: hsl(218 70% 78%);
+    --primary-foreground: hsl(218 40% 12%);
+    --secondary: hsl(215 18% 18%);
+    --secondary-foreground: hsl(210 20% 92%);
+    --muted: hsl(215 18% 16%);
+    --muted-foreground: hsl(215 14% 68%);
+    --accent: hsl(175 30% 18%);
+    --accent-foreground: hsl(172 50% 75%);
+    --destructive: hsl(0 70% 68%);
+    --destructive-foreground: hsl(215 30% 10%);
+    --destructive-subtle: hsl(0 35% 17%);
+    --success: hsl(152 50% 58%);
+    --success-foreground: hsl(215 30% 10%);
+    --success-subtle: hsl(152 30% 16%);
+    --warning: hsl(38 90% 62%);
+    --warning-foreground: hsl(215 30% 10%);
+    --warning-subtle: hsl(35 40% 17%);
+    --border: hsl(215 16% 22%);
+    --input: hsl(215 12% 45%);
+    --ring: hsl(218 75% 78%);
+    --personal: hsl(172 50% 60%);
+    --personal-foreground: hsl(215 30% 10%);
+    --personal-subtle: hsl(175 30% 16%);
+    --household: hsl(265 65% 78%);
+    --household-foreground: hsl(215 30% 10%);
+    --household-subtle: hsl(265 30% 18%);
+    --chart-1: hsl(172 50% 60%);
+    --chart-2: hsl(265 65% 78%);
+    --chart-3: hsl(218 70% 78%);
+    --chart-4: hsl(38 90% 62%);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+}
+
+/* Map the tokens to Tailwind utilities (bg-primary, text-muted-foreground, bg-personal-subtle, rounded-lg ...). */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-subtle: var(--destructive-subtle);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-personal: var(--personal);
+  --color-personal-foreground: var(--personal-foreground);
+  --color-personal-subtle: var(--personal-subtle);
+  --color-household: var(--household);
+  --color-household-foreground: var(--household-foreground);
+  --color-household-subtle: var(--household-subtle);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* Typography tokens (design-system.md section 3). Phone size first, md and up scales. */
+@utility text-display { font-size: 2rem; line-height: 2.5rem; font-weight: 700; @media (min-width: 48rem) { font-size: 3rem; line-height: 3.5rem; } }
+@utility text-h1 { font-size: 1.5rem; line-height: 2rem; font-weight: 600; @media (min-width: 48rem) { font-size: 1.875rem; line-height: 2.375rem; } }
+@utility text-h2 { font-size: 1.25rem; line-height: 1.75rem; font-weight: 600; @media (min-width: 48rem) { font-size: 1.375rem; line-height: 1.875rem; } }
+@utility text-h3 { font-size: 1.125rem; line-height: 1.625rem; font-weight: 600; }
+@utility text-lead { font-size: 1.125rem; line-height: 1.75rem; font-weight: 400; }
+@utility text-body { font-size: 1rem; line-height: 1.5rem; font-weight: 400; }
+@utility text-body-strong { font-size: 1rem; line-height: 1.5rem; font-weight: 600; }
+@utility text-small { font-size: 0.875rem; line-height: 1.25rem; }
+@utility text-caption { font-size: 0.75rem; line-height: 1rem; font-weight: 500; }
+@utility text-money-lg { font-size: 1.75rem; line-height: 2.25rem; font-weight: 600; font-variant-numeric: tabular-nums; @media (min-width: 48rem) { font-size: 2rem; line-height: 2.5rem; } }
+@utility text-money { font-size: 1rem; line-height: 1.5rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* Elevation (design-system.md 4.4) */
+@utility shadow-level-1 { box-shadow: 0 1px 2px 0 rgb(15 23 42 / 0.06); }
+@utility shadow-level-2 { box-shadow: 0 8px 24px -8px rgb(15 23 42 / 0.18); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

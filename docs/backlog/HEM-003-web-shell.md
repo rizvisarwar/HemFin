@@ -1,6 +1,6 @@
 # HEM-003: Next.js web shell
 
-**Phase:** 0 · **Status:** Todo · **Owner:** Engineer · **Depends on:** HEM-002
+**Phase:** 0 · **Status:** In Review · **Owner:** Engineer · **Depends on:** HEM-002
 
 ## Goal
 Create `web/` Next.js app implementing the design system and responsive shell from HEM-002.
@@ -15,5 +15,12 @@ Create `web/` Next.js app implementing the design system and responsive shell fr
 ## Design notes
 
 ## Handoff log
+
+### 2026-11-25 Engineer
+Built `web/` (Next.js 16, App Router, TS strict, Tailwind v4, shadcn/ui, next-themes, Playwright). Tokens and `globals.css` taken from `docs/design/design-system.md`; layout components in `src/components/layout`, generic ones in `src/components/ui`, props per app-shell.md section 10. Landing `/`, `/sign-in` placeholder, `(app)` group with 11 placeholder pages. Landing footer has a server-side API status badge (offline when the API is unreachable). Active space is the `hemfin-space` cookie (server action); static placeholder spaces (Personal, Sample household).
+- PR: see PR description (branch `hem-003-web-shell`).
+- Verify: `cd web && npm install && npm run lint && npm run build && npx playwright test` (projects phone = WebKit iPhone 13, tablet 768, desktop 1280). Screenshots in `web/test-results/screenshots/` (gitignored).
+- Deviations: dashboard is at `/dashboard` (not `/`) because `/` is the public landing page. shadcn "base-nova" style uses Base UI primitives, not Radix (current shadcn default). Added a `tablet` Playwright project (768) for the icon rail. "Continue with Google" is a plain outline button with no Google logo yet. Landing footer omits Privacy/Terms links (no pages yet). Preview panel on landing is a CSS mock.
+- Follow-ups: real Google button and logo; Privacy/Terms pages; space-switch skeletons once data exists; Toast component not built (not in this ticket's list).
 
 ## Review

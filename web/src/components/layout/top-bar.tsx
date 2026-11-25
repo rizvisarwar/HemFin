@@ -1,0 +1,67 @@
+"use client";
+
+import Link from "next/link";
+import { Bell } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Logo } from "./logo";
+import { SpaceSwitcher } from "./space-switcher";
+import type { SpaceSummary } from "./types";
+
+export interface TopBarProps {
+  spaces: SpaceSummary[];
+  activeSpaceId: string;
+  onSpaceChange: (spaceId: string) => void;
+  notificationCount?: number; // shows a badge when > 0
+  notificationsHref: string; // "/notifications"
+  createHouseholdHref?: string;
+}
+
+export function TopBar({
+  spaces,
+  activeSpaceId,
+  onSpaceChange,
+  notificationCount = 0,
+  notificationsHref,
+  createHouseholdHref,
+}: TopBarProps) {
+  const active = spaces.find((s) => s.id === activeSpaceId) ?? spaces[0];
+  const bellLabel =
+    notificationCount > 0 ? `Notifications, ${notificationCount} unread` : "Notifications";
+
+  return (
+    <header
+      data-space={active.type}
+      className={cn(
+        "sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b-2 bg-background px-4 md:h-16 md:px-6 xl:px-8",
+        active.type === "personal" ? "border-b-personal" : "border-b-household",
+      )}
+    >
+      <Logo href="/dashboard" showWordmark={false} className="md:hidden" />
+      <Logo href="/dashboard" className="hidden md:inline-flex" />
+      <div className="flex min-w-0 items-center gap-2">
+        <SpaceSwitcher
+          spaces={spaces}
+          activeSpaceId={activeSpaceId}
+          onSelect={onSpaceChange}
+          createHouseholdHref={createHouseholdHref}
+          variant="compact"
+        />
+        <Link
+          href={notificationsHref}
+          aria-label={bellLabel}
+          className="relative inline-flex size-11 shrink-0 items-center justify-center rounded-md text-foreground hover:bg-accent"
+        >
+          <Bell aria-hidden="true" className="size-5" />
+          {notificationCount > 0 ? (
+            <span
+              aria-hidden="true"
+              className="absolute right-1 top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-caption text-destructive-foreground"
+            >
+              {notificationCount > 99 ? "99+" : notificationCount}
+            </span>
+          ) : null}
+        </Link>
+      </div>
+    </header>
+  );
+}
