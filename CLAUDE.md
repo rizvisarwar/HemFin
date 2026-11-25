@@ -61,6 +61,8 @@ Agents don't talk to each other directly. They communicate through ticket files 
 - **Extra security review:** the PM personally reviews tickets that touch auth, authorization/Spaces, invitations, agent tools or file upload before merging.
 - **Merging:** only the PM merges, with `gh pr merge --squash --delete-branch`, after review is `APPROVED` and CI is green.
 - **Phase gates:** at the end of each phase the PM stops for a user demo and approval.
-- **Permission refusals:** if the sandbox, a permission check or a hook refuses a command, don't retry it through another shell, tool or workaround. Stop and report it to the PM. The PM brings it to the user.
+- **Permission refusals:**
+  - If the sandbox, a permission check or a hook refuses a command, don't retry the same action through another shell, tool or workaround. Stop and report it to the PM, who brings it to the user.
+  - **Exception:** when the refusal message itself names a compliant form (for example "too complex to verify, split into simpler commands"), do exactly that. Use plain single commands, no `cd … &&` chains, absolute paths, and send output to files instead of pipes. Mention it in your report.
 - **Pushing branches with workflow changes:** use `gh` as the credential helper, for example `git -c credential.helper= -c "credential.helper=!gh auth git-credential" push`.
 - **Commit messages** end with the trailer `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
