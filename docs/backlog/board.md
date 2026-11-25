@@ -1,5 +1,25 @@
 # HemFin Board
 
+## Phases
+Full scope of each phase: `docs/PROJECT_PLAN.md`, section 4.
+
+| # | Phase | Status |
+|---|---|---|
+| 0 | Foundations & team setup | **Done** (HEM-001 to HEM-007). The first real deploy is waiting for the user's Supabase, Render and Vercel accounts (`docs/deploy.md`). |
+| 1 | Auth & Profile | Waiting for user approval |
+| 2 | Households & Invitations | Not started |
+| 3 | Core Finance | Not started |
+| 4 | Documents | Not started |
+| 5 | Notifications | Not started |
+| 6 | Reports & Forecast | Not started |
+| 7 | Agent platform + Savings Agent | Not started |
+| 8 | Contract Analysis Agent | Not started |
+| 9 | Finance Assistant chat | Not started |
+| 10 | Hardening & later items | Not started |
+
+Deferred (not planned yet): native mobile app, WhatsApp notifications, push notifications.
+
+## Phase 0 tickets
 | Ticket | Title | Owner | Status | PR |
 |---|---|---|---|---|
 | HEM-001 | FastAPI API skeleton | Engineer | Done | #1 |
