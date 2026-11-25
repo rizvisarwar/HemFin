@@ -35,3 +35,46 @@ One-command local stack.
 - OTLP exporter is gRPC; if Aspire injects `http/protobuf` the standard `OTEL_EXPORTER_OTLP_PROTOCOL` should be honoured by the gRPC exporter only for grpc, so confirm during manual step 3 and add the http exporter package if traces are missing.
 
 ## Review
+
+### Round 1 (2026-11-25) Reviewer: CHANGES_REQUESTED
+
+**Checks run (PR #4, branch `hem-005-local-dev` at 225124b)**
+- `dotnet build aspire/HemFin.AppHost`: pass (0 warnings, 0 errors).
+- `POSTGRES_PASSWORD=x docker compose config`: pass. Without the variable it fails with "Set POSTGRES_PASSWORD in .env". The required-variable check works.
+- `api/`: `uv sync`, `ruff check`, `ruff format --check` (14 files), `mypy src` (9 files): all pass. `pytest`: 21 passed, 3 skipped. The 3 skips are DB tests with `DATABASE_URL` unset (`api/tests/test_api.py:131,138,148`).
+- Secrets: no literal credentials in the diff. The only DB URL is the compose template, which uses `${POSTGRES_PASSWORD:?...}`. `.env`, `supabase/.env` and `api/.env` are gitignored. `config.jsonc` uses `env(...)` for every secret. The DATABASE_URL user-secret parameter approach is correct.
+- `app` schema: `api.schemas` is `["public", "graphql_public"]`, so `app` is not exposed. Passes.
+- Google provider: disabled, client id and secret from `env(...)`. `site_url` is `http://localhost:3000`. Passes.
+- OTel opt-in: `setup_telemetry` returns before importing OTel packages when `OTEL_EXPORTER_OTLP_ENDPOINT` is unset or blank. Passes. The remaining issues are the nits below.
+- Wiring: `/health` (AppHost health check) and `/health/ready` (README) both exist. `CORS_ORIGINS` parses comma-separated. `postgresql://` is rewritten to asyncpg. `hemfin.main:app` exists. The Dockerfile entrypoint runs `alembic upgrade head`, as the README says. Passes.
+- Not runnable here (no Docker daemon; accepted as manual steps): `aspire run`, `npx supabase start`, `docker compose up`.
+
+**Findings**
+
+1. **blocking**: `docker-compose.yml:41` and `docker-compose.yml:64`. The `api` and `web` ports are published as `"8000:8000"` and `"3000:3000"`, which bind all host interfaces. Only `db` (line 17) is loopback-only. The API has no auth yet, so a dev laptop would expose it on the LAN. Fix: `"127.0.0.1:8000:8000"` and `"127.0.0.1:3000:3000"`. The in-container `--hostname 0.0.0.0` at line 62 stays.
+
+2. **blocking**: `README.md:72` says the standard `OTEL_EXPORTER_OTLP_PROTOCOL` applies. It does not. `api/src/hemfin/core/telemetry.py:28-30` hard-codes the gRPC exporter classes, and they ignore that variable. If Aspire injects `http/protobuf` for the Python API, spans and logs will not reach the dashboard, and the "OTEL to dashboard" acceptance criterion fails. The handoff log already flags this as unconfirmed. Fix: either choose the exporter from `OTEL_EXPORTER_OTLP_PROTOCOL` (adding the http exporter package), or remove the claim from the README and state gRPC only. Confirm during manual step 3.
+
+3. **nit**: `aspire/HemFin.AppHost/AppHost.cs:10-11` says Aspire injects the `OTEL_*` variables for the API. This is unverified, since no `WithOtlpExporter` call is present. Reword as "expected to" until manual step 3 confirms it.
+
+4. **nit**: `aspire/HemFin.AppHost/AppHost.cs:17` and `:25`. `WithExternalHttpEndpoints()` is a publish-time concept and is not needed for local runs. Remove it, or justify it in a comment.
+
+5. **nit**: `api/src/hemfin/core/telemetry.py:32` and `:55`. `LoggingHandler` is deprecated, and pytest shows the warning. Use the handler from `opentelemetry-instrumentation-logging`, as the warning suggests.
+
+6. **nit**: `api/src/hemfin/core/telemetry.py:57`. FastAPI instrumentation records the full URL, including the query string, in span attributes. No secret is in a query string today. Invitation tokens, if they are ever sent as query parameters, would leak into traces. Note this as a follow-up for the invitations ticket, or add a URL sanitizer.
+
+7. **nit**: `api/tests/test_telemetry.py:28-42`. OTel `set_tracer_provider`, `set_meter_provider` and `set_logger_provider` are once-per-process. The test leaves the global providers set for the rest of the run and only restores the root logger handlers. Consider a subprocess test, or accept it with a comment.
+
+8. **nit**: `api/pyproject.toml:14-16`. The OTel packages are hard dependencies, but the ticket says OTel is optional and env-enabled. The code path is opt-in either way. An `otel` optional extra would keep the default install and image lean, if wanted.
+
+9. **nit**: `docker-compose.yml:62`. `npm ci` runs on every container start. It is slow but correct. A named volume plus a lockfile hash check would cut the wait.
+
+**Acceptance criteria**
+- supabase init and config: met.
+- AppHost (api via `AddUvicornApp`, web via `AddJavaScriptApp`, env wiring): met in code. Runtime unverified (no Docker).
+- OTel to dashboard: unverified. See finding 2.
+- docker-compose: met (config validates). Runtime unverified (no Docker). See finding 1 for ports.
+- Root README: accurate except for the OTel protocol claim (finding 2).
+- `dotnet build` succeeds: met.
+
+**Verdict: CHANGES_REQUESTED.** Blocking: findings 1 and 2.
