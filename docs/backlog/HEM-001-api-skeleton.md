@@ -77,3 +77,40 @@ Checklist passes:
 - Health endpoints sit outside `/api/v1` as the ticket specifies. The `/api/v1` router is mounted empty.
 
 Verdict: CHANGES_REQUESTED on findings 1 and 2. Finding 3 must be closed before approval. Findings 4 to 7 are optional.
+
+### Round 2 (2026-11-25)
+
+**CHANGES_REQUESTED**
+
+Checks run on PR #1 (branch `hem-001-api-skeleton`, commit 83d288c): `uv sync` pass, `ruff check` pass, `ruff format --check` pass (12 files), `mypy src` pass (8 files), `pytest -q -rs` 15 passed / 3 skipped (db-marked: `test_ready_ok_with_db`, `test_app_schema_exists`, `test_migration_roundtrip`; no DATABASE_URL). Not run: db-marked tests (no Postgres), Docker build (deferred to HEM-006 per PM).
+
+Round 1 status:
+- 1 (downgrade drops schema): fixed. Baseline downgrade is a no-op (`api/alembic/versions/20261125_0001_create_app_schema.py:20-23`). The db round-trip test is added but not run here.
+- 2 (500 lacks request id and CORS): fixed. `UnhandledErrorMiddleware` is innermost. `test_500_has_request_id_and_cors` passes.
+- 3 (Docker build): deferred to HEM-006 by PM decision. Not blocking.
+- 4 (readiness not logged): fixed (`main.py:63`). See new finding A, since this log line is now the leak path.
+- 5 (no migration test): added (`test_api.py:146-155`), not run here.
+- 6 (request id charset): fixed. `logging.py:14`, tested.
+- 7 (housekeeping): fixed for the ticket (status In Review, Handoff log filled). `docs/backlog/board.md` is still unchanged, so this is partly open. Nit.
+
+Rule 7 (secrets) review:
+- Source order is correct: env, then SECRETS_DIR files, then `.env` (`config.py:49`). Covered by `test_env_overrides_secrets_dir`.
+- `DATABASE_URL` is `SecretStr`. It is the only secret field. `repr`/`str` mask it (`test_secret_masked_in_repr_and_str`).
+- Problem+json bodies: no settings or secret values. Probed.
+- `api/.env.example`: placeholders only.
+- The missing-secret error names the variable and not its value (`config.py:72-75`).
+- `.env` is gitignored (`.gitignore:153`).
+
+Findings:
+
+A. **blocking**: a secret value reaches the logs. Rule 7: never log secret values. Probe: `DATABASE_URL=postgresql+asyncpg://u:<marker>` (no `@host`), then `GET /health/ready`. The response is 503 and the body does not contain the marker. The marker appears once in the JSON log output. Cause: `make_url` raises a `ValueError` that echoes the full URL, and `db.get_engine()` (`api/src/hemfin/core/db.py:31-36`) lets it through. `ready()` then logs it with `exc_info=True` (`main.py:63`). The same path applies to any unhandled exception from `get_engine`, and to `alembic/env.py:46` where the traceback is printed. Fix: in `get_engine` (and the Alembic `run_migrations_online` engine), wrap `create_async_engine` and raise a fixed-text error with `from None`, e.g. `MissingSecretError("DATABASE_URL is not a valid SQLAlchemy URL.")`. Add a test that sets a malformed `DATABASE_URL` containing a marker, calls `/health/ready`, and asserts the marker is absent from captured output.
+
+B. **blocking**: a missing required secret does not stop the app at startup. Rule 7: a missing required secret must stop the app at startup with an error naming the variable. `create_app()` and `uvicorn hemfin.main:app` start with `DATABASE_URL` unset, and the suite runs that way. The Docker entrypoint still fails because `alembic upgrade head` runs first, but the app process itself does not. Fix: call `require_database_url()` in the lifespan startup, and skip it only when `APP_ENV == "test"`. Have `conftest.py` set `APP_ENV=test` (a non-secret). If the PM decides DATABASE_URL should stay optional for local non-DB work, that needs an explicit exception to rule 7 in CLAUDE.md, not a silent one.
+
+C. **nit**: `api/src/hemfin/core/config.py:81`. `load_settings` reads `SECRETS_DIR` from `os.environ` only. A `SECRETS_DIR=` line in `api/.env`, which `.env.example` suggests, is silently ignored. Either declare `SECRETS_DIR` as a `Settings` field or document that it must be an env var.
+
+D. **nit**: the local default `postgres:postgres` is still in commit 1825820 history, although it is removed from the tree in 83d288c. It is a throwaway local password, not a live credential, so no rotation is needed. Note it for the record. Rule 7 forbids defaults for secrets.
+
+E. **nit**: `docs/backlog/board.md` still does not show HEM-001 as In Review (see Round 1 finding 7).
+
+Verdict: CHANGES_REQUESTED on A and B. C, D and E are optional. Once A and B are fixed, the Round 2 checks should be rerun with a real Postgres (`@pytest.mark.db` tests and the migration round-trip) before approval.
