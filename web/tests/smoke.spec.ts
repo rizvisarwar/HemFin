@@ -96,14 +96,17 @@ test.describe("app shell", () => {
     await page.goto("/dashboard");
     const nav = page.getByTestId(info.project.name === "phone" ? "bottom-nav" : "side-nav");
     const link = nav.getByRole("link").first();
-    await link.focus();
+    // Tab from the top of the page until the link has focus, as a keyboard user would.
+    for (let i = 0; i < 30 && !(await link.evaluate((el) => el === document.activeElement)); i++) {
+      await page.keyboard.press("Tab");
+    }
     await expect(link).toBeFocused();
     const style = await link.evaluate((el) => {
       const cs = getComputedStyle(el);
-      return { width: cs.outlineWidth, style: cs.outlineStyle, shadow: cs.boxShadow };
+      return { width: parseFloat(cs.outlineWidth), style: cs.outlineStyle };
     });
-    const visible = (style.style !== "none" && parseFloat(style.width) > 0) || style.shadow !== "none";
-    expect(visible).toBe(true);
+    expect(style.style).not.toBe("none");
+    expect(style.width).toBeGreaterThan(0);
   });
 
   test("every nav destination renders an empty state without horizontal scroll", async ({ page }) => {

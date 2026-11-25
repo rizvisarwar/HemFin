@@ -1,3 +1,4 @@
+import { createApiClient } from "@hemfin/api-client";
 import { API_URL } from "@/lib/env";
 import { cn } from "@/lib/utils";
 
@@ -25,11 +26,11 @@ export function ApiStatusBadge({ status }: { status: Status }) {
 export async function ApiStatus() {
   let status: Status = "offline";
   try {
-    const res = await fetch(`${API_URL}/health`, {
+    const { response } = await createApiClient(API_URL).GET("/health", {
       cache: "no-store",
       signal: AbortSignal.timeout(2000),
     });
-    status = res.ok ? "online" : "offline";
+    status = response.ok ? "online" : "offline";
   } catch {
     status = "offline";
   }

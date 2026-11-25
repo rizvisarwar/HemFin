@@ -1,0 +1,9 @@
+{
+  "name": "hemfin",
+  "private": true,
+  "workspaces": ["web", "packages/*"],
+  "scripts": {
+    "gen:api": "node scripts/gen-api.mjs",
+    "check:api-drift": "node scripts/gen-api.mjs --check"
+  }
+}
