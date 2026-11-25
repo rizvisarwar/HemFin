@@ -142,7 +142,7 @@ class TokenVerifier:
         except jwt.PyJWTError:
             raise InvalidTokenError("malformed") from None
         alg = header.get("alg")
-        key: Any
+        verify_with: Any
         if alg in ASYMMETRIC_ALGS:
             kid = header.get("kid")
             if not isinstance(kid, str) or not kid:
@@ -151,15 +151,15 @@ class TokenVerifier:
             jwk_alg = jwk._jwk_data.get("alg")  # a JWK that declares an alg must match
             if jwk_alg is not None and jwk_alg != alg:
                 raise InvalidTokenError("alg_mismatch")
-            key = jwk.key
+            verify_with = jwk.key
         elif alg == "HS256" and self._hs256_secret:
-            key = self._hs256_secret
+            verify_with = self._hs256_secret
         else:
             raise InvalidTokenError("unsupported_alg")
         try:
             payload = jwt.decode(
                 token,
-                key,
+                verify_with,
                 algorithms=[alg],
                 audience=self._audience,
                 issuer=self._issuer,
