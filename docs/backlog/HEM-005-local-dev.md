@@ -34,6 +34,17 @@ One-command local stack.
 - HEM-004 (npm workspaces) may change how `web` installs; the compose `web` service runs `npm ci` inside `web/` and may need adjusting after it merges. A `web/Dockerfile` (HEM-006 or later) would replace that.
 - OTLP exporter is gRPC; if Aspire injects `http/protobuf` the standard `OTEL_EXPORTER_OTLP_PROTOCOL` should be honoured by the gRPC exporter only for grpc, so confirm during manual step 3 and add the http exporter package if traces are missing.
 
+### 2026-11-25 Engineer: Round 1 fixes
+1. Compose api and web ports now publish on `127.0.0.1` only; `--hostname 0.0.0.0` inside the container is unchanged.
+2. `telemetry.py` picks the exporter from `OTEL_EXPORTER_OTLP_PROTOCOL` (`grpc` default, `http/protobuf`); other values log a warning and leave telemetry off. Added `opentelemetry-exporter-otlp-proto-http`; imports stay lazy. Tests cover default, grpc and http/protobuf plus an unsupported value. README states exactly this. Still confirm with Aspire in manual step 3.
+3. AppHost comment now says Aspire is "expected to inject" the OTEL_* variables (verify in manual step 3).
+4. Removed `WithExternalHttpEndpoints()` from both resources.
+5. Replaced the deprecated SDK `LoggingHandler` with `opentelemetry.instrumentation.logging.handler.LoggingHandler` (added `opentelemetry-instrumentation-logging`). The OTel deprecation warnings are gone from pytest.
+6. Follow-up for the invitations ticket: keep tokens out of URLs (path or body, not query string), or strip query strings from spans. FastAPI instrumentation records full URLs. Noted in `telemetry.py` and the README; no code change now (PM decision).
+7. Test comment added explaining that OTel global providers are once-per-process and the test asserts exporter selection only.
+8. OTel packages stay regular dependencies (PM decision) to keep the Docker image and Render simple.
+9. `npm ci` on each compose web start accepted (dev only).
+
 ## Review
 
 ### Round 1 (2026-11-25) Reviewer: CHANGES_REQUESTED

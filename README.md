@@ -69,7 +69,7 @@ Under Aspire you don't need `api/.env` or `web/.env.local`: the AppHost sets tho
 
 ### OpenTelemetry (opt-in)
 
-The API exports traces, metrics and logs over OTLP only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Aspire sets it for you. When unset, nothing changes and the OpenTelemetry packages aren't imported. The standard `OTEL_*` variables (`OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_PROTOCOL`, headers) apply.
+The API exports traces, metrics and logs over OTLP only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Aspire sets it for you. When unset, nothing changes and the OpenTelemetry packages aren't imported. The exporter is chosen from `OTEL_EXPORTER_OTLP_PROTOCOL`: `grpc` (the default when unset) or `http/protobuf`. Any other value logs a warning and leaves telemetry off; per-signal protocol variables (for example `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL`) are not supported. `OTEL_SERVICE_NAME` (default `hemfin-api`) and the standard endpoint and header variables are honoured by the exporters. Spans record full URLs including query strings, so keep secrets out of query strings.
 
 ## Common commands
 

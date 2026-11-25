@@ -38,7 +38,7 @@ services:
       # Opt-in telemetry: set OTEL_EXPORTER_OTLP_ENDPOINT in .env to export; empty means off.
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/health')"]
       interval: 10s
@@ -61,7 +61,7 @@ services:
       WATCHPACK_POLLING: "true"
     command: sh -c "npm ci && npm run dev -- --hostname 0.0.0.0"
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - ./web:/app
       - web-node-modules:/app/node_modules

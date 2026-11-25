@@ -7,21 +7,19 @@ var builder = DistributedApplication.CreateBuilder(args);
 // set it with `dotnet user-secrets set Parameters:database-url "<url>"` (see README).
 var databaseUrl = builder.AddParameter("database-url", secret: true);
 
-// API: uvicorn + uv (api/pyproject.toml). Aspire injects PORT and the OTEL_* variables, so the
-// opt-in OpenTelemetry in hemfin.core.telemetry turns on and reports to the dashboard.
+// API: uvicorn + uv (api/pyproject.toml). Aspire is expected to inject the OTEL_* variables
+// (verify in manual step 3), which turns on the opt-in OpenTelemetry in hemfin.core.telemetry.
 var api = builder.AddUvicornApp("api", "../../api", "hemfin.main:app")
     .WithEnvironment("APP_ENV", "local")
     .WithEnvironment("DATABASE_URL", databaseUrl)
     .WithEnvironment("CORS_ORIGINS", "http://localhost:3000")
-    .WithHttpHealthCheck("/health")
-    .WithExternalHttpEndpoints();
+    .WithHttpHealthCheck("/health");
 
 // Web: `npm run dev` on the fixed port 3000 (matches Supabase site_url and the API CORS origin).
 // NEXT_PUBLIC_API_URL is read by the browser, so it must be the host-reachable API URL.
 builder.AddJavaScriptApp("web", "../../web", "dev")
     .WithHttpEndpoint(port: 3000, env: "PORT", isProxied: false)
     .WithEnvironment("NEXT_PUBLIC_API_URL", api.GetEndpoint("http"))
-    .WaitFor(api)
-    .WithExternalHttpEndpoints();
+    .WaitFor(api);
 
 builder.Build().Run();
