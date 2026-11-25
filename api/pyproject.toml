@@ -17,6 +17,8 @@ dependencies = [
     "opentelemetry-exporter-otlp-proto-http>=1.45.2",
     "opentelemetry-instrumentation-logging>=0.66b2",
     "pyjwt[crypto]>=2.9",
+    "phonenumbers>=8.13",
+    "pycountry>=24.6",
 ]
 
 [dependency-groups]

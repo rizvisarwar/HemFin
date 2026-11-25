@@ -17,6 +17,7 @@ from hemfin.core.errors import (
 )
 from hemfin.core.logging import RequestIdMiddleware, configure_logging
 from hemfin.core.telemetry import setup_telemetry
+from hemfin.modules.profile import router as profile_router
 from hemfin.modules.spaces import router as spaces_router
 from hemfin.modules.users import router as users_router
 
@@ -78,6 +79,7 @@ def create_app() -> FastAPI:
 
     api_v1 = APIRouter(prefix="/api/v1")
     api_v1.include_router(users_router.router)
+    api_v1.include_router(profile_router.router)
     api_v1.include_router(spaces_router.router)
     app.include_router(api_v1)
     setup_telemetry(app)  # no-op unless OTEL_EXPORTER_OTLP_ENDPOINT is set
