@@ -6,6 +6,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+os.environ["APP_ENV"] = "test"  # the default is production
 os.environ["HEMFIN_TEST_MODE"] = "1"  # test-only: skips the startup DATABASE_URL fail-fast
 
 from authkit import AUDIENCE, ISSUER, FakeJwks, TestKey  # noqa: E402

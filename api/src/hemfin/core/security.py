@@ -81,43 +81,53 @@ class JWKSCache:
         self._ttl = ttl_seconds
         self._min_refetch = min_refetch_seconds
         self._clock = clock
-        self._keys: dict[str, PyJWK] = {}
-        self._fetched_at: float | None = None
+        # kid -> (key, algorithm the JWK declares, if any)
+        self._keys: dict[str, tuple[PyJWK, str | None]] = {}
+        self._fetched_at: float | None = None  # time of the last fetch ATTEMPT (even a failed one)
         self._lock = asyncio.Lock()
 
     async def _refresh(self) -> None:
+        self._fetched_at = self._clock()  # record the attempt first: failures are rate limited too
         try:
             raw = await self._fetcher()
         except Exception:
             log.warning("jwks fetch failed")
-            if not self._keys:
-                raise AuthUnavailableError from None
-            self._fetched_at = self._clock()  # keep serving stale keys; retry after cooldown
-            return
-        keys: dict[str, PyJWK] = {}
+            return  # keep serving any stale keys; the next attempt waits for the cooldown
+        keys: dict[str, tuple[PyJWK, str | None]] = {}
         for jwk in raw:
             kid = jwk.get("kid")
             if not isinstance(kid, str) or jwk.get("use") == "enc":
                 continue
             try:
-                keys[kid] = PyJWK(jwk)
+                alg = jwk.get("alg")
+                keys[kid] = (PyJWK(jwk), alg if isinstance(alg, str) else None)
             except Exception:
                 continue  # unsupported key type (e.g. a legacy symmetric entry)
         self._keys = keys
-        self._fetched_at = self._clock()
 
-    async def get_key(self, kid: str) -> PyJWK:
+    def _needs_fetch(self, kid: str) -> bool:
+        if self._fetched_at is None:
+            return True
+        age = self._clock() - self._fetched_at
+        if not self._keys:
+            return age >= self._min_refetch  # nothing usable cached: retry after the cooldown
+        if age >= self._ttl:
+            return True
+        return kid not in self._keys and age >= self._min_refetch
+
+    async def get_key(self, kid: str) -> tuple[PyJWK, str | None]:
+        # The fetch runs under the lock on purpose: concurrent lookups share one fetch
+        # (single-flight) instead of stampeding the JWKS endpoint.
         async with self._lock:
-            now = self._clock()
-            age = None if self._fetched_at is None else now - self._fetched_at
-            expired = age is None or age >= self._ttl
-            unknown_kid = kid not in self._keys and age is not None and age >= self._min_refetch
-            if expired or unknown_kid:
+            if self._needs_fetch(kid):
                 await self._refresh()
-        key = self._keys.get(kid)
-        if key is None:
+            entry = self._keys.get(kid)
+            has_keys = bool(self._keys)
+        if entry is None:
+            if not has_keys:
+                raise AuthUnavailableError  # 503 (also during the cooldown), no fetcher call
             raise InvalidTokenError("unknown_kid")
-        return key
+        return entry
 
 
 class TokenVerifier:
@@ -147,20 +157,21 @@ class TokenVerifier:
             kid = header.get("kid")
             if not isinstance(kid, str) or not kid:
                 raise InvalidTokenError("missing_kid")
-            jwk = await self._jwks.get_key(kid)
-            jwk_alg = jwk._jwk_data.get("alg")  # a JWK that declares an alg must match
-            if jwk_alg is not None and jwk_alg != alg:
+            jwk, jwk_alg = await self._jwks.get_key(kid)
+            if jwk_alg is not None and jwk_alg != alg:  # a JWK that declares an alg must match
                 raise InvalidTokenError("alg_mismatch")
             verify_with = jwk.key
+            allowed: list[str] = sorted(ASYMMETRIC_ALGS)
         elif alg == "HS256" and self._hs256_secret:
             verify_with = self._hs256_secret
+            allowed = ["HS256"]
         else:
             raise InvalidTokenError("unsupported_alg")
         try:
             payload = jwt.decode(
                 token,
                 verify_with,
-                algorithms=[alg],
+                algorithms=allowed,
                 audience=self._audience,
                 issuer=self._issuer,
                 leeway=self._leeway,

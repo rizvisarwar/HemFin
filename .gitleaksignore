@@ -1,3 +1,3 @@
-# False positive: `key = jwk.key` (a variable holding a public verification key) in the first
+# False positive: `key = self._hs256_secret` (a local variable assigned from the configured HS256 secret, not a literal) in the first
 # HEM-008 commit. The variable was renamed in the next commit. Exact fingerprint only.
 762b545e56bbb17f814d5a27b0cf2d49eb69a6cf:api/src/hemfin/core/security.py:generic-api-key:156

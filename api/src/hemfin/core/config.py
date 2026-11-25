@@ -38,7 +38,9 @@ class Settings(BaseSettings):
     SUPABASE_JWT_SECRET: SecretStr | None = None
 
     # Non-secret settings
-    APP_ENV: str = "local"
+    # Defaults to production so nothing local-only (HS256 tokens, test mode) is on unless the
+    # environment says so explicitly. Local dev sets APP_ENV=local (api/.env.example).
+    APP_ENV: str = "production"
     # Test-only switch: skips the startup fail-fast on DATABASE_URL. Set by tests/conftest.py
     # only. Never set it in a deployment; the app refuses to start if it is set while
     # APP_ENV is anything other than local or test.

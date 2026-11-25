@@ -55,7 +55,7 @@ Never commit real values. Each file below is gitignored; its `.example` is commi
 
 | File | Used by | Notes |
 |---|---|---|
-| `api/.env` (from `api/.env.example`) | API run directly (`uv run uvicorn ...`) | `DATABASE_URL` is a secret |
+| `api/.env` (from `api/.env.example`) | API run directly (`uv run uvicorn ...`) | `DATABASE_URL` is a secret. `APP_ENV` defaults to `production`; the example sets `local` (needed for local-only HS256 tokens) |
 | `web/.env.local` (from `web/.env.example`) | Next.js run directly | `NEXT_PUBLIC_API_URL`; public values only |
 | `.env` (from `.env.example`) | docker compose | `POSTGRES_PASSWORD`, optional `OTEL_EXPORTER_OTLP_ENDPOINT` |
 | `supabase/.env` (from `supabase/.env.example`) | Supabase CLI | Only for enabling Google sign-in |
