@@ -291,7 +291,7 @@ Rules:
 
 ## 6. Empty-state pattern
 
-Every list, table and dashboard card has an empty state with one clear next action. A screen never shows a blank area.
+Every list, table and dashboard card has an empty state. A screen never shows a blank area. Each page has one clear next action. When several cards on the same page would lead to the same action (for example "Add a contract" on the dashboard), only the page header shows the button and the cards show text only, so the action is not repeated (PM decision, HEM-003).
 
 ```
  PAGE EMPTY STATE (phone 375 px)
