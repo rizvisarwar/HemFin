@@ -19,7 +19,7 @@ Common: Git, Node.js 22+, Python 3.11+ with [uv](https://docs.astral.sh/uv/), Do
 
 ## Quick start, path A: Aspire + Supabase CLI
 
-1. Install web dependencies once: `cd web && npm install`.
+1. Install dependencies once from the repo root (npm workspaces): `npm ci`. Node 22.18+ is required (`.nvmrc`).
 2. Start local Supabase (Postgres on `127.0.0.1:54322`, Studio on `:54323`): `npx supabase start`. Run it from the repo root.
 3. Give the AppHost the database URL. Copy the "DB URL" from `npx supabase status` and store it as a user secret (kept outside the repo):
    ```
@@ -45,7 +45,7 @@ docker compose up --build
 
 - web: http://localhost:3000, api: http://localhost:8000, Postgres: `127.0.0.1:54322`.
 - The api container runs `alembic upgrade head` on start, then uvicorn.
-- The web service runs `npm ci && npm run dev` in a Node image with `web/` mounted; the first start takes a minute.
+- The web service runs the root `npm ci` and then `npm run dev --workspace web` in a Node image with the repo mounted; the first start takes a minute.
 - Reset the database: `docker compose down -v`.
 - Compose refuses to start with an empty `POSTGRES_PASSWORD`. There is no default.
 
@@ -78,7 +78,7 @@ The API exports traces, metrics and logs over OTLP only when `OTEL_EXPORTER_OTLP
 | API dev server | `cd api && uv sync && uv run uvicorn hemfin.main:app --reload` |
 | API checks | `cd api && uv run ruff check . && uv run ruff format --check . && uv run mypy src && uv run pytest` |
 | Migrations | `cd api && uv run alembic upgrade head` |
-| Web dev server | `cd web && npm install && npm run dev` |
+| Web dev server | `npm ci` (root), then `cd web && npm run dev` |
 | Web checks | `cd web && npm run lint && npm run build` |
 | Build the AppHost | `dotnet build aspire/HemFin.AppHost` |
 | Validate compose file | `POSTGRES_PASSWORD=placeholder docker compose config` |

@@ -47,8 +47,9 @@ services:
       start_period: 20s
 
   web:
-    # Dev server in a stock Node image (web/ has no Dockerfile yet). Source is bind-mounted;
-    # node_modules and .next live in named volumes so host and container installs don't clash.
+    # Dev server in a stock Node image. The repo root is mounted because web/ is an npm workspace
+    # (one lockfile at the root); node_modules and .next live in named volumes so host and
+    # container installs don't clash. Not verified in CI (no Docker daemon in the authoring env).
     image: node:22-bookworm-slim
     working_dir: /app
     depends_on:
@@ -59,15 +60,17 @@ services:
       NEXT_PUBLIC_API_URL: http://localhost:8000
       PORT: "3000"
       WATCHPACK_POLLING: "true"
-    command: sh -c "npm ci && npm run dev -- --hostname 0.0.0.0"
+    command: sh -c "npm ci && npm run dev --workspace web -- --hostname 0.0.0.0"
     ports:
       - "127.0.0.1:3000:3000"
     volumes:
-      - ./web:/app
-      - web-node-modules:/app/node_modules
-      - web-next:/app/.next
+      - .:/app
+      - root-node-modules:/app/node_modules
+      - web-node-modules:/app/web/node_modules
+      - web-next:/app/web/.next
 
 volumes:
   hemfin-db:
+  root-node-modules:
   web-node-modules:
   web-next:

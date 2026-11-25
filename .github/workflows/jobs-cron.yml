@@ -1,0 +1,71 @@
+name: Scheduled jobs
+
+# Calls the API's internal job endpoints. Needs, in the repo settings (Settings > Secrets and
+# variables > Actions):
+#   Variable API_BASE_URL, e.g. https://hemfin-api.onrender.com (no trailing slash needed)
+#   Secret   JOB_SECRET, which must equal the API's JOB_SECRET
+# If either is unset the run succeeds with a notice and does nothing.
+# NOTE: the /internal/jobs/* endpoints are not implemented yet; until they exist the call returns 404.
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Job to run now (the path segment after /internal/jobs/)
+        required: true
+        default: daily
+        type: choice
+        options: [daily, weekly]
+  schedule:
+    - cron: "15 5 * * *" # daily at 05:15 UTC
+    - cron: "30 6 * * 1" # weekly, Mondays 06:30 UTC
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jobs-cron-${{ github.event.schedule || github.event.inputs.job }}
+  cancel-in-progress: false
+
+jobs:
+  call:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      API_BASE_URL: ${{ vars.API_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      EVENT_SCHEDULE: ${{ github.event.schedule }}
+      INPUT_JOB: ${{ github.event.inputs.job }}
+    steps:
+      - name: Resolve job name
+        id: job
+        run: |
+          if [ -n "$INPUT_JOB" ]; then
+            name="$INPUT_JOB"
+          elif [ "$EVENT_SCHEDULE" = "30 6 * * 1" ]; then
+            name=weekly
+          else
+            name=daily
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+      - name: Check configuration
+        id: cfg
+        env:
+          JOB_NAME: ${{ steps.job.outputs.name }}
+        run: |
+          if [ -z "$API_BASE_URL" ] || [ -z "$JOB_SECRET" ]; then
+            echo "::notice::API_BASE_URL (variable) and/or JOB_SECRET (secret) are not set; skipping the ${JOB_NAME} job."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Call job endpoint
+        if: steps.cfg.outputs.configured == 'true'
+        env:
+          JOB_NAME: ${{ steps.job.outputs.name }}
+        run: |
+          # Free-tier Render sleeps; the first request can take about a minute to wake it.
+          curl --fail-with-body -sS -X POST \
+            --retry 3 --retry-delay 20 --retry-all-errors --max-time 120 \
+            -H "X-Job-Secret: ${JOB_SECRET}" \
+            "${API_BASE_URL%/}/internal/jobs/${JOB_NAME}"

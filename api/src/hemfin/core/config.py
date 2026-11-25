@@ -36,6 +36,10 @@ class Settings(BaseSettings):
 
     # Non-secret settings
     APP_ENV: str = "local"
+    # Test-only switch: skips the startup fail-fast on DATABASE_URL. Set by tests/conftest.py
+    # only. Never set it in a deployment; the app refuses to start if it is set while
+    # APP_ENV=production.
+    HEMFIN_TEST_MODE: bool = False
     CORS_ORIGINS: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
     LOG_LEVEL: str = "INFO"
     SUPABASE_URL: str = ""

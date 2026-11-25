@@ -1,0 +1,32 @@
+# Render Blueprint for the HemFin API. Keys only: values for secrets are NEVER stored here.
+# Every `sync: false` variable is prompted for in the Render dashboard on first apply, and can
+# alternatively be supplied as a Secret File named after the variable (mounted at /etc/secrets,
+# which the API reads). See docs/deploy.md.
+services:
+  - type: web
+    name: hemfin-api
+    runtime: docker
+    plan: free
+    region: frankfurt # pick the region closest to your Supabase project (docs/deploy.md)
+    dockerContext: ./api
+    dockerfilePath: ./api/Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      # Secret: Supabase pooler connection string (postgresql://...).
+      - key: DATABASE_URL
+        sync: false
+      # Not secret, but environment-specific: your Supabase project URL.
+      - key: SUPABASE_URL
+        sync: false
+      # Comma-separated allowed browser origins, e.g. the Vercel production URL.
+      - key: CORS_ORIGINS
+        sync: false
+      # Secret: shared with the GitHub Actions JOB_SECRET; used by the /internal/jobs/* endpoints
+      # (not implemented yet, see docs/deploy.md).
+      - key: JOB_SECRET
+        sync: false
