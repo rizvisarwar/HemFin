@@ -39,6 +39,19 @@ Notes and limitations:
 - Unverified: Render Blueprint apply, Vercel workspace install (fallback `cd .. && npm ci` documented), Supabase pooler/Auth steps, Resend, UptimeRobot, the compose web service (no Docker locally), `jobs-cron.yml` run, gitleaks-action licence terms (binary used instead).
 - Follow-ups: build `/internal/jobs/*` endpoints and the `JOB_SECRET` check; Playwright's webServer builds web again after the lint/build step (about 30 s extra; kept because the build step doubles as a standalone check).
 
+### 2026-11-25 Engineer: Round 1 fixes
+CI run (all green): https://github.com/rizvisarwar/HemFin/actions/runs/45698231043 (api 25s, docker 56s, gitleaks 7s, web 3m48s). db tests incl. `test_migration_roundtrip` PASSED; compose config step ran; smoke run returned `{"status":"ready"}`.
+
+1. Fixed. No credential in the workflows: `api` and `docker` jobs start `postgres:16` with `docker run`, password from `openssl rand -hex 24`, `::add-mask::`, `DATABASE_URL` via `$GITHUB_ENV`. Service containers and the gitleaks allowlist entry for the password are removed, as is the doc exception (only the `.env.example` placeholder allowlist remains).
+2. Fixed. Jobs are named `api`, `docker`, `web`, `gitleaks`; `docs/deploy.md` matches and says to confirm in the branch-protection picker.
+3. Fixed. `--retry-all-errors` removed; a loop retries only connection-level curl errors and HTTP 502/503/504. Everything else, including 404 and 500, fails at once.
+4. Fixed. A `resolve` job maps the cron string to `daily` or `weekly` and fails on an unknown schedule or job; the `call` job's concurrency group is `jobs-cron-<name>` for scheduled and manual runs.
+5. Fixed for actions: all pinned to full SHAs with `# vX.Y.Z` comments; `.github/dependabot.yml` covers github-actions, npm (`/`) and uv (`/api`), weekly. Follow-up: Docker images (`postgres:16`, `python:3.11-slim`, `node:22-bookworm-slim`, the uv image) still use tags; pin by digest and add the docker ecosystem.
+6. Fixed. `HEMFIN_TEST_MODE` is only allowed when normalized `APP_ENV` is `local` or `test`; test parametrized over `production`, `staging`, `"Production "`.
+7. Fixed. Placeholders `<your-app>.vercel.app`, `<your-service>.onrender.com`.
+8. Fixed. Render sleep, Resend and UptimeRobot limits are tagged UNVERIFIED with a "check current limits" note.
+9. Fixed. `docker compose config -q` step in the `docker` job, with a generated `POSTGRES_PASSWORD`.
+
 ## Review
 
 ### 2026-11-25 Reviewer: Round 1
