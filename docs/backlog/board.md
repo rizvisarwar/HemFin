@@ -35,7 +35,7 @@ Deferred (not planned yet): native mobile app, WhatsApp notifications, push noti
 | Ticket | Title | Owner | Status | PR |
 |---|---|---|---|---|
 | HEM-008 | API: Supabase JWT auth, users and personal space | Engineer | Done | #15 |
-| HEM-009 | API: profile and addresses | Engineer | In Review | #17 (replaces #16) |
+| HEM-009 | API: profile and addresses | Engineer | Done | #17 (replaces #16) |
 | HEM-010 | Web: auth flows | Engineer | In Progress | |
 | HEM-011 | Web: profile page | Engineer | Todo | |
 
@@ -48,3 +48,4 @@ Deferred (not planned yet): native mobile app, WhatsApp notifications, push noti
 - Faster web CI: drop the standalone web build step, because Playwright's webServer already builds the app.
 - Dependency majors on hold: TypeScript 7.0 (Dependabot #8) needs its own ticket plus confirmation that Next.js 16 supports it. ESLint 10 (#11) waits for official `eslint-config-next` support. `@types/node` is held at the Node 22 runtime; bump it by hand with `.nvmrc`.
 - API docs: the OpenAPI spec documents 422 responses as FastAPI's `HTTPValidationError`, but the API returns RFC 7807 problem+json. Document a shared problem schema for 4xx and 5xx responses app-wide (from the HEM-009 review).
+- Test gap (from the HEM-009 review): `_is_default_conflict` in the profile service has no test for the path where a different IntegrityError is re-raised, and its string fallback could be stricter.
