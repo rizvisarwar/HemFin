@@ -27,6 +27,22 @@ Generate a typed client from `api/openapi.json` and use it in the web app.
 
 **Follow-ups:** HEM-006 CI should run `npm ci` at the root and `npm run check:api-drift` (needs uv and Node on the runner). `/health/ready` has an untyped response schema in the spec; type it when the client is used beyond the health badge. The api-client package has `typecheck` but no tests yet. Board status left for the PM to update.
 
+### 2026-11-25 Engineer, round 1 fixes
+1. Blocking, client tests: `packages/api-client/src/index.test.ts` (node:test, mocked `globalThis.fetch`) covers the Bearer header, async `getToken`, null/undefined token (no header), no `getToken`, and the token never appearing in the URL. `npm test --workspaces --if-present` runs it. Tests run `.ts` directly via Node type stripping (Node 22.18+/24; CI must use such a Node).
+2. `gen-api.mjs` now falls through to the next uv candidate on spawn errors and on non-zero exit, and the final error lists every candidate with its reason. `git()` surfaces `res.error` or stderr.
+3. Drift verification: changed `title="HemFin API"` to `"HemFin API DRIFT"` in `api/src/hemfin/main.py` and ran `npm run check:api-drift`. Output ended with:
+   ```
+   API drift: generated files are out of date. Run "npm run gen:api" and commit:
+   M api/openapi.json
+   exit=1
+   ```
+   Reverted with `git checkout -- .`, tree clean, and `check:api-drift` passes again. Not committed.
+4. Phone project: new test focuses the first bottom-nav link programmatically (after one Tab press to enter keyboard modality) and asserts outline style is not `none` and width > 0. It is skipped on tablet and desktop. The Tab-to-switcher check stays.
+5. Badge logic moved to a pure `fetchApiStatus(client, timeoutMs)` in `web/src/lib/api-health.ts` (`ApiStatus` uses it). `web/src/lib/api-health.test.ts` (node:test, fake client) covers online, non-2xx, thrown error, timeout abort, and the 2 s default. `web` has a `test` script; added `allowImportingTsExtensions` to the web and api-client tsconfigs for the `.ts` test imports.
+6, 7. Accepted and deferred, no change.
+
+**Results:** `npm ci`; `npm test --workspaces --if-present` 5 + 5 pass; `npm run gen:api`; drift check passes; web lint clean; web build ok; Playwright 25 passed, 2 skipped (the phone-only test on tablet and desktop).
+
 ## Review
 
 ### 2026-11-25 Round 1 (reviewer-tester)
