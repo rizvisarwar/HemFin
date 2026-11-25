@@ -8,6 +8,7 @@
 | HEM-004 | Generated TypeScript API client | Engineer | Done | #5 |
 | HEM-005 | Local dev orchestration | Engineer | Done | #4 |
 | HEM-006 | CI, scheduled jobs workflow and deployment config | Engineer | Done | #6 |
+| HEM-007 | Fix the dev-mode prerender error on the landing page | Engineer | In Progress | |
 
 ## Follow-ups (not yet ticketed)
 - Phase 2 (space switcher with real households): the phone switcher sheet gets the SpaceBadge heading row from spec 4.2, and long household names stay readable (from the HEM-003 design review).
