@@ -64,3 +64,26 @@ Shadcn/devDependencies: pass (`web/package.json`). Focus test uses `keyboard.pre
 Health badge: keeps the 2 s `AbortSignal.timeout`, renders "offline" when the API is unreachable (test passes), no token is sent or logged. Pass.
 Generated `schema.d.ts`: header says "Do not make direct changes to the file." Pass.
 Privacy, RFC 7807, migrations and secrets checklist items: not affected (no API or config change; `api/openapi.json` unchanged in the diff). N/A.
+
+### 2026-11-25 Round 2 (reviewer-tester)
+**APPROVED**
+
+Checks run on `hem-004-api-client` @ 30cffdb: `npm ci`; `npm test --workspaces --if-present` (api-client 5/5, web 5/5); `npm run gen:api`; `npm run check:api-drift` ("API client is up to date."); web `lint` (clean), `build` (ok, the TypeScript pass includes the new `.ts` test files), `npx playwright test` (25 passed, 2 skipped: the phone-only test on tablet and desktop); `@hemfin/api-client` typecheck (clean). No API files changed since Round 1, so the Round 1 api checks still stand.
+
+Round 1 findings:
+1. **Resolved.** `packages/api-client/src/index.test.ts` was read in full. It mocks `globalThis.fetch` and inspects the real `Request` objects. It covers: `Authorization: Bearer abc123` (sync `getToken`); the async token; `null` and `undefined` tokens, with no header on either request; no `getToken`, no header; and the token absent from the URL, with trailing slashes trimmed. The assertions are meaningful, not just "runs".
+2. **Resolved.** `scripts/gen-api.mjs:17-30` now tries the next candidate on spawn errors and on non-zero exit, and the final error lists each candidate with its reason. `git()` includes `res.error` or stderr. Trade-off (nit): a genuine export failure now runs the script under all four candidates before failing. Harmless, just slower.
+3. **Accepted on the engineer's logged output, not reproduced here.** The Handoff log (round 1 fixes, item 3) shows the source title edit, `npm run check:api-drift` exit=1 with `M api/openapi.json`, and a clean revert. The output is consistent with the script: the title lives in `openapi.json` only, so `schema.d.ts` is not expected in the list. I did not repeat the code edit. The check passes on the committed tree, as shown above.
+4. **Resolved.** The phone bottom-nav link now has its own outline assertion (`web/tests/smoke.spec.ts:115-128`, skipped off phone). It uses one real Tab to enter keyboard modality, then `.focus()`, so it does not test Tab-reachability. That is acceptable alongside the switcher Tab test.
+5. **Resolved at unit level.** `web/src/lib/api-health.test.ts` covers online (asserts `cache: "no-store"` and an `AbortSignal`), non-2xx, a thrown error, and a timeout abort (50 ms, under 1.5 s). `fetchApiStatus` is the function `ApiStatus` uses (`web/src/components/api-status.tsx:29`).
+
+Node and tsconfig check:
+- The tests need Node 22.18+ for type stripping. Node 24.19 is used here. Nothing in the repo pins this yet (no `engines`, no `.nvmrc`). **Nit:** add `"engines": { "node": ">=22.18" }` to the root `package.json`, or a `.nvmrc`, and make the HEM-006 CI use it.
+- `allowImportingTsExtensions` was added to `web/tsconfig.json` and `packages/api-client/tsconfig.json`. Both already set `noEmit: true`, which the option requires. The web build and the api-client typecheck both pass, so it does not break them.
+
+New nits:
+- `web/src/lib/api-health.test.ts` "keeps the 2 s default timeout" asserts a constant, not that `fetchApiStatus` uses it when no timeout is passed.
+- The `api/openapi.json` marker note from Round 1 (finding 6) is still open. Deferred.
+- The Vercel workspace install (finding 7) is still for HEM-006.
+
+No blocking findings remain.
