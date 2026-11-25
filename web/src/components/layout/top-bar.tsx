@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Bell } from "lucide-react";
+import { Bell, LogOut } from "lucide-react";
+import { signOut } from "@/app/auth/actions";
 import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
 import { SpaceSwitcher } from "./space-switcher";
@@ -61,6 +62,16 @@ export function TopBar({
             </span>
           ) : null}
         </Link>
+        <form action={signOut}>
+          <button
+            type="submit"
+            aria-label="Sign out"
+            title="Sign out"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-foreground hover:bg-accent"
+          >
+            <LogOut aria-hidden="true" className="size-5" />
+          </button>
+        </form>
       </div>
     </header>
   );

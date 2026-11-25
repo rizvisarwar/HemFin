@@ -67,7 +67,7 @@ export function mapAuthError(error: AuthErrorLike, flow: AuthFlow): MappedAuthEr
     case "reset-password":
       if (code === "weak_password") return { message: WEAK_PASSWORD_ERROR, treatAsSuccess: false };
       if (code === "same_password") return { message: SAME_PASSWORD_ERROR, treatAsSuccess: false };
-      if (code === "session_not_found" || code === "no_authorization" || error.status === 401) {
+      if (code === "session_not_found" || code === "no_authorization" || error.status === 401 || error.name === "AuthSessionMissingError") {
         return { message: LINK_EXPIRED_ERROR, treatAsSuccess: false };
       }
       return { message: GENERIC_ERROR, treatAsSuccess: false };
