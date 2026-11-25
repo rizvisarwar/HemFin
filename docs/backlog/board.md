@@ -17,3 +17,4 @@
 - Invitations ticket (Phase 2): keep invitation tokens out of URLs, or strip query strings from spans (from the HEM-005 review).
 - CI hardening (from the HEM-006 Round 2 review): in `jobs-cron.yml`, retry only curl errors that happen before the request is sent (6, 7, 35), not 28, 52 or 56; give the `pg_isready` wait loops in `ci.yml` a limit of about 30 tries and print `docker logs pg` on failure; pass the CI Postgres password through an env file under `$RUNNER_TEMP` instead of `-e`; pin Docker images to digests.
 - Faster web CI: drop the standalone web build step, because Playwright's webServer already builds the app.
+- Dependency majors on hold: TypeScript 7.0 (Dependabot #8) needs its own ticket plus confirmation that Next.js 16 supports it. ESLint 10 (#11) waits for official `eslint-config-next` support. `@types/node` is held at the Node 22 runtime; bump it by hand with `.nvmrc`.

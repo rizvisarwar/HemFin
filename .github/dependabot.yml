@@ -8,6 +8,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # @types/node must match the Node runtime (.nvmrc, 22.x). Bump its major by hand
+      # together with .nvmrc and engines.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: uv
     directory: /api
     schedule:
