@@ -64,5 +64,6 @@ Agents don't talk to each other directly. They communicate through ticket files 
 - **Permission refusals:**
   - If the sandbox, a permission check or a hook refuses a command, don't retry the same action through another shell, tool or workaround. Stop and report it to the PM, who brings it to the user.
   - **Exception:** when the refusal message itself names a compliant form (for example "too complex to verify, split into simpler commands"), do exactly that. Use plain single commands, no `cd … &&` chains, absolute paths, and send output to files instead of pipes. Mention it in your report.
+- **Stacked PRs:** before merging a parent PR with `--delete-branch`, retarget its child PR to `main` (`gh pr edit <child> --base main`). Otherwise GitHub closes the child for good when the base branch is deleted. After the parent is squash-merged, update the child with `git merge origin/main`, never with a force-push.
 - **Pushing branches with workflow changes:** use `gh` as the credential helper, for example `git -c credential.helper= -c "credential.helper=!gh auth git-credential" push`.
 - **Commit messages** end with the trailer `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.

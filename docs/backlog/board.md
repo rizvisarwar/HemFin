@@ -35,7 +35,7 @@ Deferred (not planned yet): native mobile app, WhatsApp notifications, push noti
 | Ticket | Title | Owner | Status | PR |
 |---|---|---|---|---|
 | HEM-008 | API: Supabase JWT auth, users and personal space | Engineer | Done | #15 |
-| HEM-009 | API: profile and addresses | Engineer | In Review | #16 |
+| HEM-009 | API: profile and addresses | Engineer | In Review | #17 (replaces #16) |
 | HEM-010 | Web: auth flows | Engineer | In Progress | |
 | HEM-011 | Web: profile page | Engineer | Todo | |
 
