@@ -89,3 +89,31 @@ One-command local stack.
 - `dotnet build` succeeds: met.
 
 **Verdict: CHANGES_REQUESTED.** Blocking: findings 1 and 2.
+
+### Round 2 (2026-11-25) Reviewer: APPROVED
+
+Reviewed commit f713f39 on `hem-005-local-dev`.
+
+**Checks run**
+- `dotnet build aspire/HemFin.AppHost`: pass (0 warnings, 0 errors).
+- `POSTGRES_PASSWORD=x docker compose config --quiet`: exit 0. Without the variable: exit 1, "required variable POSTGRES_PASSWORD is missing a value".
+- api/: `uv sync`, `ruff check` ("All checks passed!"), `ruff format --check` (14 files formatted), `mypy src` (9 files, no issues), `pytest -q -rs`: 24 passed, 3 skipped (DB tests, DATABASE_URL unset). Up from 21 passed in Round 1 (3 new telemetry tests). `tests/test_telemetry.py` alone: 6 passed.
+- Not run (no Docker daemon, accepted as manual steps): `aspire run`, `npx supabase start`, `docker compose up`.
+
+**Findings status**
+1. (blocking) Compose ports: fixed. `docker-compose.yml:41` and `:64` now bind `127.0.0.1`. The db port is also loopback. Pass.
+2. (blocking) OTLP protocol: fixed. `telemetry.py:28-51` selects the exporter package from `OTEL_EXPORTER_OTLP_PROTOCOL` (grpc default, http/protobuf). Unsupported values log a warning and leave telemetry off (PM-accepted). `test_telemetry.py` covers default, grpc, http/protobuf (each asserts the trace, metric and log exporters from the right package) and unsupported. The http exporter package is in `pyproject.toml`. README:72 now matches the code. Pass.
+3. (nit) AppHost comment reworded to "expected to inject ... verify in manual step 3" (`AppHost.cs:10-11`). Fixed.
+4. (nit) `WithExternalHttpEndpoints()` removed from both resources. Fixed.
+5. (nit) Deprecated SDK `LoggingHandler` replaced with `opentelemetry.instrumentation.logging.handler.LoggingHandler` (`telemetry.py:57`, `:90`). The OTel deprecation warning is gone. Only a Starlette TestClient warning remains, from a third-party library. Fixed.
+6. (nit, PM decision) Query-string span attributes: documented in the `telemetry.py` docstring and README, and recorded as a follow-up in the handoff log. Noted; no code change required.
+7. (nit) Global OTel provider state: a comment now explains the once-per-process behaviour, and the test asserts exporter selection only. Accepted.
+8. (nit, PM decision) OTel packages stay regular dependencies. Recorded in the handoff log.
+9. (nit, PM decision) `npm ci` on each compose web start accepted for dev. Recorded in the handoff log.
+
+**New nits (not blocking)**
+- Commit f713f39 ends with `Co-Authored-By: Claude Sonnet 5.5`. CLAUDE.md requires the Opus 5.5 trailer. Use the correct trailer on future commits.
+- Handoff log line 35 (the earlier gRPC-only bullet) is now stale after the Round 1 fixes. Strike or update it for accuracy.
+- Still unverified at runtime: whether Aspire injects `OTEL_EXPORTER_OTLP_PROTOCOL` and `OTEL_EXPORTER_OTLP_ENDPOINT` for the Python API. This is covered by manual step 3 and is not a blocker.
+
+**Verdict: APPROVED.** No blocking findings remain.
