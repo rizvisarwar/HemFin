@@ -32,3 +32,35 @@ Create `api/` as a uv-managed Python 3.11 project (package `hemfin` under `api/s
 - Follow-ups: CI workflow to run the checks and Docker build; `render.yaml`; ensure the Supabase pooler URL works with `statement_cache_size=0` against a real instance.
 
 ## Review
+
+### Round 1 (2026-11-25)
+
+**CHANGES_REQUESTED**
+
+Checks run on PR #1 (branch `hem-001-api-skeleton`, commit 1825820): `uv sync` pass, `ruff check` pass, `ruff format --check` pass (12 files), `mypy src` pass (8 files), `pytest -q` 8 passed / 2 skipped (db tests, no DATABASE_URL). Not run: Docker build (daemon unavailable), db-marked tests (no Postgres).
+
+Findings:
+
+1. **blocking**: `api/alembic/versions/20261125_0001_create_app_schema.py:20-21`. The downgrade runs `DROP SCHEMA IF EXISTS app CASCADE`, which also drops `app.alembic_version`. Alembic then runs `DELETE FROM app.alembic_version WHERE version_num='0001'` in the same transaction (`alembic/runtime/migration.py`, `run_migrations` → `HeadMaintainer.update_to_step` → `_delete_version`). That DELETE fails, so `alembic downgrade base` errors and rolls back. Not run live (no Postgres), but this follows from the Alembic source. Confirm with `upgrade head` then `downgrade base` on a real DB. Fix: make the downgrade not drop the schema that holds the version table (a no-op with a comment is enough for a baseline). `CASCADE` should also go, since later migrations will add tables.
+
+2. **blocking**: unhandled errors lose the request id and CORS headers. Verified with a temporary probe (`TestClient(raise_server_exceptions=False)`, route raising `RuntimeError`, `Origin: http://localhost:3000`). The 500 response has only `content-type: application/problem+json` and `content-length`. It has no `X-Request-ID` header, no `request_id` in the body, and no `access-control-*` headers. The unhandled-exception log line has `request_id: null`. Cause: Starlette runs `Exception` handlers in `ServerErrorMiddleware`, which sits outside `RequestIdMiddleware` and `CORSMiddleware`, so their header and contextvar handling never sees the response. The no-leak part passes (no stack trace or exception text in the body). Fix: catch unhandled exceptions inside the middleware stack so the 500 passes back through the request-id and CORS middleware, and add a test asserting `x-request-id` and an allowed-origin `access-control-allow-origin` on the 500 response. Keep the existing no-leak assertions.
+
+3. **blocking (verification)**: the Dockerfile acceptance criterion ("builds") is unmet. The PR body leaves it unchecked. Review by reading passes: non-root `USER hemfin` (`api/Dockerfile:16-19`), `--port "${PORT:-8000}"` (`api/docker-entrypoint.sh:4`), `alembic upgrade head` before start, `.dockerignore` excludes `.env` and `tests`, and the shell script has LF endings. Needs `docker build` plus a run against a DB before approval. This is not a code defect.
+
+4. **nit**: `api/src/hemfin/main.py:51-52`. The readiness handler swallows the exception with no log, so a 503 can't be diagnosed from logs. Add `log.warning("database readiness check failed", exc_info=True)`.
+
+5. **nit**: `api/tests/test_api.py:80-87`. The db-marked tests don't exercise the migration. Once finding 1 is fixed, add a db test that round-trips `upgrade head` and `downgrade base`.
+
+6. **nit**: `api/src/hemfin/core/logging.py:56-57`. The client-supplied `X-Request-ID` is accepted verbatim (truncated to 128). Consider restricting it to a safe character set, such as `[A-Za-z0-9._-]`.
+
+7. **nit**: ticket housekeeping. Status is still `Todo`, the Handoff log is empty, `docs/backlog/board.md` is unchanged, and the ticket's acceptance checkboxes are unchecked while the PR body checks them.
+
+Checklist passes:
+- Problem+json on 404, 422, 500 and 503. Error bodies contain no traceback or internal text.
+- Secrets: `.env` is gitignored (`.gitignore:153`). Only `api/.env.example` is tracked. Its `postgres:postgres` value is a local placeholder.
+- Async DB: `statement_cache_size=0` and `prepared_statement_cache_size=0` are both applied. Checked against the SQLAlchemy asyncpg dialect source. `pool_pre_ping=True`.
+- Alembic async env creates schema `app` before the version table (`alembic/env.py:36`), with `version_table_schema='app'`.
+- `api/openapi.json` matches the generated spec (ignoring CR).
+- Health endpoints sit outside `/api/v1` as the ticket specifies. The `/api/v1` router is mounted empty.
+
+Verdict: CHANGES_REQUESTED on findings 1 and 2. Finding 3 must be closed before approval. Findings 4 to 7 are optional.
