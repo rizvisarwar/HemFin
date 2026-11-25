@@ -92,11 +92,14 @@ test.describe("app shell", () => {
     await shot(page, info, "dashboard");
   });
 
-  test("keyboard focus is visible on navigation links", async ({ page }, info) => {
+  test("keyboard focus is visible on navigation controls", async ({ page }, info) => {
     await page.goto("/dashboard");
-    const nav = page.getByTestId(info.project.name === "phone" ? "bottom-nav" : "side-nav");
-    const link = nav.getByRole("link").first();
-    // Tab from the top of the page until the link has focus, as a keyboard user would.
+    // WebKit (the phone project) does not Tab to plain links, so there we check the space switcher button.
+    const link =
+      info.project.name === "phone"
+        ? page.getByRole("button", { name: /Active space/ })
+        : page.getByTestId("side-nav").getByRole("link").first();
+    // Tab from the top of the page until the target has focus, as a keyboard user would.
     for (let i = 0; i < 30 && !(await link.evaluate((el) => el === document.activeElement)); i++) {
       await page.keyboard.press("Tab");
     }
