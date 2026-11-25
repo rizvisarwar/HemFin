@@ -209,9 +209,12 @@ def test_startup_fails_with_malformed_url(monkeypatch: pytest.MonkeyPatch) -> No
     config.get_settings.cache_clear()
 
 
-def test_test_mode_flag_refused_in_production(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("env", ["production", "staging", "Production "])
+def test_test_mode_flag_refused_outside_local_and_test(
+    monkeypatch: pytest.MonkeyPatch, env: str
+) -> None:
     _reset(monkeypatch)
-    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("APP_ENV", env)
     monkeypatch.setenv("HEMFIN_TEST_MODE", "1")
     with pytest.raises(RuntimeError, match="HEMFIN_TEST_MODE"), TestClient(create_app()):
         pass

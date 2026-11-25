@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: uv
+    directory: /api
+    schedule:
+      interval: weekly
+  # Follow-up: docker images (postgres:16, python:3.11-slim, node:22-bookworm-slim, the uv image)
+  # are pinned by tag only; pin by digest and add the `docker` ecosystem later.

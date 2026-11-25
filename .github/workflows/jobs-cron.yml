@@ -2,7 +2,7 @@ name: Scheduled jobs
 
 # Calls the API's internal job endpoints. Needs, in the repo settings (Settings > Secrets and
 # variables > Actions):
-#   Variable API_BASE_URL, e.g. https://hemfin-api.onrender.com (no trailing slash needed)
+#   Variable API_BASE_URL, e.g. https://<your-service>.onrender.com (no trailing slash needed)
 #   Secret   JOB_SECRET, which must equal the API's JOB_SECRET
 # If either is unset the run succeeds with a notice and does nothing.
 # NOTE: the /internal/jobs/* endpoints are not implemented yet; until they exist the call returns 404.
@@ -23,35 +23,51 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: jobs-cron-${{ github.event.schedule || github.event.inputs.job }}
-  cancel-in-progress: false
-
 jobs:
-  call:
+  resolve:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 2
+    outputs:
+      name: ${{ steps.job.outputs.name }}
     env:
-      API_BASE_URL: ${{ vars.API_BASE_URL }}
-      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      EVENT_NAME: ${{ github.event_name }}
       EVENT_SCHEDULE: ${{ github.event.schedule }}
       INPUT_JOB: ${{ github.event.inputs.job }}
     steps:
       - name: Resolve job name
         id: job
         run: |
-          if [ -n "$INPUT_JOB" ]; then
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             name="$INPUT_JOB"
-          elif [ "$EVENT_SCHEDULE" = "30 6 * * 1" ]; then
-            name=weekly
           else
-            name=daily
+            # Keep these strings identical to the cron entries above.
+            case "$EVENT_SCHEDULE" in
+              "15 5 * * *") name=daily ;;
+              "30 6 * * 1") name=weekly ;;
+              *) echo "::error::Unknown schedule '$EVENT_SCHEDULE'; update the case statement in jobs-cron.yml"; exit 1 ;;
+            esac
           fi
+          case "$name" in
+            daily|weekly) ;;
+            *) echo "::error::Unknown job '$name'"; exit 1 ;;
+          esac
           echo "name=$name" >> "$GITHUB_OUTPUT"
+
+  call:
+    needs: resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # One group per job name, shared by scheduled and manual runs; a running job is never cancelled.
+    concurrency:
+      group: jobs-cron-${{ needs.resolve.outputs.name }}
+      cancel-in-progress: false
+    env:
+      API_BASE_URL: ${{ vars.API_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      JOB_NAME: ${{ needs.resolve.outputs.name }}
+    steps:
       - name: Check configuration
         id: cfg
-        env:
-          JOB_NAME: ${{ steps.job.outputs.name }}
         run: |
           if [ -z "$API_BASE_URL" ] || [ -z "$JOB_SECRET" ]; then
             echo "::notice::API_BASE_URL (variable) and/or JOB_SECRET (secret) are not set; skipping the ${JOB_NAME} job."
@@ -61,11 +77,29 @@ jobs:
           fi
       - name: Call job endpoint
         if: steps.cfg.outputs.configured == 'true'
-        env:
-          JOB_NAME: ${{ steps.job.outputs.name }}
         run: |
-          # Free-tier Render sleeps; the first request can take about a minute to wake it.
-          curl --fail-with-body -sS -X POST \
-            --retry 3 --retry-delay 20 --retry-all-errors --max-time 120 \
-            -H "X-Job-Secret: ${JOB_SECRET}" \
-            "${API_BASE_URL%/}/internal/jobs/${JOB_NAME}"
+          # Free-tier Render sleeps, so the first request can take about a minute to wake it.
+          # Retry ONLY connection-level failures and 502/503/504 (a waking or restarting host).
+          # Any other response, including 404 and 500, fails immediately so a job that may have
+          # partly run is never repeated. The endpoints should be idempotent when they land.
+          url="${API_BASE_URL%/}/internal/jobs/${JOB_NAME}"
+          for attempt in 1 2 3 4; do
+            rc=0
+            code=$(curl -sS -o response.txt -w '%{http_code}' -X POST --max-time 120 \
+              -H "X-Job-Secret: ${JOB_SECRET}" "$url") || rc=$?
+            if [ "$rc" -eq 0 ]; then
+              case "$code" in
+                2??) cat response.txt; echo; echo "job ${JOB_NAME}: HTTP $code"; exit 0 ;;
+                502|503|504) echo "attempt $attempt: HTTP $code (host waking up), retrying" ;;
+                *) cat response.txt; echo; echo "::error::job ${JOB_NAME} failed with HTTP $code"; exit 1 ;;
+              esac
+            else
+              case "$rc" in
+                6|7|28|35|52|55|56) echo "attempt $attempt: connection error (curl $rc), retrying" ;;
+                *) echo "::error::curl failed with exit code $rc"; exit 1 ;;
+              esac
+            fi
+            sleep 20
+          done
+          echo "::error::job ${JOB_NAME} did not succeed after 4 attempts"
+          exit 1

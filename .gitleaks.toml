@@ -2,16 +2,8 @@
 [extend]
 useDefault = true
 
-# Narrow allowlists only. Do not add broad path allowlists.
-
-# 1. The CI-only throwaway Postgres password in the workflow (ephemeral service container).
-[[allowlists]]
-description = "CI-only throwaway Postgres password in ci.yml"
-condition = "AND"
-paths = ['''^\.github/workflows/ci\.yml$''']
-regexes = ['''ci-only-throwaway-pg-password''']
-
-# 2. Placeholders in .env.example files (angle-bracket placeholders only).
+# Narrow allowlist only. Do not add broad path allowlists.
+# Placeholders in .env.example files (angle-bracket placeholders only).
 [[allowlists]]
 description = ".env.example placeholders"
 condition = "AND"

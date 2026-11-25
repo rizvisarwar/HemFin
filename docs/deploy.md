@@ -33,7 +33,7 @@ Environment variable names used across the system:
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | Render (optional) | no | Leave unset to keep telemetry off. |
 | `NEXT_PUBLIC_API_URL` | Vercel | no | Public API base URL, no trailing slash. Visible in the browser. |
 | `API_BASE_URL` | GitHub Actions **variable** | no | Same API URL, used by the cron workflow. |
-| `HEMFIN_TEST_MODE` | tests only | no | **Never set this in a deployment.** It skips the startup database check, and the API refuses to start if it is set while `APP_ENV=production`. |
+| `HEMFIN_TEST_MODE` | tests only | no | **Never set this in a deployment.** It skips the startup database check, and the API refuses to start unless `APP_ENV` is `local` or `test`. |
 
 Later tickets (Auth, email) add more variables (Supabase keys, Resend key, SMTP settings). When they land, add them to this table and to the Secrets section. Anything with a secret value follows section 8.
 
@@ -57,13 +57,13 @@ Render reads `render.yaml` from the repo root: web service `hemfin-api`, Docker 
 2. **New > Blueprint**, pick this repo and branch `main`. Render shows the `hemfin-api` service and prompts for every `sync: false` key:
    - `DATABASE_URL`: the Supabase pooler string from section 2.
    - `SUPABASE_URL`: `https://<project-ref>.supabase.co`.
-   - `CORS_ORIGINS`: your Vercel URL, e.g. `https://hemfin.vercel.app`. You may enter a placeholder now and fix it in step 6.
+   - `CORS_ORIGINS`: your Vercel URL, e.g. `https://<your-app>.vercel.app`. You may enter a placeholder now and fix it in step 6.
    - `JOB_SECRET`: generate a long random value, for example `openssl rand -hex 32` (or `python -c "import secrets; print(secrets.token_urlsafe(32))"`). Keep a copy for GitHub (section 7).
 3. Apply. Render builds `api/Dockerfile` and starts the container. The entrypoint runs `alembic upgrade head` and then `uvicorn` on `$PORT` (Render sets it). The first build takes a few minutes.
 4. Verify: open `https://<service>.onrender.com/health` (expect `{"status":"ok"}`) and `/health/ready` (expect `{"status":"ready"}`, which proves the database connection).
 5. **Region.** `frankfurt` is a default of this repo, not a requirement. To change it, edit `region:` in `render.yaml` (options include `oregon`, `ohio`, `virginia`, `frankfurt`, `singapore`). A service's region cannot be changed after creation; recreate it. Pick the one nearest the Supabase region.
 6. After Vercel gives you the web URL (section 4), set `CORS_ORIGINS` to it in the service's Environment tab and let it redeploy.
-7. Free-plan behaviour: the service **sleeps after about 15 minutes idle** and takes up to about a minute to wake. Section 6 mitigates this.
+7. Free-plan behaviour (UNVERIFIED, check Render's current limits): the service sleeps after about 15 minutes idle and takes up to about a minute to wake. Section 6 mitigates this.
 8. If you prefer, put the same keys in a Render **Environment Group** and link it to the service, or provide a **Secret File** named `DATABASE_URL` (mounted at `/etc/secrets/DATABASE_URL`). The API reads env vars first, then secret files in `SECRETS_DIR`. See section 8.
 
 `render.yaml` was not applied by the author (no Render account access). Treat the first Blueprint apply as the verification of the file's schema, and tell the team about any validation error.
@@ -79,7 +79,7 @@ The web app is `web/`, an npm workspace of the root `package.json` (workspaces `
 5. Build and output settings: defaults (`next build`, output managed by Next.js). No `vercel.json` is needed; none is committed. Add one only if a feature requires it (for example rewrites or headers).
 6. **Node version:** Project Settings > General > Node.js Version should be 22.x or newer (the repo needs `>=22.18`, see `package.json` `engines` and `.nvmrc`). Vercel also reads `engines`.
 7. **Environment variables** (Project Settings > Environment Variables, Production and Preview):
-   - `NEXT_PUBLIC_API_URL` = the Render URL, e.g. `https://hemfin-api.onrender.com`, no trailing slash.
+   - `NEXT_PUBLIC_API_URL` = the Render URL, e.g. `https://<your-service>.onrender.com`, no trailing slash.
    - Later tickets add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (public by design). Never create a `NEXT_PUBLIC_` variable for a secret.
    - `NEXT_PUBLIC_*` values are inlined at build time: change one, then redeploy.
 8. Deploy. Copy the production URL into Render's `CORS_ORIGINS` (section 3, step 6). Preview deployments use different origins; add them to `CORS_ORIGINS` only if you test the API from previews.
@@ -88,7 +88,7 @@ The web app is `web/`, an npm workspace of the root `package.json` (workspaces `
 
 ## 5. Resend
 
-1. Create an account at resend.com (free tier: 3,000 emails per month, 100 per day).
+1. Create an account at resend.com. Free tier at the time of writing: 3,000 emails per month, 100 per day (UNVERIFIED, check Resend's current limits).
 2. **Domains > Add Domain** if you own a domain, and add the DNS records Resend lists (SPF, DKIM). Without a verified domain Resend only lets you send test emails to your own address. UNVERIFIED current limits.
 3. **API Keys > Create API Key** with "Sending access". Copy it once. This is a secret: it is used as the Supabase SMTP password (section 2, step 5) and, in later tickets, as an API variable (the Email ticket names it). Store it per section 8.
 
@@ -96,7 +96,7 @@ The web app is `web/`, an npm workspace of the root `package.json` (workspaces `
 
 Keeps the free Render service from sleeping and alerts you when it is down.
 
-1. Create an account at uptimerobot.com (free plan; the minimum interval is 5 minutes).
+1. Create an account at uptimerobot.com. Free plan with a 5-minute minimum interval at the time of writing (UNVERIFIED, check UptimeRobot's current limits).
 2. **Add New Monitor**: type **HTTP(s)**, URL `https://<service>.onrender.com/health`, interval 5 minutes.
 3. Optionally add an alert contact (email). Use `/health` (liveness, does not touch the database), not `/health/ready`, to avoid pointless database traffic.
 
@@ -109,18 +109,19 @@ Runs on every pull request and on pushes to `main`. Jobs:
 
 | Job | What it does |
 |---|---|
-| `api` | Starts `postgres:16`, runs `alembic upgrade head`, `ruff check`, `ruff format --check`, `mypy src`, `pytest` (including the db-marked tests and `test_migration_roundtrip`). |
-| `docker` | Builds `api/Dockerfile` and runs the image against a Postgres service, then waits for `/health/ready` to return 200. |
+| `api` | Starts a throwaway `postgres:16` container, runs `alembic upgrade head`, `ruff check`, `ruff format --check`, `mypy src`, `pytest` (including the db-marked tests and `test_migration_roundtrip`). |
+| `docker` | Validates `docker-compose.yml` (`docker compose config -q`), builds `api/Dockerfile` and runs the image against a throwaway Postgres container, then waits for `/health/ready` to return 200. |
 | `web` | Root `npm ci`, `npm test --workspaces --if-present`, `npm run check:api-drift`, web lint and build, Playwright (chromium + webkit, all three viewports). Uploads the Playwright report as an artifact if the job fails. |
 | `gitleaks` | Scans the full git history with `.gitleaks.toml`. Any finding fails the build. |
 
 Notes:
 - Node comes from `.nvmrc` (`22.18.0`), and `package.json` `engines` requires `>=22.18` (the unit tests use Node's built-in TypeScript type stripping).
+- **No credentials are stored in the workflow.** Each job that needs Postgres starts a throwaway container with a random per-run password (`openssl rand -hex 24`), masks it with `::add-mask::` and passes `DATABASE_URL` on through `$GITHUB_ENV`. Nothing is allowlisted for it in `.gitleaks.toml`.
+- Third-party actions are pinned to full commit SHAs (the trailing comment names the release). `.github/dependabot.yml` updates them weekly, along with npm (root) and uv (`api/`). Docker images (`postgres:16`, `python:3.11-slim`, `node:22-bookworm-slim`) are pinned by tag only; digest pinning is a follow-up.
 - Superseded pull request runs are cancelled (`concurrency`). Workflow permissions default to `contents: read`.
-- The CI Postgres password in `ci.yml` is a **throwaway, CI-only** value for an ephemeral container that exists only for the duration of the job. It guards no data and is not reused anywhere. `.gitleaks.toml` allowlists exactly that string in exactly that file. It is the one deliberate exception to "no passwords in workflow files"; do not copy the pattern for anything real.
 - **gitleaks licence:** the job runs the MIT-licensed gitleaks binary (version and SHA-256 pinned in `ci.yml`) rather than `gitleaks/gitleaks-action`. As far as the author could determine, the action needs a paid `GITLEAKS_LICENSE` key for repositories owned by an organization and is free for personal accounts. UNVERIFIED against the current licence text; the binary has no such requirement, so it works the same for a personal repo or an organization.
 - Optional local hook: `.pre-commit-config.yaml` runs gitleaks before each commit (`pip install pre-commit && pre-commit install`).
-- Make the checks required: Settings > Branches (or Rules) > protect `main`, require the status checks `api`, `docker`, `web`, `gitleaks`.
+- Make the checks required: Settings > Branches (or Rules) > protect `main`, require the status checks named `api`, `docker`, `web` and `gitleaks` (the job names, as shown by `gh pr checks`). Confirm in the branch-protection picker after the first run.
 
 ### Repository secrets and variables (for the scheduled jobs)
 Settings > Secrets and variables > Actions:
@@ -133,7 +134,7 @@ Settings > Secrets and variables > Actions:
 - If `API_BASE_URL` or `JOB_SECRET` is unset, the run **succeeds with a notice** and does nothing (so forks and fresh clones stay green).
 - **The `/internal/jobs/*` endpoints do not exist yet.** The workflow only calls them. Until a later ticket adds them, a configured run fails with HTTP 404. That is expected; leave the two settings unset until the endpoints ship. The API's side (checking `X-Job-Secret` against `JOB_SECRET` with a constant-time comparison) is part of that later ticket.
 - GitHub may disable scheduled workflows after 60 days without repository activity in public repos, and scheduled runs can start several minutes late. UNVERIFIED current policy; re-enable from the Actions tab if needed.
-- The first call after a sleep wakes Render, so the workflow retries (3 retries, 20 s apart, 120 s per attempt).
+- The first call after a sleep wakes Render. The workflow retries only connection-level failures and HTTP 502/503/504 (up to 4 attempts, 20 s apart, 120 s each). Any other status, including 404 and 500, fails immediately so a half-run job is never repeated. Make the endpoints idempotent when they land.
 
 ## 8. Secrets
 

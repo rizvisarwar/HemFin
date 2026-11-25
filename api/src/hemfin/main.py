@@ -20,12 +20,15 @@ from hemfin.core.telemetry import setup_telemetry
 
 log = logging.getLogger("hemfin.health")
 
+# The only environments where the test-only startup bypass may be enabled.
+TEST_MODE_ENVS = {"local", "test"}
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
-    if settings.HEMFIN_TEST_MODE and settings.APP_ENV == "production":
-        raise RuntimeError("HEMFIN_TEST_MODE must not be set when APP_ENV=production.")
+    if settings.HEMFIN_TEST_MODE and settings.APP_ENV.strip().lower() not in TEST_MODE_ENVS:
+        raise RuntimeError("HEMFIN_TEST_MODE is only allowed when APP_ENV is 'local' or 'test'.")
     # Fail fast at startup if the DB secret is missing or malformed (names the variable only).
     if not settings.HEMFIN_TEST_MODE:
         db.parse_database_url(settings.require_database_url())
