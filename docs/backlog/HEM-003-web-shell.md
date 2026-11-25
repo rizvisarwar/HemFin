@@ -1,6 +1,6 @@
 # HEM-003: Next.js web shell
 
-**Phase:** 0 · **Status:** Todo · **Owner:** Engineer · **Depends on:** HEM-002
+**Phase:** 0 · **Status:** In Review · **Owner:** Engineer · **Depends on:** HEM-002
 
 ## Goal
 Create `web/` Next.js app implementing the design system and responsive shell from HEM-002.
@@ -16,4 +16,89 @@ Create `web/` Next.js app implementing the design system and responsive shell fr
 
 ## Handoff log
 
+### 2026-11-25 Engineer
+Built `web/` (Next.js 16, App Router, TS strict, Tailwind v4, shadcn/ui, next-themes, Playwright). Tokens and `globals.css` taken from `docs/design/design-system.md`; layout components in `src/components/layout`, generic ones in `src/components/ui`, props per app-shell.md section 10. Landing `/`, `/sign-in` placeholder, `(app)` group with 11 placeholder pages. Landing footer has a server-side API status badge (offline when the API is unreachable). Active space is the `hemfin-space` cookie (server action); static placeholder spaces (Personal, Sample household).
+- PR: see PR description (branch `hem-003-web-shell`).
+- Verify: `cd web && npm install && npm run lint && npm run build && npx playwright test` (projects phone = WebKit iPhone 13, tablet 768, desktop 1280). Screenshots in `web/test-results/screenshots/` (gitignored).
+- Deviations: dashboard is at `/dashboard` (not `/`) because `/` is the public landing page. shadcn "base-nova" style uses Base UI primitives, not Radix (current shadcn default). Added a `tablet` Playwright project (768) for the icon rail. "Continue with Google" is a plain outline button with no Google logo yet. Landing footer omits Privacy/Terms links (no pages yet). Preview panel on landing is a CSS mock.
+- Follow-ups: real Google button and logo; Privacy/Terms pages; space-switch skeletons once data exists; Toast component not built (not in this ticket's list).
+
 ## Review
+
+### Round 1 (2026-11-25)
+
+**CHANGES_REQUESTED**
+
+Checks run on PR #3 (branch `hem-003-web-shell`, head 640558d):
+- `npm ci`: PASS (539 packages; npm reports 4 moderate audit advisories, not triaged here).
+- `npm run lint`: PASS (no errors reported).
+- `npm run build`: FAIL. Fourteen `Module not found` errors for `@/lib/utils`, `@/lib/env`, `@/lib/format`, `@/lib/space`.
+- `npx playwright install chromium webkit`: PASS.
+- `npx playwright test`: FAIL before any test ran. The `webServer` build step exits 1 for the same reason.
+
+Findings:
+
+1. **blocking**: the build fails on a clean checkout. Root `.gitignore:17` contains `lib/`, which matches any `lib` directory, including `web/src/lib/`. None of `web/src/lib/*` is tracked (`git ls-files web/src/lib` is empty), but about 20 components and pages import from it. Fix: anchor the rule to the repo root (`/lib/`, `/lib64/`) or add a `!web/src/lib/` exception, then commit the `web/src/lib/` files. Rerun `npm run build` and `npx playwright test`. I could not read these files, so the cookie helper, `API_URL` and `formatMoney` are unverified.
+
+2. **blocking**: keyboard focus is not visible on the nav and space switcher. `outline-none` is applied at `web/src/components/layout/bottom-nav.tsx:25` (`slot`), `web/src/components/layout/side-nav.tsx:58` and `web/src/components/layout/space-switcher.tsx:57`. The global `:focus-visible` outline at `web/src/app/globals.css:91` sits in `@layer base`, and Tailwind utilities in `@layer utilities` win the cascade, so the utility removes the ring. This fails the checklist item "keyboard focus is visible" and CLAUDE.md rule 6 (WCAG AA). Fix: drop `outline-none` from these classes, or add `focus-visible:ring-2 focus-visible:ring-ring`. Add a Playwright check that a Tab-focused nav link has a visible outline.
+
+3. **nit**: `web/src/app/actions.ts:13-17`. The `hemfin-space` cookie is set with `path: "/"`, `sameSite: "lax"` and a one-year `maxAge`. The value is a space id, not a secret, and nothing reads it from `document.cookie`. Consider adding `httpOnly: true` and `secure: process.env.NODE_ENV === "production"`.
+
+4. **nit**: `web/src/components/ui/sheet.tsx:5` imports `cn` from the npm package `cn` (declared in `package.json`). Every other file uses `@/lib/utils`. The import works, but it is inconsistent and adds a dependency. Use the shared helper and drop the package.
+
+5. **nit**: `web/tests/smoke.spec.ts:64-68`. The 44 px tap-target check covers only `bottomNav.getByRole("link")`. The More trigger is a button and is not checked. Extend the selector to links and buttons.
+
+Checks passed by reading (not run):
+- Landing health badge: `api-status.tsx` is an async server component with a 2 s timeout, `cache: "no-store"`, and a try/catch that returns "offline". It is wrapped in `Suspense` with a `checking` fallback (`app/page.tsx:114`). An unreachable API cannot break SSR.
+- Secrets: `web/.env.example` has only `NEXT_PUBLIC_API_URL`, a placeholder. No server-side `process.env` use in `src/`. `web/.gitignore` ignores `.env*` and allows `.env.example`.
+- Responsive: bottom nav is `md:hidden`, side nav is `hidden md:flex`, and the More sheet is a Base UI Dialog (built-in focus trap). Bottom slots are `min-h-16`, rail buttons are `size-12`, and other targets are `min-h-11`. Active items carry `aria-current="page"`.
+- Labels: sign-in inputs use `Label htmlFor` and `autoComplete`. The logo has `aria-label`, and decorative icons are `aria-hidden`.
+- Space switcher: phone uses a Sheet with a radiogroup, desktop uses a dropdown. The visible name sits inside the accessible name.
+
+Accepted deviations (per PM): `/dashboard` route, base-nova (Base UI) primitives, tablet project, plain Google button.
+
+Verdict: CHANGES_REQUESTED on findings 1 and 2. Once those are fixed, rerun `npm run lint && npm run build && npx playwright test` and check the three projects (phone, tablet, desktop) before approval.
+
+### 2026-11-25 Engineer, round 1 fixes
+- Design 0 / Code 1: `web/src/lib/*` committed (main's `.gitignore` fix merged); clean-clone `npm ci && npm run build` checked.
+- Design 1-2 / Code 4: `cn()` now uses clsx + `extendTailwindMerge` with the design-system type utilities in the font-size group; `cn` npm package removed and all `ui/*` import `@/lib/utils`. Bottom-nav label back to bold. Tests: `tests/cn.spec.ts`, and computed font-size assertions (bottom-nav label 12px, sidebar group label 14px).
+- Code 2: removed `outline-none` from bottom-nav, side-nav and space-switcher so the global focus ring applies; Playwright test checks a visible outline.
+- Code 3: `hemfin-space` cookie is `httpOnly` (only the server reads it) and `secure` in production over https (via x-forwarded-proto, so plain-http local `next start` still works in WebKit).
+- Code 5: tap-target test now covers More and the space switcher trigger.
+- Design 4: sidebar item gap removed at xl so the space note fits at 1280x800.
+- Design 5: dashboard cards no longer have buttons. Design 6: empty-state icon circles follow the active space tint (CSS via `data-space` on main).
+- Design 7: sign-in brand panel markers removed, `text-balance`/`text-pretty` on headings. Design 9: phone switcher truncates (max-w-44, ellipsis) with the full name in `title`.
+- Design 8: Playwright runs with reduced motion and `animations: "disabled"`; screenshots wait for the sheet/menu to be visible; re-shot.
+- npm audit: 4 moderate, all minimatch via shadcn > ts-morph (CLI tooling, not in the app runtime). Only fix is `--force` to shadcn@1.0.0 (breaking), so left as is.
+
+### Round 2 (2026-11-25)
+
+**APPROVED**
+
+Checks run on PR #3 (branch `hem-003-web-shell`, head c8972d7), from `web/`:
+- `npm ci`: PASS (539 packages). 4 moderate audit advisories, accepted (see below).
+- `npm run lint`: PASS (no errors reported).
+- `npm run build`: PASS. Compiled, TypeScript finished, 16 static and partial routes generated.
+- `npx playwright test`: PASS, 24 passed (8 workers) across the phone (iPhone 13, WebKit), tablet (768) and desktop (1280) projects. The `cn` unit test, the smoke tests and the focus test all pass.
+
+Round 1 status:
+1. Build fails on a clean checkout: fixed. The root `.gitignore` Python rules are scoped to `/api/`, and `web/src/lib/*` is now tracked. `npm run build` passes.
+2. Keyboard focus not visible: fixed. `outline-none` is gone from `bottom-nav.tsx`, `side-nav.tsx` and `space-switcher.tsx`. The new test `keyboard focus is visible on navigation links` passes on all three projects.
+3. Cookie attributes: fixed. `actions.ts:15-21` sets `httpOnly: true`, `sameSite: "lax"`, `path: "/"`, a one-year `maxAge`, and `secure` as described below.
+4. `cn` npm import in `sheet.tsx`: fixed. `sheet.tsx:5` imports `@/lib/utils`, and the `cn` npm package is removed from `package.json`. No `from "cn"` remains in `src/`.
+5. Tap-target test only covered bottom-nav links: fixed. The test now also checks the More button and the space switcher trigger (`smoke.spec.ts:64-76`).
+
+Specific points:
+- `extendTailwindMerge` (`web/src/lib/utils.ts`): the 11 extended `text-*` names (display, h1, h2, h3, lead, body, body-strong, small, caption, money-lg, money) match exactly the `@utility text-*` definitions in `globals.css`. `tests/cn.spec.ts` covers both retained colour classes and real conflict merging.
+- `cn` npm package: removed from `package.json`. The only remaining `shadcn` entry is the CLI, see nit 2.
+- Cookie `secure` logic (`actions.ts:13-20`): `secure` is `NODE_ENV === "production" && x-forwarded-proto === "https"`. The header is client-controlled, but it only affects the Secure attribute on the cookie sent back to that same client. A client that spoofs `https` gets a Secure cookie that it will not send over plain HTTP, which only hurts itself. Spoofing `http` cannot make the cookie less secure, since the default is non-Secure. The value is a space id checked against `PLACEHOLDER_SPACES` by `resolveSpaceId`, so the header cannot inject anything into the cookie. Risk: negligible for a preference cookie. Not blocking.
+- Accepted: the 4 moderate advisories are minimatch via `@ts-morph/common` and `ts-morph`, pulled in by `shadcn` (CLI only). Confirmed with `npm audit --json`.
+
+Findings (none blocking):
+1. **nit**: `web/tests/smoke.spec.ts:95-107`. The focus test calls `.focus()` in script, not Tab, so it does not prove `:focus-visible` matches for a keyboard user. The assertion also passes if `boxShadow` is set for any reason. Use `page.keyboard.press("Tab")` and assert a non-`none` outline.
+2. **nit**: `web/package.json:21`. `shadcn` is listed under `dependencies`, but it is a CLI and belongs in `devDependencies`. This does not affect the audit result.
+3. **nit**: the smoke tests check the cookie value but not its attributes. A small assertion on `httpOnly`, `sameSite` and `path` would lock them in.
+
+Verdict: APPROVED. No blocking findings. The nits can be handled in a follow-up.
+
+Screenshots from this run (absolute paths): `D:\Development\GitHub\HemFin\HemFin\.claude\worktrees\agent-a13cf807448465c02\web\test-results\screenshots\` (16 files: `{phone,tablet,desktop}-{landing,sign-in,dashboard,space-switcher-open,household-space}.png`, plus `phone-more-sheet.png`).
