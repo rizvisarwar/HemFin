@@ -120,3 +120,27 @@ D. **nit**: the local default `postgres:postgres` is still in commit 1825820 his
 E. **nit**: `docs/backlog/board.md` still does not show HEM-001 as In Review (see Round 1 finding 7).
 
 Verdict: CHANGES_REQUESTED on A and B. C, D and E are optional. Once A and B are fixed, the Round 2 checks should be rerun with a real Postgres (`@pytest.mark.db` tests and the migration round-trip) before approval.
+
+### Round 3 (2026-11-25)
+
+**APPROVED**
+
+Checks run on PR #1 (branch `hem-001-api-skeleton`, head b97caae): `uv sync` pass, `ruff check` pass, `ruff format --check` pass (12 files), `mypy src` pass (8 files), `pytest -q -rs` 18 passed / 3 skipped (db-marked: `test_ready_ok_with_db`, `test_app_schema_exists`, `test_migration_roundtrip`; no DATABASE_URL). DB tests and the Docker build are deferred to CI (HEM-006) per PM decision, so they are not blocking.
+
+Round 2 status:
+- **A (secret leak through a malformed URL): fixed.** `db.parse_database_url` and `build_engine` replace parser and engine errors with fixed text, raised outside the `except` block, so no exception context carries the value (`api/src/hemfin/core/db.py:24-54`). Alembic uses the same path (`alembic/env.py:14-16, 46`). Test: `test_malformed_url_never_leaks`.
+- **B (fail fast at startup): fixed.** The lifespan parses `DATABASE_URL` and fails with `MissingSecretError` or `InvalidSecretError`, which name the variable and never the value (`main.py:25-27`). The skip is keyed on `APP_ENV == "test"`, which `conftest.py` sets. Tests: `test_startup_fails_without_database_url`, `test_startup_fails_with_malformed_url`.
+- **C (`SECRETS_DIR` in `.env` silently ignored): fixed by documentation.** `.env.example` now says it must be a real env var (`api/.env.example:4-5`). The code still reads it from `os.environ` only, which is consistent with that note.
+- Earlier items remain fixed: downgrade no-op, 500 request id and CORS, readiness logging, request-id charset.
+
+Leak probe on b97caae (temporary script in the system temp dir, marker `PWMARKER123`, logs and response bodies checked):
+- Malformed URL `postgresql+asyncpg://u:<marker>`, lifespan at startup: process exits with `InvalidSecretError`, marker count 0 in all output.
+- Malformed URL, readiness path (`APP_ENV=test`, so lifespan skipped): `/health/ready` returns 503, body has 0 marker hits, logs have 0 marker hits, and the logged warning message is fixed text.
+- Well-formed URL `postgresql+asyncpg://u:<marker>@127.0.0.1:1/db` (unreachable): `/health/ready` returns 503, body has 0 marker hits, logs have 0 marker hits. The warning with `exc_info` is logged without the URL.
+
+Findings (none blocking):
+1. **nit**: `api/src/hemfin/main.py:26` and `api/tests/conftest.py:7`. Any deployment with `APP_ENV=test` skips the startup fail-fast. `APP_ENV` is a non-secret setting, so this is only a misconfiguration risk. Consider a dedicated flag, or refuse `test` unless an explicit test-only switch is set.
+2. **nit**: `docs/backlog/board.md:5` still shows HEM-001 as `Todo`. This is PM housekeeping, outside the reviewer's files.
+3. **nit** (carried from Round 2 D): the local `postgres:postgres` default is still in commit 1825820 history. It is a throwaway local password, so no rotation is needed.
+
+Verdict: APPROVED. No blocking findings remain. Before merge the PM should still run the db-marked tests and `alembic upgrade head` / `downgrade base` against Postgres in CI (HEM-006), and the Docker build.
