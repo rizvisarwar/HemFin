@@ -1,0 +1,73 @@
+# Alternative local stack without the Supabase CLI or Aspire: postgres + api + web.
+# LOCAL DEVELOPMENT ONLY. Not a production deployment (that is Render + Vercel + Supabase).
+#
+# Usage: copy .env.example to .env (gitignored), set POSTGRES_PASSWORD, then `docker compose up`.
+# Nothing here has a default password: compose refuses to start until you set one.
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: hemfin
+      POSTGRES_DB: hemfin
+      # Required. Set in .env (local only). Compose fails with this message if it is empty.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (copy .env.example)}
+    ports:
+      # Bound to loopback only; 54322 matches the Supabase CLI port so tools work on either path.
+      - "127.0.0.1:54322:5432"
+    volumes:
+      - hemfin-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hemfin -d hemfin"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: local
+      CORS_ORIGINS: http://localhost:3000
+      LOG_LEVEL: INFO
+      # Secret, assembled from .env. A password with URL-reserved characters must be URL-encoded.
+      DATABASE_URL: postgresql://hemfin:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/hemfin
+      # Opt-in telemetry: set OTEL_EXPORTER_OTLP_ENDPOINT in .env to export; empty means off.
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+
+  web:
+    # Dev server in a stock Node image (web/ has no Dockerfile yet). Source is bind-mounted;
+    # node_modules and .next live in named volumes so host and container installs don't clash.
+    image: node:22-bookworm-slim
+    working_dir: /app
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      # Read by the browser, so it is the host-reachable API URL, not the compose-internal one.
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      PORT: "3000"
+      WATCHPACK_POLLING: "true"
+    command: sh -c "npm ci && npm run dev -- --hostname 0.0.0.0"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./web:/app
+      - web-node-modules:/app/node_modules
+      - web-next:/app/.next
+
+volumes:
+  hemfin-db:
+  web-node-modules:
+  web-next:

@@ -16,6 +16,7 @@ from hemfin.core.errors import (
     register_exception_handlers,
 )
 from hemfin.core.logging import RequestIdMiddleware, configure_logging
+from hemfin.core.telemetry import setup_telemetry
 
 log = logging.getLogger("hemfin.health")
 
@@ -70,6 +71,7 @@ def create_app() -> FastAPI:
     api_v1 = APIRouter(prefix="/api/v1")
     # Feature routers are included here by later tickets: api_v1.include_router(...)
     app.include_router(api_v1)
+    setup_telemetry(app)  # no-op unless OTEL_EXPORTER_OTLP_ENDPOINT is set
     return app
 
 
