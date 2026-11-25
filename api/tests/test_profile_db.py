@@ -147,3 +147,22 @@ async def test_no_pii_in_logs(
         )
     assert PHONE not in caplog.text
     assert "Secretlaan" not in caplog.text
+
+
+async def test_one_default_address_per_user_enforced_by_index(
+    aclient: httpx.AsyncClient, key: TestKey
+) -> None:
+    from sqlalchemy.exc import IntegrityError
+
+    from hemfin.core import db
+    from hemfin.modules.profile.models import Address
+
+    sub = uuid4()
+    await aclient.get("/api/v1/me", headers=_h(key, sub))  # provisions the user
+    fields = {"label": "A", "line1": "L", "city": "C", "country": "NL"}
+    async with db.get_session_ctx() as s:
+        s.add(Address(user_id=sub, is_default=True, **fields))
+        s.add(Address(user_id=sub, is_default=True, **fields))  # bypasses the service
+        with pytest.raises(IntegrityError) as exc:
+            await s.commit()
+    assert "uq_addresses_one_default_per_user" in str(exc.value.orig)

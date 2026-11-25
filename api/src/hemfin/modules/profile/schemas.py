@@ -52,8 +52,16 @@ def _phone(v: str) -> str:
     return phonenumbers.format_number(number, phonenumbers.PhoneNumberFormat.E164)
 
 
-Currency = Annotated[str, StringConstraints(min_length=3, max_length=3), AfterValidator(_currency)]
-Country = Annotated[str, StringConstraints(min_length=2, max_length=2), AfterValidator(_country)]
+Currency = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, to_upper=True, min_length=3, max_length=3),
+    AfterValidator(_currency),
+]
+Country = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, to_upper=True, min_length=2, max_length=2),
+    AfterValidator(_country),
+]
 Locale = Annotated[str, StringConstraints(min_length=2, max_length=35), AfterValidator(_locale)]
 Phone = Annotated[str, StringConstraints(max_length=32), AfterValidator(_phone)]
 

@@ -397,6 +397,15 @@ export interface operations {
                     "application/problem+json": unknown;
                 };
             };
+            /** @description Conflict: concurrent default change, or address limit reached */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -539,6 +548,15 @@ export interface operations {
             };
             /** @description Address not found (or not yours) */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Conflict: concurrent default change, or address limit reached */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

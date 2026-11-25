@@ -28,6 +28,9 @@ _NOT_FOUND: dict[int | str, dict[str, Any]] = {
     **_AUTH,
     404: {"description": "Address not found (or not yours)", **_P},
 }
+_CONFLICT: dict[int | str, dict[str, Any]] = {
+    409: {"description": "Conflict: concurrent default change, or address limit reached", **_P},
+}
 
 
 def _profile_out(p: Any) -> ProfileOut:
@@ -55,7 +58,12 @@ async def list_addresses(user: User, session: Session) -> list[AddressOut]:
     return [AddressOut.model_validate(r, from_attributes=True) for r in rows]
 
 
-@router.post("/addresses", status_code=201, summary="Add an address", responses=_AUTH)
+@router.post(
+    "/addresses",
+    status_code=201,
+    summary="Add an address",
+    responses={**_AUTH, **_CONFLICT},
+)
 async def create_address(body: AddressIn, user: User, session: Session) -> AddressOut:
     address = await service.create_address(session, user.id, body)
     return AddressOut.model_validate(address, from_attributes=True)
@@ -78,7 +86,9 @@ async def delete_address(address_id: UUID, user: User, session: Session) -> Resp
 
 
 @router.post(
-    "/addresses/{address_id}/default", summary="Make an address my default", responses=_NOT_FOUND
+    "/addresses/{address_id}/default",
+    summary="Make an address my default",
+    responses={**_NOT_FOUND, **_CONFLICT},
 )
 async def make_default(address_id: UUID, user: User, session: Session) -> AddressOut:
     address = await service.set_default_address(session, user.id, address_id)

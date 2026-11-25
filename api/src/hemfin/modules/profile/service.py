@@ -13,6 +13,14 @@ from hemfin.modules.profile.schemas import AddressIn, AddressPatch, ProfilePatch
 from hemfin.modules.users.models import User
 
 MAX_ADDRESSES_PER_USER = 20
+DEFAULT_INDEX = "uq_addresses_one_default_per_user"
+
+
+def _is_default_conflict(exc: IntegrityError) -> bool:
+    """True only for the one-default-per-user unique index; other violations are real bugs."""
+    cause = getattr(exc.orig, "__cause__", None)
+    name = getattr(cause, "constraint_name", None) or getattr(exc.orig, "constraint_name", None)
+    return name == DEFAULT_INDEX or DEFAULT_INDEX in str(exc.orig)
 
 
 async def get_profile(session: AsyncSession, user_id: UUID) -> Profile:
@@ -94,8 +102,10 @@ async def create_address(session: AsyncSession, user_id: UUID, data: AddressIn) 
     session.add(address)
     try:
         await session.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         await session.rollback()
+        if not _is_default_conflict(exc):
+            raise
         raise HTTPException(409, detail="Could not save the address, please retry.") from None
     await session.refresh(address)
     return address
@@ -125,8 +135,10 @@ async def set_default_address(session: AsyncSession, user_id: UUID, address_id: 
     address.is_default = True
     try:
         await session.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         await session.rollback()
+        if not _is_default_conflict(exc):
+            raise
         raise HTTPException(409, detail="Could not change the default, please retry.") from None
     await session.refresh(address)
     return address
