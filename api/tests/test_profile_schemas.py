@@ -14,13 +14,21 @@ def test_phone_normalised_to_e164() -> None:
 def test_phone_invalid(bad: str) -> None:
     with pytest.raises(ValidationError) as exc:
         ProfilePatch(phone_e164=bad)
-    assert bad == "" or bad not in str(exc.value.errors()[0]["msg"])  # value is never echoed
+    err = exc.value.errors()[0]
+    assert err["loc"] == ("phone_e164",)
+    assert err["type"] == "value_error"  # our validator, not a length or type error
+    assert bad == "" or bad not in str(err["msg"])  # value is never echoed
 
 
 def test_phone_null_clears() -> None:
     p = ProfilePatch.model_validate({"phone_e164": None})
     assert "phone_e164" in p.model_fields_set
     assert p.phone_e164 is None
+
+
+def test_codes_are_stripped_and_upper_cased() -> None:
+    assert ProfilePatch(base_currency=" eur ").base_currency == "EUR"
+    assert AddressIn(label="a", line1="b", city="c", country=" nl ").country == "NL"
 
 
 def test_currency_and_locale() -> None:

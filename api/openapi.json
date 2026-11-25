@@ -608,6 +608,12 @@
             },
             "description": "Not authenticated"
           },
+          "409": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Conflict: concurrent default change, or address limit reached"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -788,6 +794,12 @@
               "application/problem+json": {}
             },
             "description": "Address not found (or not yours)"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Conflict: concurrent default change, or address limit reached"
           },
           "422": {
             "content": {
