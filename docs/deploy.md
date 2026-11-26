@@ -56,6 +56,7 @@ Later tickets (email, jobs) add more variables (Resend key, SMTP settings). When
 5. **Auth settings** (Authentication > Sign In / Providers and Emails; mirror `supabase/config.jsonc`, which only configures the local stack):
    - Email provider on, **Confirm email** on. **REQUIRED.**
    - **Secure email change** on. **REQUIRED.**
+   - **Anonymous sign-ins** off. **REQUIRED.**
    - Why both are required: the API accepts an invitation only for a verified email, and it decides "verified" from the access token alone (`_email_is_verified` in `api/src/hemfin/core/security.py`): a non-empty `email` claim, not `is_anonymous`, and no top-level `email_verified: false`. It does not read `user_metadata` (users can write it) and the API holds no `service_role` key. That is only sound if Confirm email is on (Supabase issues no session to an unconfirmed email user, so the `email` claim always belongs to a confirmed address) and Secure email change is on (the `email` claim changes only after the new address is confirmed). If either is turned off, invitation acceptance is no longer safe. Anonymous sign-ins must stay off.
    - Minimum password length 8, required characters: lowercase, uppercase and digits. The web form checks the same rules (`web/src/lib/auth/password.ts`).
    - Email OTP/link expiry 3600 seconds (1 hour): the email templates say "expires in 1 hour". If you change it, change the templates too.

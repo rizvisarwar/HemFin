@@ -83,4 +83,11 @@ One line per finding.
 - **N7:** startup logs a warning when `APP_ENV=production` and `WEB_BASE_URL` is unset or points to localhost/127.0.0.1 (tested).
 - DB tests could not run locally; CI runs them.
 
+### 2026-11-26 (review round 2 fixes), Engineer (Sonnet 5.5)
+- **N8:** `_email_is_verified` fails closed: the top-level `email_verified` must be absent or exactly `True` ("false", "true", 1, 0 all fail). Tests added.
+- **N9:** the compensating update in `_deliver` is guarded by the failed token's hash and wrapped; a failure there rolls back, logs a warning without any token or hash, and still returns 503 `email_not_sent`. Tests in `tests/test_invitation_delivery.py`.
+- **N10:** `_own_actionable` docstring corrected (a pending row past expiry is treated as pending).
+- **N12:** deploy.md section 2 marks anonymous sign-ins off as REQUIRED.
+- N11 goes to HEM-016.
+
 ## Review

@@ -22,6 +22,11 @@ SUB = uuid4()
         # user_metadata is user-writable, so it never changes the outcome either way.
         ({"email_verified": False, "user_metadata": {"email_verified": True}}, False),
         ({"email_verified": None, "user_metadata": {"email_verified": False}}, True),
+        # Fail closed: anything but absent or exactly true is not verified.
+        ({"email_verified": "false"}, False),
+        ({"email_verified": "true"}, False),
+        ({"email_verified": 1}, False),
+        ({"email_verified": 0}, False),
     ],
 )
 async def test_email_verified_uses_server_controlled_facts_only(

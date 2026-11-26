@@ -69,7 +69,9 @@ def _email_is_verified(payload: dict[str, Any]) -> bool:
         return False
     if payload.get("is_anonymous") is True:
         return False
-    return payload.get("email_verified") is not False
+    # Fail closed: the claim must be absent or exactly True (not "false", 0, etc.).
+    claim = payload.get("email_verified")
+    return claim is None or claim is True
 
 
 def issuer_for(supabase_url: str) -> str:

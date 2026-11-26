@@ -3,6 +3,7 @@ logs, responses or a URL path/query. Only its SHA-256 is stored."""
 
 import hashlib
 import hmac
+import logging
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -59,6 +60,9 @@ def resend_retry_after(
         waits.append((window_start + RESEND_WINDOW - now).total_seconds())
     wait = max(waits, default=0.0)
     return max(1, int(wait + 0.999)) if wait > 0 else None
+
+
+log = logging.getLogger("hemfin.invitations")
 
 
 def _generic_404() -> HTTPException:
@@ -173,10 +177,18 @@ async def _deliver(
         values: dict[str, Any] = {"last_sent_at": None}
         if undo_resend_count:
             values["resend_count"] = func.greatest(Invitation.resend_count - 1, 0)
-        await session.execute(
-            update(Invitation).where(Invitation.id == invitation_id).values(**values)
-        )
-        await session.commit()
+        try:
+            # Only touch the row if it still carries the token whose email failed; a newer
+            # resend in between must keep its own cooldown and count.
+            await session.execute(
+                update(Invitation)
+                .where(Invitation.id == invitation_id, Invitation.token_hash == hash_token(token))
+                .values(**values)
+            )
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            log.warning("could not undo the cooldown after a failed invitation email")
         raise _not_sent() from None
 
 
@@ -290,7 +302,8 @@ async def list_invitations_page(
 async def _own_actionable(session: AsyncSession, space_id: UUID, invitation_id: UUID) -> Invitation:
     """Lock an invitation of this space that an admin may still resend or revoke.
 
-    Pending and expired rows qualify (a pending row past its expiry counts as expired).
+    Pending and expired rows qualify. A row still marked pending past its expiry is treated
+    as pending: resend rotates it and revoke revokes it, as for an expired row.
     Accepted, declined and revoked rows are final: 409.
     """
     inv = (
