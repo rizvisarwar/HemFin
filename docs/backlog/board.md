@@ -65,3 +65,4 @@ Deferred (not planned yet): native mobile app, WhatsApp notifications, push noti
 - Profile follow-ups (HEM-011): email-change flow; short curated locale list; on-screen keyboard behaviour of the combobox (visual viewport) not tested on a real device.
 - Dependencies: #14 (react and react-dom 19.3.1) and #13 (openapi-fetch 0.17) merged with user approval. #8 (TypeScript 7) and #11 (ESLint 10) still on hold.
 - Invitations follow-ups (from HEM-013): no DB-backed test yet for a stale failed resend not clobbering a newer resend (the guard is only checked in compiled SQL); add `/internal/jobs/weekly` when a ticket needs it. Live check still needed: accept works with a real Supabase token (email confirmation now relies on the REQUIRED Supabase settings).
+- EmptyState renders link actions with role="button" (`web/src/components/ui/empty-state.tsx`); make them real links (from the HEM-015 reviews).
