@@ -44,6 +44,8 @@ Later tickets (email, jobs) add more variables (Resend key, SMTP settings). When
 
 1. Create an account at supabase.com and a **New project** (free plan). Choose a region near your users and remember it, because Render's region should be close to it. Set a strong **database password** in the form and save it in a password manager. It is shown only at creation.
 2. **Connection string.** Open the project, click **Connect**, choose **Connection pooling / Session pooler** (UNVERIFIED label: Supabase renames these tabs from time to time) and copy the URI. It looks like `postgresql://postgres.<project-ref>:<password>@<pooler-host>:5432/postgres`. Substitute your password; URL-encode special characters in it.
+   - **Verified 2026-11-26:** the username must be `postgres.<project-ref>`, not plain `postgres`. Plain `postgres`, or the direct-connection string, fails with `password authentication failed for user "postgres"`. The pooler host can be `aws-0-<region>…` or `aws-1-<region>…` (a project created in 2026 got `aws-1-eu-west-1.pooler.supabase.com`), so copy it from the dashboard. A letters-and-digits password avoids URL-encoding mistakes.
+   - **Verified 2026-11-26:** under Project Settings > JWT Keys, the current key must be **ECC (P-256)** or RSA. The API accepts only ES256/RS256 tokens from the project's JWKS. A project still on the legacy HS256 secret must rotate to an asymmetric key, or every login gets a 401.
    - Use the **session pooler** (port 5432) rather than the transaction pooler (port 6543): the API uses SQLAlchemy with asyncpg and Alembic, and transaction-mode pooling needs prepared-statement workarounds that are not configured here. UNVERIFIED against the real pooler; if you see "prepared statement" errors, tell the team.
    - The direct connection host is IPv6-only on the free plan and Render's free network may not reach it, which is why the pooler is recommended. UNVERIFIED.
 3. This string is `DATABASE_URL`. It is a secret: it goes into Render only (section 3). Do not paste it into chat, issues, `render.yaml` or the repo.
@@ -85,7 +87,7 @@ Render reads `render.yaml` from the repo root: web service `hemfin-api`, Docker 
 7. Free-plan behaviour (UNVERIFIED, check Render's current limits): the service sleeps after about 15 minutes idle and takes up to about a minute to wake. Section 6 mitigates this.
 8. If you prefer, put the same keys in a Render **Environment Group** and link it to the service, or provide a **Secret File** named `DATABASE_URL` (mounted at `/etc/secrets/DATABASE_URL`). The API reads env vars first, then secret files in `SECRETS_DIR`. See section 8.
 
-`render.yaml` was not applied by the author (no Render account access). Treat the first Blueprint apply as the verification of the file's schema, and tell the team about any validation error.
+**Verified 2026-11-26:** the Blueprint applied cleanly from `render.yaml`. The container ran the migrations and served `/health` and `/health/ready` against Supabase over the session pooler, and CORS allowed only the Vercel origin. Render has no Ireland region; `frankfurt` is the closest to Supabase `eu-west-1`.
 
 ## 4. Vercel (web)
 
@@ -105,7 +107,7 @@ The web app is `web/`, an npm workspace of the root `package.json` (workspaces `
    - `NEXT_PUBLIC_*` values are inlined at build time: change one, then redeploy.
 8. Deploy. Copy the production URL into Render's `CORS_ORIGINS` (section 3, step 6). Preview deployments use different origins; add them to `CORS_ORIGINS` only if you test the API from previews.
 
-**UNVERIFIED until the first preview deploy:** the workspace install above (root `web`, install from the repo root, fallback `cd .. && npm ci`). It is based on Vercel's documented monorepo behaviour, not on a real deploy. When you complete the first preview deploy, record which install variant worked here.
+**Verified 2026-11-26:** with Root Directory `web` and the **default** install command, the production build worked. No `cd .. && npm ci` override was needed. Also verified end to end in production: sign-up, the confirmation email (Supabase built-in mailer, to a team address), the `/auth/callback` code exchange, the dashboard, and provisioning of the personal space through the API.
 
 ## 5. Resend
 
