@@ -22,6 +22,8 @@ export interface ResponsiveDialogProps {
   className?: string;
   /** Moves focus here when the dialog opens (default: the first focusable element). */
   initialFocus?: React.RefObject<HTMLElement | null> | (() => HTMLElement | null);
+  /** Moves focus here when the dialog closes (default: the element that opened it). */
+  finalFocus?: React.RefObject<HTMLElement | null> | (() => HTMLElement | null);
 }
 
 /**
@@ -40,6 +42,7 @@ export function ResponsiveDialog({
   busy,
   className,
   initialFocus,
+  finalFocus,
 }: ResponsiveDialogProps) {
   const Root = alert ? AlertDialogPrimitive.Root : DialogPrimitive.Root;
   const Portal = alert ? AlertDialogPrimitive.Portal : DialogPrimitive.Portal;
@@ -61,6 +64,7 @@ export function ResponsiveDialog({
         <Popup
           data-slot="responsive-dialog"
           initialFocus={initialFocus}
+          finalFocus={finalFocus}
           className={cn(
             "fixed z-50 flex max-h-[90dvh] flex-col bg-popover text-popover-foreground shadow-lg outline-none transition duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0",
             // Phone: bottom sheet.
@@ -78,13 +82,16 @@ export function ResponsiveDialog({
                 <Description className="mt-1 text-body text-muted-foreground">{description}</Description>
               ) : null}
             </div>
-            <DialogPrimitive.Close
-              disabled={busy}
-              render={<Button variant="ghost" size="icon" className="-mr-2 -mt-1 shrink-0" />}
-            >
-              <XIcon aria-hidden="true" />
-              <span className="sr-only">Close</span>
-            </DialogPrimitive.Close>
+            {/* A confirmation has a Cancel button, so it has no close X. */}
+            {alert ? null : (
+              <DialogPrimitive.Close
+                disabled={busy}
+                render={<Button variant="ghost" size="icon" className="-mr-2 -mt-1 shrink-0" />}
+              >
+                <XIcon aria-hidden="true" />
+                <span className="sr-only">Close</span>
+              </DialogPrimitive.Close>
+            )}
           </div>
           {children ? <div data-dialog-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-6">{children}</div> : null}
           {footer ? (

@@ -7,17 +7,6 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { passwordRuleResults } from "@/lib/auth/password";
 
-const noopSubscribe = () => () => {};
-
-/**
- * False in the server HTML and during hydration, true once the component has mounted in the
- * browser. Submit buttons stay disabled until then, so a form can never be submitted before its
- * JavaScript is attached (which would send it as a plain browser form post).
- */
-export function useHydrated(): boolean {
-  return React.useSyncExternalStore(noopSubscribe, () => true, () => false);
-}
-
 /** Moves focus to the first invalid field after a failed submit. Bump `attempt` on each submit. */
 export function useFocusFirstInvalid(form: React.RefObject<HTMLFormElement | null>, attempt: number) {
   React.useEffect(() => {
@@ -139,38 +128,5 @@ export function PasswordRules({ inputId, id }: { inputId: string; id: string }) 
         {announced}
       </p>
     </>
-  );
-}
-
-/** Form-level message. The live region exists from first render so changes are announced. */
-export function FormMessage({
-  kind,
-  children,
-  id,
-}: {
-  kind: "error" | "success" | "info";
-  children?: React.ReactNode;
-  id?: string;
-}) {
-  return (
-    <div
-      id={id}
-      aria-live={kind === "error" ? "assertive" : "polite"}
-      role={kind === "error" ? "alert" : "status"}
-      data-testid="form-message"
-    >
-      {children ? (
-        <p
-          className={cn(
-            "rounded-md px-3 py-2 text-small",
-            kind === "error" && "bg-destructive-subtle text-destructive",
-            kind === "success" && "bg-success-subtle text-success",
-            kind === "info" && "bg-accent text-accent-foreground",
-          )}
-        >
-          {children}
-        </p>
-      ) : null}
-    </div>
   );
 }

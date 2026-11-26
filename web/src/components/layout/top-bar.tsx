@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { Bell, LogOut } from "lucide-react";
-import { signOut } from "@/app/auth/actions";
 import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
+import { SignOutForm } from "./sign-out-form";
 import { SpaceSwitcher } from "./space-switcher";
 import type { SpaceSummary } from "./types";
 
@@ -34,7 +34,8 @@ export function TopBar({
       data-space={active.type}
       data-viewport-inset="top" // overlays such as the combobox list keep clear of this bar
       className={cn(
-        "sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b-2 bg-background px-4 md:h-16 md:px-6 xl:px-8",
+        // While the space switcher is open the bar rises above the bottom nav, so the phone sheet covers it.
+        "sticky top-0 z-30 has-data-[switcher-open]:z-50 flex h-14 items-center justify-between gap-2 border-b-2 bg-background px-4 md:h-16 md:px-6 xl:px-8",
         active.type === "personal" ? "border-b-personal" : "border-b-household",
       )}
     >
@@ -46,7 +47,6 @@ export function TopBar({
           activeSpaceId={activeSpaceId}
           onSelect={onSpaceChange}
           createHouseholdHref={createHouseholdHref}
-          variant="compact"
         />
         <Link
           href={notificationsHref}
@@ -63,7 +63,7 @@ export function TopBar({
             </span>
           ) : null}
         </Link>
-        <form action={signOut}>
+        <SignOutForm>
           <button
             type="submit"
             aria-label="Sign out"
@@ -72,7 +72,7 @@ export function TopBar({
           >
             <LogOut aria-hidden="true" className="size-5" />
           </button>
-        </form>
+        </SignOutForm>
       </div>
     </header>
   );

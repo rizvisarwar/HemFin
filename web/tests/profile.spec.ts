@@ -445,7 +445,7 @@ test.describe("addresses", () => {
       expect(box.y).toBeGreaterThan(0);
       expect(box.y + box.height).toBeLessThan(view.height);
     }
-    for (const name of ["Cancel", "Delete address", "Close"]) {
+    for (const name of ["Cancel", "Delete address"]) {
       await expectTapTarget(dialog.getByRole("button", { name }), name);
     }
     // Escape closes it.

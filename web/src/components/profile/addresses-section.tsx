@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HemCard } from "@/components/ui/hem-card";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
-import { FormMessage } from "@/components/auth/form-parts";
+import { FormMessage } from "@/components/ui/form-message";
 import { addressLines, MAX_ADDRESSES } from "@/lib/profile/address";
 import { ADDRESS_LIMIT_MESSAGE, NETWORK_MESSAGE, parseProblem } from "@/lib/profile/problem";
 import { AddressFormDialog } from "./address-form-dialog";

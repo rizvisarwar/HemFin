@@ -9,9 +9,9 @@ import { SPACE_COOKIE } from "@/lib/space";
  * spaces (from the API), so a forged id is ignored. The cookie holds a space id, not a secret;
  * the API still gates every space request by membership.
  */
-export async function setActiveSpace(spaceId: string): Promise<void> {
+export async function setActiveSpace(spaceId: string): Promise<boolean> {
   const me = await fetchMe();
-  if (!me || !me.spaces.some((s) => s.id === spaceId)) return;
+  if (!me || !me.spaces.some((s) => s.id === spaceId)) return false;
   const jar = await cookies();
   // Secure in production over https (Vercel sets x-forwarded-proto). A plain-http local
   // `next start` would otherwise lose the cookie in browsers that do not treat localhost as secure.
@@ -23,4 +23,5 @@ export async function setActiveSpace(spaceId: string): Promise<void> {
     secure: process.env.NODE_ENV === "production" && https,
     maxAge: 60 * 60 * 24 * 365,
   });
+  return true;
 }

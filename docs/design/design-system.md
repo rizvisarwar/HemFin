@@ -45,7 +45,7 @@ Tokens live on `:root` (light) and `.dark` (dark). The theme class is applied by
 | `--accent` | `172 30% 93%` | #E8F3F1 | `175 30% 18%` | #203C39 | Hover and selected row backgrounds |
 | `--accent-foreground` | `175 50% 20%` | #1A4D48 | `172 50% 75%` | #9FDFD7 | Text on accent |
 | `--destructive` | `0 60% 42%` | #AB2B2B | `0 70% 68%` | #E77474 | Delete buttons, error text |
-| `--destructive-foreground` | `0 0% 100%` | #FFFFFF | `215 30% 10%` | | Text on destructive buttons |
+| `--destructive-foreground` | `0 0% 100%` | #FFFFFF | `215 30% 10%` | #121821 | Text on destructive buttons. Dark pair measured 6.07:1 (see section 3) |
 | `--destructive-subtle` | `0 70% 95%` | #FBE9E9 | `0 35% 17%` | #3B1C1C | Error alert backgrounds |
 | `--success` | `152 55% 26%` | #1E6745 | `152 50% 58%` | #5EC997 | Success text and icons |
 | `--success-foreground` | `0 0% 100%` | #FFFFFF | `215 30% 10%` | | Text on success fills |
@@ -256,7 +256,7 @@ Text needs 4.5:1, large text (24 px or 18.66 px bold and up) needs 3:1, and non-
 | `--primary-foreground` #121B2B | `--primary` #A0BCEE | 9.0:1 | 4.5 | Pass |
 | `--accent-foreground` #9FDFD7 | `--accent` #203C39 | 7.9:1 | 4.5 | Pass |
 | `--destructive` #E77474 | `--background` | 6.3:1 | 4.5 | Pass |
-| `--destructive-foreground` (dark navy) on `--destructive` #E77474 | `--destructive` | about 5.9:1 | 4.5 | Pass |
+| `--destructive-foreground` #121821 on `--destructive` #E77474 | `--destructive` | 6.07:1 (HEM-015: WCAG 2.x relative luminance from the sRGB hex values, computed with a short script; the earlier "about 5.9:1" and the designer's 5.8:1 were estimates). Hover, at 90% opacity over the dark page, about 5.1:1 | 4.5 | Pass |
 | `--success` #5EC997 | `--background` | 9.1:1 | 4.5 | Pass |
 | `--warning` #F5B547 | `--background` | 10.3:1 | 4.5 | Pass |
 | `--warning` | `--warning-subtle` | 7.2:1 | 4.5 | Pass |

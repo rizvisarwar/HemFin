@@ -36,6 +36,57 @@ export async function seed(
   if (!res.ok) throw new Error(`seed failed: ${res.status}`);
 }
 
+export interface SeedHousehold {
+  name: string;
+  /** The seeded user's own role in it (default owner). */
+  role?: "owner" | "admin" | "member";
+  members?: { email: string; display_name?: string; role?: "owner" | "admin" | "member" }[];
+  /** Extra plain members ("Member 1", "Member 2", ...). */
+  extra_members?: number;
+}
+
+async function post<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${MOCK}${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok && res.status !== 204) throw new Error(`${path} failed: ${res.status}`);
+  return (res.status === 204 ? undefined : await res.json()) as T;
+}
+
+/** Creates households for a user in the mock API. Returns their ids (in order) and the personal space id. */
+export function seedHouseholds(who: { email: string }, households: SeedHousehold[]) {
+  return post<{ ids: string[]; personal_id: string }>("/__test/households", { email: who.email, households });
+}
+
+/** Makes the user's spaces and/or members list calls fail with a 500, to see the error states. */
+export function failLists(who: { email: string }, flags: { spaces?: boolean; members?: boolean; me?: boolean; delay_ms?: number }) {
+  return post<void>("/__test/fail", { email: who.email, ...flags });
+}
+
+/** Removes a user from a household behind the app's back, as if another member had removed them. */
+export function removeFromHousehold(who: { email: string }, spaceId: string) {
+  return post<void>("/__test/leave", { email: who.email, space_id: spaceId });
+}
+
+export interface StoredSpace {
+  id: string;
+  name: string;
+  members: { user_id: string; email: string; role: string }[];
+}
+
+/** A household as the mock API stores it, to check what the app really saved. */
+export function storedSpace(spaceId: string) {
+  return post<StoredSpace>("/__test/space", { space_id: spaceId });
+}
+
+/** The mock's user id for an email (the same id the token and the members list use). */
+export async function userIdFor(who: { email: string }): Promise<string> {
+  const res = await post<{ sub: string }>("/__test/token", { email: who.email });
+  return res.sub;
+}
+
 /** How many times this user called each API path so far, for example {"GET /api/v1/me": 1}. */
 export async function apiHits(who: { email: string }): Promise<Record<string, number>> {
   const res = await fetch(`${MOCK}/__test/hits`, {

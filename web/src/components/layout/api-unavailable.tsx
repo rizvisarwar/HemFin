@@ -1,5 +1,5 @@
-import { signOut } from "@/app/auth/actions";
 import { Button } from "@/components/ui/button";
+import { SignOutForm } from "./sign-out-form";
 
 /** Shown instead of the app shell when the API cannot confirm the signed-in user. */
 export function ApiUnavailable() {
@@ -16,11 +16,11 @@ export function ApiUnavailable() {
         >
           Try again
         </a>
-        <form action={signOut}>
+        <SignOutForm>
           <Button type="submit" variant="outline" className="w-full sm:w-auto">
             Sign out
           </Button>
-        </form>
+        </SignOutForm>
       </div>
     </main>
   );

@@ -11,7 +11,7 @@ const APP_ROUTES = [
   { path: "/documents", h1: "Documents" },
   { path: "/suggestions", h1: "Suggestions" },
   { path: "/assistant", h1: "Assistant" },
-  { path: "/household", h1: "Household" },
+  { path: "/household", h1: "Households" },
   { path: "/profile", h1: "Profile" },
 ];
 
@@ -160,33 +160,47 @@ test.describe("app shell", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Expenses" })).toBeVisible();
   });
 
-  test("space switcher shows the real personal space; no placeholder household", async ({ page }, info) => {
+  test("space switcher shows the real personal space; no placeholder household", async ({ page }) => {
     await page.goto("/dashboard");
     await expect(page.locator("header[data-space]").first()).toHaveAttribute("data-space", "personal");
     await page.getByRole("button", { name: /Active space: Personal/ }).click();
-    await expect(page.getByRole(info.project.name === "phone" ? "dialog" : "menu")).toBeVisible();
+    // A menu on every viewport (a bottom sheet on phone, a dropdown from md up), never a dialog.
+    await expect(page.getByRole("menu", { name: "Spaces" })).toBeVisible();
     await expect(page.getByText("Sample household")).toHaveCount(0);
-    await expect(page.getByText("Create a household")).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Create a household" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Manage households" })).toBeVisible();
   });
 
   test("space switcher changes the active space and stores it in the cookie", async ({ page, context }, info) => {
     await context.clearCookies();
     await signInAs(context, HOUSEHOLD_USER);
     await page.goto("/dashboard");
-    const header = page.locator("header[data-space]").first();
-    await expect(header).toHaveAttribute("data-space", "personal");
+    const topBar = page.locator("header[data-space]").first();
+    await expect(topBar).toHaveAttribute("data-space", "personal");
 
     await page.getByRole("button", { name: /Active space: Personal/ }).click();
-    await expect(page.getByRole(info.project.name === "phone" ? "dialog" : "menu")).toBeVisible();
+    await expect(page.getByRole("menu", { name: "Spaces" })).toBeVisible();
     await shot(page, info, "space-switcher-open");
-    const phone = info.project.name === "phone";
-    await page.getByRole(phone ? "radio" : "menuitemradio", { name: /Smith family/ }).click();
+    // The server action answers with the Set-Cookie header. It is read raw because WebKit reports a
+    // Lax cookie as sameSite "None" through the cookie API.
+    const setCookie = page.waitForResponse(async (r) => r.request().method() === "POST" && ((await r.allHeaders())["set-cookie"] ?? "").includes("hemfin-space="));
+    await page.getByRole("menuitemradio", { name: /Smith family/ }).click();
+    const header = (await (await setCookie).allHeaders())["set-cookie"];
+    expect(header, "HttpOnly").toMatch(/;\s*HttpOnly/i);
+    expect(header, "SameSite").toMatch(/;\s*SameSite=lax/i);
+    expect(header, "Path").toMatch(/;\s*Path=\//i);
 
-    await expect(header).toHaveAttribute("data-space", "household");
+    await expect(topBar).toHaveAttribute("data-space", "household");
     await expect(page.getByRole("button", { name: /Active space: Smith family/ })).toBeVisible();
     await expect.poll(async () => (await context.cookies()).find((c) => c.name === "hemfin-space")?.value).toMatch(
       /^[0-9a-f-]{36}$/,
     );
+    // The cookie holds a space id, never client-readable: httpOnly, lax, whole site (follow-up from HEM-003).
+    const cookie = (await context.cookies()).find((c) => c.name === "hemfin-space");
+    expect(cookie?.httpOnly, "httpOnly").toBe(true);
+    expect(["Lax", "None"], "WebKit reports Lax as None").toContain(cookie?.sameSite); // exact value checked on the header above
+    expect(cookie?.path, "path").toBe("/");
+    expect(cookie?.expires, "persistent").toBeGreaterThan(Date.now() / 1000);
 
     // The switch ends with router.refresh() (an RSC fetch). Wait for the shell to report it is done
     // (cookie written and refresh finished), otherwise the reload interrupts it ("Frame load
