@@ -81,6 +81,11 @@ export function storedSpace(spaceId: string) {
   return post<StoredSpace>("/__test/space", { space_id: spaceId });
 }
 
+/** The `code` of a confirmation link for this email, as the mock's PKCE exchange understands it. */
+export function mockAuthCode(who: { email: string }): string {
+  return `mock-code-${Buffer.from(who.email).toString("base64url")}`;
+}
+
 export interface SeedInvitation {
   space_id: string;
   email: string;

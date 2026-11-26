@@ -145,6 +145,14 @@ addRoute("POST", /^\/__test\/reset$/, async () => {
   return [204, null];
 });
 addRoute("POST", /^\/auth\/v1\/token$/, async ({ body }) => {
+  // PKCE exchange (the /auth/callback route after an email confirmation or Google sign-in). Mock rule: the
+  // code is "mock-code-" plus the base64url email (see mockAuthCode in tests/support/auth.ts); the code
+  // verifier is accepted as long as the browser sent one.
+  const code = typeof body.auth_code === "string" ? /^mock-code-(.+)$/.exec(body.auth_code) : null;
+  if (body.auth_code !== undefined) {
+    if (!code || !body.code_verifier) return [400, { code: "bad_code_verifier", error_code: "bad_code_verifier", msg: "invalid flow state" }];
+    body = { email: Buffer.from(code[1], "base64url").toString(), password: "from-code" };
+  }
   // Mock rule: any password is accepted unless it contains "wrong" (no credentials stored anywhere).
   if (!body.email || !body.password || /wrong/i.test(body.password)) {
     return [400, { code: "invalid_credentials", error_code: "invalid_credentials", msg: "Invalid login credentials" }];

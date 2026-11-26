@@ -58,7 +58,8 @@ export function SignUpForm() {
         return;
       }
       rememberPending(email);
-      router.push("/check-email");
+      // Keep where the user was going (for example /invite), so a resent email returns there too.
+      router.push(next ? `/check-email?next=${encodeURIComponent(target)}` : "/check-email");
     } catch {
       setFormError(GENERIC_ERROR);
       setBusy(false);

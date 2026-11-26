@@ -853,7 +853,8 @@ Settings has no empty state: a household always has a name and an owner.
 +-------------------------------------------+
 ```
 
-- Use this exact text for every case. Do not add a reason or a hint about which check failed. The 404 from the API is treated as this state.
+- Use this exact text for every case. Do not add a reason or a hint about which check failed. The 404 from the API is treated as this state. Every invitee-side 4xx except 401 and 429 maps to H (`classify` in `lib/invitations/classify.ts`, unit-tested for every status class). 401 is J. 429 and 5xx are I: rate limiting is transient, so "try again" is the right message.
+- A `?token=` query is never produced by the API (the link uses the fragment). If someone put the token in a query string by hand, it would reach the server and Vercel request logs before the page could remove it. The page ignores such a token, shows H, and removes the query string, but it cannot un-log the request.
 - Logged-out users never see this state, because the preview is not called until sign-in. A missing token skips the API call and shows this state.
 
 **I. Could not reach HemFin (server or network).** This is not about the invitation, so it can give the reason. h1 "We could not check your invitation". Text "We could not reach HemFin. Check your connection and try again." Button "Try again" (44 px). For a 5xx, the text is "HemFin is having trouble right now. Try again in a few minutes."

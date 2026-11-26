@@ -8,6 +8,8 @@ import { setActiveSpace } from "@/app/actions";
 import { signOutInPlace } from "@/app/auth/actions";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { classify } from "@/lib/invitations/classify";
+import { cn } from "@/lib/utils";
 import { HemCard } from "@/components/ui/hem-card";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -51,7 +53,8 @@ async function sessionEnded(replace: (href: string) => void): Promise<void> {
 
 /** A real link (role link) that looks like a full-width large button. */
 const linkButton = (variant: "default" | "outline" = "default") =>
-  buttonVariants({ size: "lg", variant, className: "w-full" });
+  // cn() (tailwind-merge) like <Button> does, so size classes win over the base text-sm: same size and weight as the buttons.
+  cn(buttonVariants({ size: "lg", variant, className: "w-full" }));
 
 type View =
   /** A: reading the fragment and asking who is signed in. */
@@ -68,16 +71,6 @@ type View =
   | { k: "generic"; signedIn: boolean }
   /** I: not about the invitation (network or server). */
   | { k: "unreachable"; server: boolean };
-
-type Outcome = "ok" | "auth" | "generic" | "server";
-
-/** One mapping for preview, accept and decline: every 4xx except 401 is the generic state (the API answers 404 for all of them). */
-function classify(status: number): Outcome {
-  if (status >= 200 && status < 300) return "ok";
-  if (status === 401) return "auth";
-  if (status === 429 || status >= 500) return "server";
-  return "generic";
-}
 
 const reassurance = "Only you can see personal records. Household members see only what the household shares.";
 
@@ -177,8 +170,14 @@ export function InviteFlow() {
         // leave a one-time message for the next page, and replace this history entry.
         clearStoredToken();
         setJoined(userId, { spaceId: data.space_id, name: data.household_name });
-        setFlash(userId, `You joined ${data.household_name}.`);
-        await setActiveSpace(data.space_id).catch(() => false);
+        // Select it. If that fails the join still happened, so go to the household anyway and say how to select it.
+        const selected = await setActiveSpace(data.space_id).catch(() => false);
+        setFlash(
+          userId,
+          selected
+            ? `You joined ${data.household_name}.`
+            : `You joined ${data.household_name}. Choose it in the space switcher to make it your selected space.`,
+        );
         router.replace(`/household/${data.space_id}/members`);
         return; // stays busy while the next page loads
       }

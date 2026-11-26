@@ -49,3 +49,15 @@ CI follow-up: gitleaks flagged three made-up token-shaped test values; they were
 6. Members phone buttons were only dimmed because the screenshot was taken before hydration (disabled until hydrated). Screenshots now wait for that; Playwright asserts Change role is enabled and its text contrast is at least 4.5:1.
 7. The accept-page h1 shows a focus outline when focused programmatically (tested), instead of `outline-none`.
 Known limitation (unchanged): confirming email for a new account in another tab loses the token (sessionStorage is per tab); the user clicks the email link again.
+
+### 2026-11-27, Engineer: code review round 1
+- B1: both header tests now also assert `Cache-Control: no-store`; they run against `next start` (the production build, where /invite is prerendered) and pass.
+- B2: removed the stray `docs/design/households.md.tmp-review` (my `git add -A` picked it up).
+- B3: new test "new user end to end": sign-up (its confirmation link carries `next=/invite`, no token), `/check-email?next=%2Finvite`, resend (keeps `next`), then the callback exchange, then the invitation resumes from sessionStorage, accept, joined. The mock now supports the PKCE exchange (`mock-code-<base64url email>`). The test reads the callback's redirect instead of following it, because `next start -H 127.0.0.1` builds its Location with host `localhost` (another origin, so another sessionStorage); production Locations are the site itself.
+- N1: sign-up passes `next` to `/check-email?next=...`; resend and "Start again" keep it (sanitised). The page stays server-rendered (reads `next` in the browser, no `useSearchParams`).
+- N2: `classify` is in `lib/invitations/classify.ts`, unit-tested for every status class; 429 stays state I; `households.md` 6.8 says so.
+- N3: fixed `Role =components`.
+- N4: `recordRequests` records every request, including failed ones, and the test asserts no Referer on every request made from /invite.
+- N5: if selecting the household fails after accept, the page still goes to it and the toast says "Choose it in the space switcher to make it your selected space." Tested by failing the server action.
+- N6: `households.md` 6.8 notes a hand-made `?token=` query would reach server and Vercel logs.
+- Visual nit: the link buttons were missing tailwind-merge, so `text-sm` beat the large size; they now go through `cn()` like `<Button>`.

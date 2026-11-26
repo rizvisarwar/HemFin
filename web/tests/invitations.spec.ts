@@ -2,6 +2,7 @@ import { expect, test, type BrowserContext, type Locator, type Page, type Reques
 import {
   invitationMode,
   failLists,
+  mockAuthCode,
   seed,
   seedHouseholds,
   seedInvitation,
@@ -398,21 +399,46 @@ test.describe("invitations: admin", () => {
 
 /** Records every request the page makes, with its headers and body, for the token checks. */
 function recordRequests(page: Page) {
-  const seen: { url: string; method: string; referer: string | undefined; body: string | null }[] = [];
+  interface Seen {
+    url: string;
+    method: string;
+    referer: string | undefined;
+    body: string | null;
+    /** True when the page the request came from was /invite (a navigation request counts as coming from the page it leaves). */
+    fromInvite: boolean;
+    failed: boolean;
+  }
+  const seen: Seen[] = [];
   const pending: Promise<void>[] = [];
-  // On "response", when the request's full headers (including Referer) are available.
   let open = true;
-  page.on("response", (res) => {
+  // Every request is recorded: with its full headers (including Referer) once it has a response, or as
+  // failed when it never gets one (an aborted call must not hide a Referer).
+  page.on("request", (r: Request) => {
     if (!open) return;
-    const r: Request = res.request();
+    const fromInvite = new URL(page.url()).pathname === "/invite";
+    const entry = (h: Record<string, string>, failed: boolean): Seen => ({
+      url: r.url().split("#")[0],
+      method: r.method(),
+      referer: h["referer"],
+      body: r.postData(),
+      fromInvite,
+      failed,
+    });
     pending.push(
-      r
-        .allHeaders()
-        .then((h) => {
-          seen.push({ url: r.url().split("#")[0], method: r.method(), referer: h["referer"], body: r.postData() });
-        })
-        // A response that lands as the page closes is not part of what the test checks.
-        .catch(() => {}),
+      new Promise<void>((resolve) => {
+        let settled = false;
+        const settle = (e: Seen) => {
+          if (settled) return;
+          settled = true;
+          seen.push(e);
+          resolve();
+        };
+        r.allHeaders().then((h) => settle(entry(h, false))).catch(() => settle(entry(r.headers(), true)));
+        page.on("requestfailed", (f) => {
+          if (f === r) settle(entry(r.headers(), true));
+        });
+        setTimeout(() => settle(entry(r.headers(), true)), 4000); // never hangs the test
+      }),
     );
   });
   return {
@@ -444,8 +470,10 @@ test.describe("accept page", () => {
     const requests = recordRequests(page);
 
     const response = await page.goto(`/invite#token=${token}`);
-    // Referrer-Policy: no-referrer on the page itself.
+    // Referrer-Policy: no-referrer and Cache-Control: no-store on the page itself (this runs against `next start`,
+    // the production build, where /invite is prerendered).
     expect(response!.headers()["referrer-policy"]).toBe("no-referrer");
+    expect(response!.headers()["cache-control"]).toBe("no-store");
     await expect(page.getByRole("heading", { level: 1, name: `Join ${LEE}` })).toBeVisible();
     await expect(page.getByRole("main")).toContainText(`${INVITER} invited you. Once you join, you see what the household shares. Your personal records stay private.`);
     await expect(page.getByTestId("invite-signed-in-as")).toHaveText(`Signed in as ${invitee.email}.`);
@@ -484,7 +512,9 @@ test.describe("accept page", () => {
     const carrying = seen.filter((r) => r.body?.includes(token)).map((r) => new URL(r.url).pathname);
     expect(carrying).toEqual(["/api/v1/invitations/preview", "/api/v1/invitations/accept"]);
     // Requests made from /invite itself carry no Referer at all.
-    for (const r of seen.filter((s) => s.url.includes("/api/v1/invitations/"))) expect(r.referer, r.url).toBeUndefined();
+    const fromInvite = seen.filter((s) => s.fromInvite);
+    expect(fromInvite.length).toBeGreaterThan(3);
+    for (const r of fromInvite) expect(r.referer || undefined, `${r.method} ${r.url} sent a Referer`).toBeUndefined();
     // And the mock never saw it in a URL or a header.
     expect(await tokenLeaks(token)).toEqual([]);
 
@@ -537,6 +567,89 @@ test.describe("accept page", () => {
     expect(await tokenLeaks(token)).toEqual([]);
   });
 
+  test("new user end to end: sign up, check email (resend keeps next), confirmation link, accept, joined", async ({ page, context }, info) => {
+    const { invitee } = cast(info);
+    const { spaceId } = await setupAdmin(context, info);
+    const { token } = await seedInvitation({ space_id: spaceId, email: invitee.email });
+    await context.clearCookies();
+    const requests = recordRequests(page);
+
+    await page.goto(`/invite#token=${token}`);
+    await page.getByRole("link", { name: "Create an account" }).click();
+    await expect(page).toHaveURL(/\/sign-up\?next=%2Finvite$/);
+    await expect(page.locator("#email")).toHaveValue("");
+    await page.locator("#email").fill(invitee.email);
+    await page.locator("#password").fill("Goodpass1");
+    const signUp = page.waitForRequest((r) => r.url().includes("/auth/v1/signup"));
+    await page.locator("main form").getByRole("button", { name: "Create account" }).click();
+    // The confirmation email's link is told to come back through /auth/callback with next=/invite (no token in it).
+    const redirect = new URL((await signUp).url()).searchParams.get("redirect_to")!;
+    expect(new URL(redirect).pathname).toBe("/auth/callback");
+    expect(new URL(redirect).searchParams.get("next")).toBe("/invite");
+    expect(redirect).not.toContain(token);
+
+    // Check your email: the destination is kept, and a resent email goes back to the invitation too.
+    await expect(page).toHaveURL(/\/check-email\?next=%2Finvite$/);
+    // Skip the 60 second wait between emails: the page reads the send time from sessionStorage.
+    await page.evaluate(() => sessionStorage.setItem("hemfin-pending-sent-at", String(Date.now() - 61_000)));
+    await page.reload();
+    await expect(page.getByTestId("resend")).toBeEnabled();
+    const resend = page.waitForRequest((r) => r.url().includes("/auth/v1/resend"));
+    await page.getByTestId("resend").click();
+    const resent = new URL(new URL((await resend).url()).searchParams.get("redirect_to")!);
+    expect(resent.pathname).toBe("/auth/callback");
+    expect(resent.searchParams.get("next")).toBe("/invite");
+    expect((await storage(page))[TOKEN_KEY]).toBe(token);
+
+    // "Wrong address? Start again" keeps the destination as well.
+    await expect(page.getByRole("link", { name: "Start again" })).toHaveAttribute("href", "/sign-up?next=%2Finvite");
+
+    // The confirmation link (PKCE code, exchanged by the server), then the invitation resumes from sessionStorage.
+    // The browser's cookies (including the PKCE verifier set by sign-up) go with this request. The redirect is
+    // read, not followed: `next start -H 127.0.0.1` builds its Location with the host name "localhost", which
+    // would be another origin (and another sessionStorage) here. In production the Location is the site itself.
+    const callback = await page.request.get(`/auth/callback?code=${mockAuthCode(invitee)}&next=%2Finvite`, { maxRedirects: 0 });
+    expect(callback.status()).toBe(307);
+    expect(new URL(callback.headers()["location"]).pathname).toBe("/invite");
+    expect(new URL(callback.headers()["location"]).search).toBe("");
+    await page.goto("/invite");
+    await expect(page.getByRole("heading", { level: 1, name: `Join ${LEE}` })).toBeVisible();
+    await page.getByTestId("invite-accept").click();
+    await expect(page).toHaveURL(new RegExp(`/household/${spaceId}/members$`));
+    await expect(page.getByTestId("toast")).toContainText(`You joined ${LEE}.`);
+    expect((await storage(page))[TOKEN_KEY]).toBeUndefined();
+    await page.goto("/invite");
+    await expect(page.getByRole("heading", { level: 1, name: `You joined ${LEE}` })).toBeVisible();
+
+    for (const r of await requests.done()) {
+      expect(decodeURIComponent(r.url)).not.toContain(token);
+      if (r.fromInvite) expect(r.referer || undefined, `${r.method} ${r.url}`).toBeUndefined();
+    }
+    expect(await tokenLeaks(token)).toEqual([]);
+  });
+
+  test("if selecting the household fails after accept, the join still shows and the toast says what to do", async ({ page, context }, info) => {
+    const { invitee } = cast(info);
+    const { spaceId } = await setupAdmin(context, info);
+    await seed(invitee, { display_name: "Alex Lee" });
+    const { token } = await seedInvitation({ space_id: spaceId, email: invitee.email });
+    await context.clearCookies();
+    await signInAs(context, invitee);
+    await page.goto(`/invite#token=${token}`);
+    await expect(page.getByRole("heading", { level: 1, name: `Join ${LEE}` })).toBeVisible();
+    // The server action that selects the space is a POST to the page itself: make it fail.
+    await page.route("**/invite", (route) => (route.request().method() === "POST" ? route.abort() : route.continue()));
+    await page.getByTestId("invite-accept").click();
+    await expect(page).toHaveURL(new RegExp(`/household/${spaceId}/members$`));
+    await expect(page.getByTestId("toast")).toContainText(`You joined ${LEE}. Choose it in the space switcher to make it your selected space.`);
+    expect((await context.cookies()).find((c) => c.name === "hemfin-space")?.value).not.toBe(spaceId);
+    expect((await storedInvitations(spaceId))[0].status).toBe("accepted");
+    // The marker is stored, so a reload of /invite still shows the joined state.
+    await page.unroute("**/invite");
+    await page.goto("/invite");
+    await expect(page.getByRole("heading", { level: 1, name: `You joined ${LEE}` })).toBeVisible();
+  });
+
   test("signed out: Create an account keeps the token, pre-fills nothing, and shows none", async ({ page, context }, info) => {
     const { invitee } = cast(info);
     const { spaceId } = await setupAdmin(context, info);
@@ -552,7 +665,7 @@ test.describe("accept page", () => {
     await page.getByLabel("Email").fill(invitee.email);
     await page.locator("#password").fill("Goodpass1");
     await page.locator("main form").getByRole("button", { name: "Create account" }).click();
-    await expect(page).toHaveURL(/\/check-email$/);
+    await expect(page).toHaveURL(/\/check-email\?next=%2Finvite$/);
     expect((await storage(page))[TOKEN_KEY]).toBe(token);
   });
 
@@ -712,6 +825,7 @@ test.describe("accept page", () => {
     await page.route("**/_next/static/**", (route) => route.abort());
     const response = await page.goto(`/invite#token=${token}`);
     expect(response!.headers()["referrer-policy"]).toBe("no-referrer");
+    expect(response!.headers()["cache-control"]).toBe("no-store");
     await expect(page.getByTestId("invite-checking")).toBeVisible();
     await expect(page.getByRole("heading", { level: 1, name: "Checking your invitation" })).toBeVisible();
     expect(urls.filter((u) => u.includes("/api/"))).toEqual([]);
