@@ -44,7 +44,7 @@ Deferred (not planned yet): native mobile app, WhatsApp notifications, push noti
 | Ticket | Title | Owner | Status | PR |
 |---|---|---|---|---|
 | HEM-012 | API: households and members | Engineer | Done | #20 |
-| HEM-013 | API: invitations (PM security review) | Engineer | In Review (CI red) | #22 |
+| HEM-013 | API: invitations (PM security review) | Engineer | Done | #22 |
 | HEM-014 | Design spec: households, invitations, switcher | Designer | Done | #21 |
 | HEM-015 | Web: households, members, switcher | Engineer | In Progress | |
 | HEM-016 | Web: invitations and accept page (PM security review) | Engineer | Todo (after 013, 014, 015) | |
@@ -64,3 +64,4 @@ Deferred (not planned yet): native mobile app, WhatsApp notifications, push noti
 - Flaky local Playwright run (HEM-011): once, 150 tests failed with `TypeError: fetch failed` to the mock backend, then passed on rerun. Cause not found; watch for it in CI.
 - Profile follow-ups (HEM-011): email-change flow; short curated locale list; on-screen keyboard behaviour of the combobox (visual viewport) not tested on a real device.
 - Dependencies: #14 (react and react-dom 19.3.1) and #13 (openapi-fetch 0.17) merged with user approval. #8 (TypeScript 7) and #11 (ESLint 10) still on hold.
+- Invitations follow-ups (from HEM-013): no DB-backed test yet for a stale failed resend not clobbering a newer resend (the guard is only checked in compiled SQL); add `/internal/jobs/weekly` when a ticket needs it. Live check still needed: accept works with a real Supabase token (email confirmation now relies on the REQUIRED Supabase settings).
