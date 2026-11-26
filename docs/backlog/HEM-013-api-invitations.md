@@ -34,7 +34,7 @@ Admins invite people to a household by email. The invitee accepts only with the 
 ## Handoff log
 
 ### 2026-11-26, Engineer (Sonnet 5.5)
-Branch `hem-013-api-invitations`. PR: see the PR for this branch (URL in the PM report).
+Branch `hem-013-api-invitations`. PR: https://github.com/rizvisarwar/HemFin/pull/22
 
 **Carry-over (first commit):** neutral transfer-cap message (no household count); `MemberRoleChange.role` is `Literal[Role.admin, Role.member]`; `_space_out` takes `Space`; `change_member_role` returns `None`; `list_spaces_page` counts only the caller's spaces; tests: owner-targeted concurrency test with exact status codes, exact leave/transfer assertion, member-removes-member 403, 14-request test given pool headroom (`pool_size=20`). The Phase 3 `ON DELETE CASCADE` note is left for Phase 3 tickets.
 
