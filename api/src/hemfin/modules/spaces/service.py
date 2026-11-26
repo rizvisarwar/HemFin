@@ -32,8 +32,10 @@ async def get_space(session: AsyncSession, space_id: UUID) -> Space | None:
 async def list_spaces_page(
     session: AsyncSession, user_id: UUID, limit: int, cursor: str | None
 ) -> tuple[list[SpaceListItem], str | None]:
+    mine = select(SpaceMembership.space_id).where(SpaceMembership.user_id == user_id)
     counts = (
         select(SpaceMembership.space_id, func.count().label("n"))
+        .where(SpaceMembership.space_id.in_(mine))
         .group_by(SpaceMembership.space_id)
         .subquery()
     )
@@ -208,7 +210,7 @@ async def _target_membership(
 
 async def change_member_role(
     session: AsyncSession, space_id: UUID, actor: UUID, target: UUID, new_role: Role
-) -> SpaceMembership:
+) -> None:
     await _lock_space(session, space_id)
     _require_rank(await _actor_role(session, space_id, actor), Role.owner)
     if new_role == Role.owner:
@@ -218,7 +220,6 @@ async def change_member_role(
         raise HTTPException(409, detail="The owner's role changes only by transferring ownership.")
     m.role = new_role
     await session.commit()
-    return m
 
 
 async def remove_member(session: AsyncSession, space_id: UUID, actor: UUID, target: UUID) -> None:
@@ -248,7 +249,7 @@ async def transfer_ownership(
     # Serialise with the target's own household creations, then enforce the cap.
     await session.execute(select(User.id).where(User.id == target).with_for_update())
     if await _owned_household_count(session, target) >= MAX_OWNED_HOUSEHOLDS:
-        raise HTTPException(409, detail="That member already owns the maximum of 10 households.")
+        raise HTTPException(409, detail="That member cannot take ownership of another household.")
     await session.execute(
         update(SpaceMembership)
         .where(SpaceMembership.space_id == space_id, SpaceMembership.user_id == actor)

@@ -42,6 +42,9 @@ class TestKey:
         sub: UUID | str,
         email: str | None = "user@example.test",
         *,
+        email_verified: bool | None = True,
+        user_metadata: dict[str, Any] | None = None,
+        extra_claims: dict[str, Any] | None = None,
         iss: str = ISSUER,
         aud: str = AUDIENCE,
         exp_in: int = 3600,
@@ -59,6 +62,12 @@ class TestKey:
         }
         if email is not None:
             claims["email"] = email
+            # Like Supabase, `email_verified` is a top-level claim. None omits it.
+            if email_verified is not None:
+                claims["email_verified"] = email_verified
+        if user_metadata is not None:
+            claims["user_metadata"] = user_metadata
+        claims.update(extra_claims or {})
         return jwt.encode(
             claims,
             signing_key or self.private,

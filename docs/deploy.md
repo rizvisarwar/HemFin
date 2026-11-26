@@ -54,7 +54,10 @@ Later tickets (email, jobs) add more variables (Resend key, SMTP settings). When
    - **Redirect URLs** (an allow-list; the web app's callback is `/auth/callback`, and the sign-in flows pass it as `redirectTo`): `https://<your-app>.vercel.app/auth/callback`, and for local work `http://localhost:3000/auth/callback` and `http://127.0.0.1:3000/auth/callback`. Preview deployments need their own entry, for example `https://*-<team>.vercel.app/auth/callback` (wildcard syntax UNVERIFIED). Prefer exact callback URLs over `/**`.
    - If a redirect is not on the list, Supabase falls back to the Site URL, and the PKCE code exchange then lands on the wrong page. That is the first thing to check when "the email link goes to the home page".
 5. **Auth settings** (Authentication > Sign In / Providers and Emails; mirror `supabase/config.jsonc`, which only configures the local stack):
-   - Email provider on, **Confirm email** on.
+   - Email provider on, **Confirm email** on. **REQUIRED.**
+   - **Secure email change** on. **REQUIRED.**
+   - **Anonymous sign-ins** off. **REQUIRED.**
+   - Why both are required: the API accepts an invitation only for a verified email, and it decides "verified" from the access token alone (`_email_is_verified` in `api/src/hemfin/core/security.py`): a non-empty `email` claim, not `is_anonymous`, and no top-level `email_verified: false`. It does not read `user_metadata` (users can write it) and the API holds no `service_role` key. That is only sound if Confirm email is on (Supabase issues no session to an unconfirmed email user, so the `email` claim always belongs to a confirmed address) and Secure email change is on (the `email` claim changes only after the new address is confirmed). If either is turned off, invitation acceptance is no longer safe. Anonymous sign-ins must stay off.
    - Minimum password length 8, required characters: lowercase, uppercase and digits. The web form checks the same rules (`web/src/lib/auth/password.ts`).
    - Email OTP/link expiry 3600 seconds (1 hour): the email templates say "expires in 1 hour". If you change it, change the templates too.
    - **Email templates** (Authentication > Emails > Templates): paste in `supabase/templates/confirmation.html` (Confirm signup), `recovery.html` (Reset password) and `email_change.html` (Change email address), and set the subjects from `supabase/config.jsonc`. `invite.html` is reserved for Phase 2. The hosted dashboard does not read `config.jsonc`, so this is manual. UNVERIFIED.
@@ -160,7 +163,8 @@ Settings > Secrets and variables > Actions:
 - Schedules: daily at 05:15 UTC (`/internal/jobs/daily`) and Mondays 06:30 UTC (`/internal/jobs/weekly`). Run one manually from Actions > Scheduled jobs > Run workflow.
 - It calls `POST $API_BASE_URL/internal/jobs/<name>` with the header `X-Job-Secret: $JOB_SECRET`.
 - If `API_BASE_URL` or `JOB_SECRET` is unset, the run **succeeds with a notice** and does nothing (so forks and fresh clones stay green).
-- **The `/internal/jobs/*` endpoints do not exist yet.** The workflow only calls them. Until a later ticket adds them, a configured run fails with HTTP 404. That is expected; leave the two settings unset until the endpoints ship. The API's side (checking `X-Job-Secret` against `JOB_SECRET` with a constant-time comparison) is part of that later ticket.
+- `POST /internal/jobs/daily` exists (HEM-013: expires overdue invitations; checks `X-Job-Secret` against `JOB_SECRET` with a constant-time comparison; 503 if `JOB_SECRET` is unset on the API, 401 on a wrong secret). `/internal/jobs/weekly` does not exist yet and returns 404.
+- Invitation emails need `RESEND_API_KEY` (secret), `EMAIL_FROM` and `WEB_BASE_URL` in the Render environment; without the key, invitations return 503.
 - GitHub may disable scheduled workflows after 60 days without repository activity in public repos, and scheduled runs can start several minutes late. UNVERIFIED current policy; re-enable from the Actions tab if needed.
 - The first call after a sleep wakes Render. The workflow retries only connection-level failures and HTTP 502/503/504 (up to 4 attempts, 20 s apart, 120 s each). Any other status, including 404 and 500, fails immediately so a half-run job is never repeated. Make the endpoints idempotent when they land.
 

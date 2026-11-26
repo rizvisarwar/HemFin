@@ -17,6 +17,8 @@ from hemfin.core.errors import (
 )
 from hemfin.core.logging import RequestIdMiddleware, configure_logging
 from hemfin.core.telemetry import setup_telemetry
+from hemfin.modules.invitations import router as invitations_router
+from hemfin.modules.jobs import router as jobs_router
 from hemfin.modules.profile import router as profile_router
 from hemfin.modules.spaces import router as spaces_router
 from hemfin.modules.users import router as users_router
@@ -32,6 +34,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     if settings.HEMFIN_TEST_MODE and settings.APP_ENV.strip().lower() not in TEST_MODE_ENVS:
         raise RuntimeError("HEMFIN_TEST_MODE is only allowed when APP_ENV is 'local' or 'test'.")
+    base = settings.WEB_BASE_URL.strip().lower()
+    if settings.APP_ENV.strip().lower() == "production" and (
+        not base or "localhost" in base or "127.0.0.1" in base
+    ):
+        # Invitation links are built from this, so emails would carry a dead link.
+        log.warning("WEB_BASE_URL is unset or points to localhost in production")
     # Fail fast at startup if the DB secret is missing or malformed (names the variable only).
     if not settings.HEMFIN_TEST_MODE:
         db.parse_database_url(settings.require_database_url())
@@ -81,7 +89,10 @@ def create_app() -> FastAPI:
     api_v1.include_router(users_router.router)
     api_v1.include_router(profile_router.router)
     api_v1.include_router(spaces_router.router)
+    api_v1.include_router(invitations_router.space_router)
+    api_v1.include_router(invitations_router.token_router)
     app.include_router(api_v1)
+    app.include_router(jobs_router.router)
     setup_telemetry(app)  # no-op unless OTEL_EXPORTER_OTLP_ENDPOINT is set
     return app
 

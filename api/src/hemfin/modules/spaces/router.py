@@ -9,7 +9,7 @@ from hemfin.core.deps import SpaceAccess, get_current_user, require_space_member
 from hemfin.core.errors import PROBLEM_JSON
 from hemfin.core.pagination import DEFAULT_LIMIT, CursorParam, LimitParam, Page
 from hemfin.modules.spaces import service
-from hemfin.modules.spaces.models import Role, SpaceType
+from hemfin.modules.spaces.models import Role, Space, SpaceType
 from hemfin.modules.spaces.schemas import (
     MemberOut,
     MemberRoleChange,
@@ -37,7 +37,7 @@ Admin = Annotated[SpaceAccess, Depends(require_space_member(Role.admin))]
 Owner = Annotated[SpaceAccess, Depends(require_space_member(Role.owner))]
 
 
-def _space_out(space: Any, role: Role) -> SpaceOut:
+def _space_out(space: Space, role: Role) -> SpaceOut:
     return SpaceOut(
         id=space.id,
         type=SpaceType(space.type),
