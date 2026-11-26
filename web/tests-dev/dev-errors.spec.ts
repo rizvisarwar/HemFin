@@ -9,7 +9,8 @@ import { seedHouseholds, signInAs, USER } from "../tests/support/auth";
 // routes render the real shell: proxy, /api/v1/me call and the Suspense boundaries.
 // /invite is outside the app shell (HEM-016); the fragment is never sent to the server.
 // A fragment-only change is not a navigation, so the plain /invite comes after "/".
-const PUBLIC_ROUTES = ["/invite#token=AbCdEf0123456789_-AbCdEf0123456789_-abc", "/", "/invite"];
+const FAKE_TOKEN = "t".repeat(43); // token-shaped, made up
+const PUBLIC_ROUTES = [`/invite#token=${FAKE_TOKEN}`, "/", "/invite"];
 const OUTSIDE_SHELL = (path: string) => path === "/" || path.startsWith("/invite");
 const APP_ROUTES = ["/dashboard", "/contracts", "/profile", "/household", "/household/new"];
 
@@ -60,7 +61,7 @@ test("dev server renders pages without prerender errors or the error overlay", a
   await expect(page.getByTestId("invitations-empty")).toBeVisible();
   // The accept page: a token in the fragment is moved out of the address bar (signed in, unknown token: generic state).
   await page.goto("/");
-  await page.goto("/invite#token=AbCdEf0123456789_-AbCdEf0123456789_-abc");
+  await page.goto(`/invite#token=${FAKE_TOKEN}`);
   await expect(page.getByRole("heading", { level: 1, name: "This invitation can't be used" })).toBeVisible();
   expect(new URL(page.url()).hash).toBe("");
   await page.goto(household("settings"));

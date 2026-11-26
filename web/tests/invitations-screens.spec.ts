@@ -255,6 +255,7 @@ test.describe("accept page screens", () => {
     await expect(heading(page, `You joined ${LEE}`)).toBeVisible();
     await snap(page, info, "accept-F-joined");
     await page.getByRole("link", { name: "View members" }).click();
+    await expect(page).toHaveURL(new RegExp(`/household/${spaceId}/members$`));
     await page.goto("/invite");
     await expect(heading(page, "This invitation can't be used")).toBeVisible();
     await snap(page, info, "accept-H-generic-signed-in");

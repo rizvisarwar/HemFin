@@ -21,7 +21,8 @@ Admins send and manage invitations; invitees accept or decline through the web a
 ## Handoff log
 
 ### 2026-11-26, Engineer (Sonnet 5.5)
-**Done.** Branch `hem-016-web-invitations`. PR: see the PR for the URL.
+**Done.** Branch `hem-016-web-invitations`. PR: https://github.com/rizvisarwar/HemFin/pull/24
+CI follow-up: gitleaks flagged three made-up token-shaped test values; they were replaced by run-time-built values and the three historic fingerprints are in `.gitleaksignore`. A navigation race in `invitations-screens.spec.ts` was fixed.
 - Shared `DataTable` and `ResponsiveList` in `web/src/components/ui/`; the invitations list and the HEM-015 members table both use them.
 - Admin side: `components/invitations/invitations-view.tsx` (invite form, list with status chips, resend with a live `Retry-After` countdown, revoke dialog, Show more). 409 `already_member` / `already_invited`, 429, 503 `email_not_sent` (row appears, Resend available) and 503 unconfigured are mapped to spec copy. The `email_not_sent` copy is now in `households.md` 6.4.
 - `/invite`: `components/invitations/invite-flow.tsx`. Token from the fragment only, moved to sessionStorage, fragment stripped with `history.replaceState`; `Referrer-Policy: no-referrer` and `Cache-Control: no-store` for `/invite` in `next.config.ts`. States A to K. Joined marker is keyed by user id; sign-out clears it.

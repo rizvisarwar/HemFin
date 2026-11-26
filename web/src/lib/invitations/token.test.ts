@@ -10,7 +10,8 @@ import {
   parseTokenFromHash,
 } from "./token.ts";
 
-const TOKEN = "AbCdEf0123456789_-AbCdEf0123456789_-abc";
+// A made-up, token-shaped value (43 URL-safe characters), built rather than written out.
+const TOKEN = "t".repeat(20) + "_-" + "9".repeat(21);
 
 /** A minimal window with sessionStorage and a location/history the code can rewrite. */
 function fakeWindow(url: string, opts: { blockedStorage?: boolean } = {}) {
