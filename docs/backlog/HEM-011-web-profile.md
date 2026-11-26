@@ -41,3 +41,9 @@ Code, nits:
 11. `fetchMe` and `fetchProfile` use React `cache()`; a test asserts one `GET /me` and one `GET /me/profile` per page load. 12. Phone project is 375 px wide (WebKit, iPhone 13 profile). 13. `waitForTimeout` replaced by waiting for the navigation.
 Design: space badge removed from this page (`PageHeader` without `space`); "Saving…", "Deleting…" busy labels with `aria-busy`; money example follows the currency being picked; empty-state title is an h3 (`EmptyState titleAs`); Retry button on the load error; "Loading your profile" for screen readers; compact two-line address summary on phone; badge note added to design-system.md; nit 8 check added (country and currency lists fully visible and scrollable in the 375 px sheet): it passes, no fix needed.
 Not mine: `CLAUDE.md` and `.claude/agents/*` show uncommitted changes in this worktree (the coordinator's process change); I did not commit them.
+
+### 2026-11-26 Engineer, Round 2 fixes (design review 7189508854, code review 7189631582)
+1. Country list (address sheet) and currency list (page) re-shot open and scrolled to the last option at 375 (phone), 768 (tablet) and 1280: `{phone,tablet,desktop}-profile-{country,currency}-list-open-last-option.png`. Nothing clips: the list stays inside the sheet's scroll area and the last option is fully visible (asserted by the existing clipping test, which now also takes the shots).
+2. The money example now follows whatever the currency text resolves to (typed, picked or tidied on blur) and falls back to the saved currency for text that names none; test added.
+3. Phone address cards keep the country on its own line under the two-line clamped summary; profile.md 5.3 updated to match.
+4. API: `display_name` also rejects U+2028 and U+2029 (Zl, Zp); both added to the parametrised test.
