@@ -29,3 +29,15 @@ A signed-in user can edit their profile and manage their addresses on `/profile`
 - Email change is not available; the note says so. Needs a flow (the `email_change` template exists).
 - Phone country defaults to NL; derive it from locale later. Splitting a stored number uses a calling-code table, shared codes (+1, +7) resolve to US and RU.
 - Locale list is a short curated set; the API accepts any BCP-47 tag.
+
+### 2026-11-26 Engineer, Round 1 fixes (code review 7188921396, design review 7188655381, docs/design/profile.md)
+Code, blocking:
+1. Combobox Escape calls `stopPropagation()` when the list is open; test: first Escape closes the list and keeps the dialog and text, the second closes the dialog.
+2. Set as default now has the accessible name "Set as default: {label}" (starts with the visible text, WCAG 2.5.3). This differs from the spec table in profile.md 5.2 ("Set {name} as default"); the spec should be updated.
+Code, nits:
+3. Phone country comes from the profile locale's region (`phoneDefaults`, no `navigator`); no region leaves it empty and requires a choice.
+4. A stored number whose calling code is not in the table is shown whole in the number field and sent back unchanged (never null unless cleared); unit and Playwright tests.
+5. Leading `00` is read as `+`. 6. `379` removed. 7. `aria-controls` only while the listbox exists; "No match" is a message outside the listbox; listboxes are named (Currencies, Countries, Phone countries). 8. `isKnownCurrency` removed. 9. Display name is counted in code points (the mock now does too). 10. API: control characters and line breaks rejected (tests); display name and profile saved in one transaction.
+11. `fetchMe` and `fetchProfile` use React `cache()`; a test asserts one `GET /me` and one `GET /me/profile` per page load. 12. Phone project is 375 px wide (WebKit, iPhone 13 profile). 13. `waitForTimeout` replaced by waiting for the navigation.
+Design: space badge removed from this page (`PageHeader` without `space`); "Saving…", "Deleting…" busy labels with `aria-busy`; money example follows the currency being picked; empty-state title is an h3 (`EmptyState titleAs`); Retry button on the load error; "Loading your profile" for screen readers; compact two-line address summary on phone; badge note added to design-system.md; nit 8 check added (country and currency lists fully visible and scrollable in the 375 px sheet): it passes, no fix needed.
+Not mine: `CLAUDE.md` and `.claude/agents/*` show uncommitted changes in this worktree (the coordinator's process change); I did not commit them.
