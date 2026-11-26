@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { HOUSEHOLD_USER, signInAs } from "./support/auth";
 
 const APP_ROUTES = [
   { path: "/dashboard", h1: "Dashboard" },
@@ -42,17 +43,22 @@ test.describe("public pages", () => {
     await shot(page, info, "landing");
   });
 
-  test("sign-in placeholder renders", async ({ page }, info) => {
+  test("sign-in page renders", async ({ page }, info) => {
     await page.goto("/sign-in");
     await expect(page.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible();
     await expect(page.getByLabel("Email")).toHaveAttribute("autocomplete", "email");
-    await expect(page.getByLabel("Password")).toHaveAttribute("autocomplete", "current-password");
+    await expect(page.getByLabel("Password", { exact: true })).toHaveAttribute("autocomplete", "current-password");
     await expectNoHorizontalScroll(page);
     await shot(page, info, "sign-in");
   });
 });
 
 test.describe("app shell", () => {
+  // The (app) routes need a session. The mock backend (tests/support) signs the test token.
+  test.beforeEach(async ({ context }) => {
+    await signInAs(context);
+  });
+
   test("navigation chrome matches the breakpoint", async ({ page }, info) => {
     await page.goto("/dashboard");
     const bottomNav = page.getByTestId("bottom-nav");
@@ -154,7 +160,18 @@ test.describe("app shell", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Expenses" })).toBeVisible();
   });
 
+  test("space switcher shows the real personal space; no placeholder household", async ({ page }, info) => {
+    await page.goto("/dashboard");
+    await expect(page.locator("header[data-space]").first()).toHaveAttribute("data-space", "personal");
+    await page.getByRole("button", { name: /Active space: Personal/ }).click();
+    await expect(page.getByRole(info.project.name === "phone" ? "dialog" : "menu")).toBeVisible();
+    await expect(page.getByText("Sample household")).toHaveCount(0);
+    await expect(page.getByText("Create a household")).toBeVisible();
+  });
+
   test("space switcher changes the active space and stores it in the cookie", async ({ page, context }, info) => {
+    await context.clearCookies();
+    await signInAs(context, HOUSEHOLD_USER);
     await page.goto("/dashboard");
     const header = page.locator("header[data-space]").first();
     await expect(header).toHaveAttribute("data-space", "personal");
@@ -163,14 +180,19 @@ test.describe("app shell", () => {
     await expect(page.getByRole(info.project.name === "phone" ? "dialog" : "menu")).toBeVisible();
     await shot(page, info, "space-switcher-open");
     const phone = info.project.name === "phone";
-    await page.getByRole(phone ? "radio" : "menuitemradio", { name: /Sample household/ }).click();
+    await page.getByRole(phone ? "radio" : "menuitemradio", { name: /Smith family/ }).click();
 
     await expect(header).toHaveAttribute("data-space", "household");
-    await expect(page.getByRole("button", { name: /Active space: Sample household/ })).toBeVisible();
-    await expect.poll(async () => (await context.cookies()).find((c) => c.name === "hemfin-space")?.value).toBe(
-      "sample-household",
+    await expect(page.getByRole("button", { name: /Active space: Smith family/ })).toBeVisible();
+    await expect.poll(async () => (await context.cookies()).find((c) => c.name === "hemfin-space")?.value).toMatch(
+      /^[0-9a-f-]{36}$/,
     );
 
+    // The switch ends with router.refresh() (an RSC fetch). Wait for the shell to report it is done
+    // (cookie written and refresh finished), otherwise the reload interrupts it ("Frame load
+    // interrupted" in WebKit).
+    await expect(page.locator("[data-space-sync]")).toHaveAttribute("data-space-sync", "idle");
+    await page.waitForLoadState("networkidle");
     // The server renders the stored space first time.
     await page.reload();
     await expect(page.locator("header[data-space]").first()).toHaveAttribute("data-space", "household");

@@ -1,0 +1,15 @@
+HemFin
+
+Reset your password
+
+We received a request to reset the password for your HemFin account. Choose a new password with the button below.
+
+Choose a new password:
+{{ .ConfirmationURL }}
+
+This link expires in 1 hour and can be used once.
+
+If you did not ask for this, you can ignore this email. Your password will not change.
+
+--
+You're receiving this because this address was used on HemFin. If that was not you, you can ignore this email. Sent by HemFin ({{ .SiteURL }}).

@@ -1,15 +1,25 @@
 import { Suspense } from "react";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { AppShellClient } from "@/components/layout/app-shell-client";
+import { ApiUnavailable } from "@/components/layout/api-unavailable";
+import type { SpaceSummary } from "@/components/layout/types";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PLACEHOLDER_SPACES, resolveSpaceId, SPACE_COOKIE } from "@/lib/space";
+import { fetchMe } from "@/lib/api-server";
+import { resolveSpaceId, SPACE_COOKIE } from "@/lib/space";
 
 async function ShellWithSpace({ children }: { children: React.ReactNode }) {
+  // Request-time work (session, API call, timeouts) must come after a dynamic API (see HEM-007).
+  await connection();
+  // The user's real spaces come from the API (the first call also provisions a new user).
+  const me = await fetchMe();
+  if (!me || me.spaces.length === 0) return <ApiUnavailable />;
+  const spaces: SpaceSummary[] = me.spaces.map((s) => ({ id: s.id, name: s.name, type: s.type, role: s.role }));
   // The active space is read from the cookie so the server renders it first time.
   const jar = await cookies();
-  const initialSpaceId = resolveSpaceId(jar.get(SPACE_COOKIE)?.value);
+  const initialSpaceId = resolveSpaceId(jar.get(SPACE_COOKIE)?.value, spaces);
   return (
-    <AppShellClient spaces={PLACEHOLDER_SPACES} initialSpaceId={initialSpaceId}>
+    <AppShellClient spaces={spaces} initialSpaceId={initialSpaceId}>
       {children}
     </AppShellClient>
   );

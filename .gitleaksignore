@@ -3,3 +3,6 @@
 762b545e56bbb17f814d5a27b0cf2d49eb69a6cf:api/src/hemfin/core/security.py:generic-api-key:156
 5fe6130f8a86eef468c40a0ed93670fb06a06d47:docs/backlog/HEM-008-api-auth-spaces.md:generic-api-key:36
 5fe6130f8a86eef468c40a0ed93670fb06a06d47:.gitleaksignore:generic-api-key:1
+# False positive: a dummy value typed into a form by a Playwright test,
+# introduced in the HEM-010 round 1 commit and renamed in the next. Exact fingerprint only.
+7d891c1a1aee5023ebb1b5bd2cbce1a2f5883850:web/tests/auth.spec.ts:generic-api-key:69

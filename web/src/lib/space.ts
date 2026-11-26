@@ -4,23 +4,10 @@ import type { SpaceSummary } from "@/components/layout/types";
 export const SPACE_COOKIE = "hemfin-space";
 
 /**
- * Static placeholder spaces. There are no real spaces until Phase 2 (HEM-003
- * PM decision), so the switcher shows "Personal" plus one sample household.
+ * The active space id: the stored one if it is still one of the user's spaces, otherwise their
+ * personal space (every user has exactly one), otherwise the first space.
  */
-export const PLACEHOLDER_SPACES: SpaceSummary[] = [
-  { id: "personal", name: "Personal", type: "personal", role: "owner" },
-  {
-    id: "sample-household",
-    name: "Sample household",
-    type: "household",
-    role: "member",
-  },
-];
-
-export const DEFAULT_SPACE_ID = "personal";
-
-export function resolveSpaceId(value: string | undefined): string {
-  return PLACEHOLDER_SPACES.some((s) => s.id === value)
-    ? (value as string)
-    : DEFAULT_SPACE_ID;
+export function resolveSpaceId(value: string | undefined, spaces: SpaceSummary[]): string {
+  if (value && spaces.some((s) => s.id === value)) return value;
+  return (spaces.find((s) => s.type === "personal") ?? spaces[0])?.id ?? "";
 }

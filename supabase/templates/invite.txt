@@ -1,0 +1,15 @@
+HemFin
+
+You have been invited
+
+You have been invited to join a household on HemFin, where you can share finances with the people you live with. Accept the invitation to create your account.
+
+Accept invitation:
+{{ .ConfirmationURL }}
+
+This link expires in 1 hour and can be used once.
+
+If you were not expecting this invitation, you can ignore this email.
+
+--
+You're receiving this because this address was used on HemFin. If that was not you, you can ignore this email. Sent by HemFin ({{ .SiteURL }}).

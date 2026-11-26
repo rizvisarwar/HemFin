@@ -1,0 +1,15 @@
+HemFin
+
+Confirm your new email address
+
+You asked to change the email address on your HemFin account to {{ .NewEmail }}. Confirm the change with the button below.
+
+Confirm new email address:
+{{ .ConfirmationURL }}
+
+This link expires in 1 hour and can be used once.
+
+If you did not ask for this change, ignore this email and consider changing your password.
+
+--
+You're receiving this because this address was used on HemFin. If that was not you, you can ignore this email. Sent by HemFin ({{ .SiteURL }}).
