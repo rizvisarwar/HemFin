@@ -36,8 +36,8 @@ Deferred (not planned yet): native mobile app, WhatsApp notifications, push noti
 |---|---|---|---|---|
 | HEM-008 | API: Supabase JWT auth, users and personal space | Engineer | Done | #15 |
 | HEM-009 | API: profile and addresses | Engineer | Done | #17 (replaces #16) |
-| HEM-010 | Web: auth flows | Engineer | In Progress | |
-| HEM-011 | Web: profile page | Engineer | Todo | |
+| HEM-010 | Web: auth flows | Engineer | Done | #18 |
+| HEM-011 | Web: profile page | Engineer | In Progress | |
 
 ## Follow-ups (not yet ticketed)
 - Phase 2 (space switcher with real households): the phone switcher sheet gets the SpaceBadge heading row from spec 4.2, and long household names stay readable (from the HEM-003 design review).
@@ -49,3 +49,5 @@ Deferred (not planned yet): native mobile app, WhatsApp notifications, push noti
 - Dependency majors on hold: TypeScript 7.0 (Dependabot #8) needs its own ticket plus confirmation that Next.js 16 supports it. ESLint 10 (#11) waits for official `eslint-config-next` support. `@types/node` is held at the Node 22 runtime; bump it by hand with `.nvmrc`.
 - API docs: the OpenAPI spec documents 422 responses as FastAPI's `HTTPValidationError`, but the API returns RFC 7807 problem+json. Document a shared problem schema for 4xx and 5xx responses app-wide (from the HEM-009 review).
 - Test gap (from the HEM-009 review): `_is_default_conflict` in the profile service has no test for the path where a different IntegrityError is re-raised, and its string fallback could be stricter.
+- Auth polish (from the HEM-010 design and code reviews): the cooldown label on the aria-disabled button is shown at 60% opacity (low contrast); the recovery email repeats "you can ignore this email"; `email_change` template exists with no email-change flow yet; the phone wrong-credentials banner sits far above the Sign in button; add `/sign-up` to the type-before-hydration test; consider `data-testid` instead of `data-space-sync`.
+- Not yet verified for real (needs Docker or vendor accounts): email delivery and links, PKCE across browsers, Google sign-in, how the emails render in real mail clients, the Supabase dashboard steps.
