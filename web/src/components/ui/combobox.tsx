@@ -25,6 +25,9 @@ export function resolveOption(
   return matches.length === 1 ? matches[0] : undefined;
 }
 
+/** Free height (px) the list needs below the field to open downward; otherwise it opens above. */
+const MIN_BELOW = 200;
+
 export interface ComboboxProps {
   id: string;
   /** Form field name: the input's text is submitted, and `resolveOption` turns it back into a value. */
@@ -117,8 +120,50 @@ export function Combobox({
 
   const hasList = open && shown.length > 0;
 
+  // Where the list goes. On the page it opens below the field when at least MIN_BELOW px of the
+  // visible viewport (between the sticky top bar and the bottom nav) are free, otherwise above, and
+  // its max height is what is free there, so it scrolls inside itself and never covers a bar or
+  // makes the page scroll. Inside a dialog the dialog's scroll area is the boundary and the list
+  // keeps its default size.
+  const wrapRef = React.useRef<HTMLDivElement>(null);
+  const [place, setPlace] = React.useState<{ up: boolean; maxHeight?: number }>({ up: false });
+  const measure = React.useCallback(() => {
+    const wrap = wrapRef.current;
+    if (!wrap || wrap.closest("[data-dialog-scroll]")) return setPlace((p) => (p.up || p.maxHeight ? { up: false } : p));
+    const field = wrap.getBoundingClientRect();
+    const vv = window.visualViewport;
+    let top = vv?.offsetTop ?? 0;
+    let bottom = (vv?.offsetTop ?? 0) + (vv?.height ?? window.innerHeight);
+    for (const bar of document.querySelectorAll<HTMLElement>("[data-viewport-inset]")) {
+      const r = bar.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue; // hidden at this breakpoint
+      if (bar.dataset.viewportInset === "top") top = Math.max(top, r.bottom);
+      else bottom = Math.min(bottom, r.top);
+    }
+    const margin = 8;
+    const below = bottom - field.bottom - margin;
+    const above = field.top - top - margin;
+    const up = below < MIN_BELOW && above > below;
+    const maxHeight = Math.max(0, Math.floor(up ? above : below));
+    setPlace((p) => (p.up === up && p.maxHeight === maxHeight ? p : { up, maxHeight }));
+  }, []);
+  React.useLayoutEffect(() => {
+    if (!open) return;
+    measure();
+    window.addEventListener("scroll", measure, true);
+    window.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("resize", measure);
+    return () => {
+      window.removeEventListener("scroll", measure, true);
+      window.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("resize", measure);
+    };
+  }, [open, measure]);
+  const popupPos = place.up ? "bottom-full mb-1" : "mt-1";
+
   return (
     <div
+      ref={wrapRef}
       className={cn("relative", className)}
       onBlur={(e) => {
         if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
@@ -168,8 +213,10 @@ export function Combobox({
           id={listId}
           role="listbox"
           aria-label={listLabel}
+          style={place.maxHeight !== undefined ? { maxHeight: Math.min(256, place.maxHeight) } : undefined}
           className={cn(
-            "absolute left-0 z-40 mt-1 max-h-64 w-full min-w-[16rem] overflow-y-auto overscroll-contain rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-lg",
+            "absolute left-0 z-40 max-h-64 w-full min-w-[16rem] overflow-y-auto overscroll-contain rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-lg",
+            popupPos,
             listClassName,
           )}
         >
@@ -198,7 +245,7 @@ export function Combobox({
         // A message, not an option: it lives outside the listbox.
         <p
           data-testid="combobox-empty"
-          className="absolute left-0 z-40 mt-1 w-full min-w-[16rem] rounded-md border border-border bg-popover px-3 py-3 text-small text-muted-foreground shadow-lg"
+          className={cn(popupPos, "absolute left-0 z-40 w-full min-w-[16rem] rounded-md border border-border bg-popover px-3 py-3 text-small text-muted-foreground shadow-lg")}
         >
           No match. Try another search.
         </p>

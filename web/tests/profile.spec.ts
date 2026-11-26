@@ -559,25 +559,68 @@ test.describe("review round 1", () => {
     expect(await list.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
     await list.evaluate((el) => (el.scrollTop = el.scrollHeight));
     const last = list.getByRole("option").last();
-    await expect(last).toBeInViewport();
+    await expect(last).toBeInViewport({ ratio: 1 }); // fully visible
+    // The field is still on screen and inside the sheet's scroll area (not scrolled out of sight).
+    await expect(country).toBeInViewport({ ratio: 1 });
+    const fieldBox = (await country.boundingBox())!;
+    expect(fieldBox.y).toBeGreaterThanOrEqual(scroller.top - 1);
     // The list is open and scrolled to its last option, inside the sheet (for the Designer).
     await viewShot(page, info, "country-list-open-last-option");
     await last.click();
     await expect(country).not.toHaveValue("a");
     await expect(dialog).toBeVisible();
-
-    // The currency list on the page, with the same checks against the viewport.
-    await dialog.getByRole("button", { name: "Cancel" }).click();
-    const currency = page.getByLabel("Base currency");
-    await currency.fill("a");
-    const currencies = page.getByRole("listbox", { name: "Currencies" });
-    await currencies.scrollIntoViewIfNeeded();
-    const cbox = (await currencies.boundingBox())!;
-    expect(cbox.x + cbox.width).toBeLessThanOrEqual(view.width);
-    await currencies.evaluate((el) => (el.scrollTop = el.scrollHeight));
-    await expect(currencies.getByRole("option").last()).toBeInViewport();
-    await viewShot(page, info, "currency-list-open-last-option");
   });
+
+  // The list on the page must stay between the sticky top bar and the bottom nav, scroll inside
+  // itself, and never make the page scroll away from its field.
+  for (const place of ["middle", "near the bottom nav", "near the top bar"] as const) {
+    test(`the currency list ${place}: scrolls inside itself, clear of the bars, field stays in view`, async ({ page, context }, info) => {
+      await openProfile(page, info, context, SEEDED);
+      const currency = page.getByLabel("Base currency");
+      // Put the field where the test wants it (page scroll is set before opening, never after).
+      await currency.evaluate((el, where) => {
+        const h = window.innerHeight;
+        const r = el.getBoundingClientRect();
+        const target = where === "middle" ? h / 2 - 22 : where === "near the bottom nav" ? h - 170 : 110;
+        window.scrollBy(0, r.top - target);
+      }, place);
+      const fieldBefore = (await currency.boundingBox())!;
+      const scrollBefore = await page.evaluate(() => window.scrollY);
+      await currency.fill("a");
+      const list = page.getByRole("listbox", { name: "Currencies" });
+      await expect(list).toBeVisible();
+      await list.evaluate((el) => (el.scrollTop = el.scrollHeight)); // scroll the list, not the page
+      const last = list.getByRole("option").last();
+      await expect(last).toBeInViewport({ ratio: 1 }); // fully visible
+
+      const view = page.viewportSize()!;
+      const bars = await page.evaluate(() => {
+        const out: { where: string; top: number; bottom: number }[] = [];
+        for (const el of document.querySelectorAll<HTMLElement>("[data-viewport-inset]")) {
+          const r = el.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) out.push({ where: el.dataset.viewportInset!, top: r.top, bottom: r.bottom });
+        }
+        return out;
+      });
+      const box = (await list.boundingBox())!;
+      for (const bar of bars) {
+        if (bar.where === "top") expect(box.y, "list clear of the top bar").toBeGreaterThanOrEqual(bar.bottom - 1);
+        else expect(box.y + box.height, "list clear of the bottom nav").toBeLessThanOrEqual(bar.top + 1);
+      }
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.y + box.height).toBeLessThanOrEqual(view.height);
+      expect(box.x + box.width).toBeLessThanOrEqual(view.width);
+      // The page did not scroll, so the field is exactly where it was and in view.
+      expect(await page.evaluate(() => window.scrollY)).toBe(scrollBefore);
+      const fieldAfter = (await currency.boundingBox())!;
+      expect(Math.abs(fieldAfter.y - fieldBefore.y)).toBeLessThan(1);
+      await expect(currency).toBeInViewport({ ratio: 1 });
+      if (place === "middle") await viewShot(page, info, "currency-list-open-last-option");
+      if (place === "near the bottom nav") await viewShot(page, info, "currency-list-open-above-last-option");
+      await last.click();
+      await expect(currency).not.toHaveValue("a");
+    });
+  }
 
   test("the phone country comes from the locale's region, the same on server and client", async ({ page, context }, info) => {
     await openProfile(page, info, context, { profile: { locale: "nl-NL" } });

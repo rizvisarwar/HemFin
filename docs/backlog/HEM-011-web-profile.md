@@ -47,3 +47,8 @@ Not mine: `CLAUDE.md` and `.claude/agents/*` show uncommitted changes in this wo
 2. The money example now follows whatever the currency text resolves to (typed, picked or tidied on blur) and falls back to the saved currency for text that names none; test added.
 3. Phone address cards keep the country on its own line under the two-line clamped summary; profile.md 5.3 updated to match.
 4. API: `display_name` also rejects U+2028 and U+2029 (Zl, Zp); both added to the parametrised test.
+
+### 2026-11-26 Engineer, Round 3 fix (design review 7190092265)
+- Combobox placement: on the page, the list measures the free space between the sticky top bar and the bottom nav (`data-viewport-inset` on both bars, plus the visual viewport), opens below the field when at least 200 px are free, otherwise above, and its max height is the free space minus 8 px, so it scrolls inside itself and the page never scrolls. Inside a dialog (`data-dialog-scroll`) the sheet's scroll area stays the boundary and behaviour is unchanged.
+- Tests: the currency list on the page at three field positions (middle, near the bottom nav, near the top bar) and the country list in the sheet; each asserts the last option is fully visible after scrolling the list, the field is still in view (page scroll unchanged), and the list clears both bars. Phone, tablet, desktop.
+- Shots: `*-profile-currency-list-open-last-option.png` (below the field), `*-profile-currency-list-open-above-last-option.png` (opened above), `*-profile-country-list-open-last-option.png`.

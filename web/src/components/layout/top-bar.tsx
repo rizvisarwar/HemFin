@@ -32,6 +32,7 @@ export function TopBar({
   return (
     <header
       data-space={active.type}
+      data-viewport-inset="top" // overlays such as the combobox list keep clear of this bar
       className={cn(
         "sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b-2 bg-background px-4 md:h-16 md:px-6 xl:px-8",
         active.type === "personal" ? "border-b-personal" : "border-b-household",
