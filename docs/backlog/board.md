@@ -44,8 +44,8 @@ Deferred (not planned yet): native mobile app, WhatsApp notifications, push noti
 | Ticket | Title | Owner | Status | PR |
 |---|---|---|---|---|
 | HEM-012 | API: households and members | Engineer | Done | #20 |
-| HEM-013 | API: invitations (PM security review) | Engineer | Todo | |
-| HEM-014 | Design spec: households, invitations, switcher | Designer | In Review | #21 |
+| HEM-013 | API: invitations (PM security review) | Engineer | In Review (CI red) | #22 |
+| HEM-014 | Design spec: households, invitations, switcher | Designer | In Review (round 3) | #21 |
 | HEM-015 | Web: households, members, switcher | Engineer | Todo (after 012, 014) | |
 | HEM-016 | Web: invitations and accept page (PM security review) | Engineer | Todo (after 013, 014, 015) | |
 
