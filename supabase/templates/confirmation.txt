@@ -1,0 +1,15 @@
+HemFin
+
+Confirm your email address
+
+Thanks for signing up for HemFin. Confirm your email address to finish creating your account.
+
+Confirm email address:
+{{ .ConfirmationURL }}
+
+This link expires in 1 hour and can be used once.
+
+If you did not create a HemFin account, you can ignore this email and nothing will happen.
+
+--
+HemFin. You are receiving this because of activity on your account.
