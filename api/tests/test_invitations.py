@@ -106,7 +106,7 @@ class _FakeSession:
 async def test_preview_reads_orm_values_before_rollback(monkeypatch: pytest.MonkeyPatch) -> None:
     session = _FakeSession()
 
-    async def fake_load(*_: Any) -> Any:
+    async def fake_load(*_: Any, **__: Any) -> Any:
         return _Expiring(session, space_id=uuid4(), invited_by=uuid4())
 
     monkeypatch.setattr(service, "_load_for_invitee", fake_load)

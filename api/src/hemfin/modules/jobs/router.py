@@ -20,7 +20,14 @@ def require_job_secret(
     if settings.JOB_SECRET is None:
         raise HTTPException(503, detail="Scheduled jobs are not configured.")
     expected = settings.JOB_SECRET.get_secret_value().encode()
-    if x_job_secret is None or not hmac.compare_digest(x_job_secret.encode(), expected):
+    # Defence in depth: a blank configured secret is already treated as unset (503 above).
+    if not expected.strip():
+        raise HTTPException(503, detail="Scheduled jobs are not configured.")
+    if (
+        x_job_secret is None
+        or not x_job_secret.strip()
+        or not hmac.compare_digest(x_job_secret.encode(), expected)
+    ):
         raise HTTPException(401, detail="Invalid job credentials.")
 
 

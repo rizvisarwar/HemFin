@@ -3,9 +3,9 @@ logs, responses or a URL path/query. Only its SHA-256 is stored."""
 
 import hashlib
 import hmac
-import logging
 import secrets
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException
@@ -14,7 +14,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hemfin.core.email import EmailDeliveryError, EmailSender
+from hemfin.core.email import EmailDeliveryError, EmailSender, UnconfiguredEmailSender
 from hemfin.core.errors import CodedHTTPException
 from hemfin.core.pagination import decode_cursor, encode_cursor
 from hemfin.modules.invitations.models import Invitation, InvitationStatus
@@ -31,8 +31,6 @@ from hemfin.modules.spaces.service import (
     _require_rank,
 )
 from hemfin.modules.users.models import User
-
-log = logging.getLogger("hemfin.invitations")
 
 INVITATION_TTL = timedelta(days=7)
 MAX_RESENDS_PER_DAY = 3
@@ -113,23 +111,78 @@ async def expire_due(session: AsyncSession, space_id: UUID | None = None) -> int
 
 
 async def _send(
-    sender: EmailSender, *, to: str, space_name: str, inviter: str, link_base: str, token: str
+    sender: EmailSender,
+    *,
+    to: str,
+    space_name: str,
+    inviter: str | None,
+    link_base: str,
+    token: str,
 ) -> None:
+    who = inviter or "A HemFin member"
     body = (
-        f'{inviter} invited you to join the household "{space_name}" on HemFin.\n\n'
+        f'{who} invited you to join the household "{space_name}" on HemFin.\n\n'
         f"Open this link while signed in with this email address to respond:\n"
         f"{link_base.rstrip('/')}/invite#token={token}\n\n"
         "The invitation expires in 7 days. If you did not expect it, ignore this email."
     )
+    await sender.send(to=to, subject=f"Invitation to join {space_name}", text=body)
+
+
+def _require_configured(sender: EmailSender) -> None:
+    """Fail before anything is stored when email is not set up at all."""
+    if isinstance(sender, UnconfiguredEmailSender):
+        raise HTTPException(503, detail="Email sending is not configured.")
+
+
+def _not_sent() -> CodedHTTPException:
+    return CodedHTTPException(
+        503,
+        "email_not_sent",
+        "The invitation was saved but the email could not be sent. Use resend to try again.",
+    )
+
+
+async def _deliver(
+    session: AsyncSession,
+    sender: EmailSender,
+    *,
+    invitation_id: UUID,
+    undo_resend_count: bool,
+    to: str,
+    space_name: str,
+    inviter: str | None,
+    link_base: str,
+    token: str,
+) -> None:
+    """Send after the transaction (and its row locks) are released.
+
+    On failure the invitation stays as saved, the cooldown is cleared so the admin can
+    resend straight away, and the caller gets the same 503 for create and resend.
+    """
     try:
-        await sender.send(to=to, subject=f"Invitation to join {space_name}", text=body)
+        await _send(
+            sender,
+            to=to,
+            space_name=space_name,
+            inviter=inviter,
+            link_base=link_base,
+            token=token,
+        )
     except EmailDeliveryError:
-        raise HTTPException(503, detail="The invitation email could not be sent.") from None
+        values: dict[str, Any] = {"last_sent_at": None}
+        if undo_resend_count:
+            values["resend_count"] = func.greatest(Invitation.resend_count - 1, 0)
+        await session.execute(
+            update(Invitation).where(Invitation.id == invitation_id).values(**values)
+        )
+        await session.commit()
+        raise _not_sent() from None
 
 
-async def _inviter_name(session: AsyncSession, user_id: UUID) -> str:
+async def _inviter_name(session: AsyncSession, user_id: UUID) -> str | None:
     user = await session.get(User, user_id)
-    return (user.display_name if user and user.display_name else None) or "A HemFin member"
+    return user.display_name if user and user.display_name else None
 
 
 # --- admin side ------------------------------------------------------------------------------
@@ -145,9 +198,11 @@ async def create_invitation(
     role: Role,
     link_base: str,
 ) -> InvitationOut:
+    _require_configured(sender)
     space = await _lock_space(session, space_id)
     _require_rank(await _actor_role(session, space_id, actor), Role.admin)
     _require_household(space, "invited to")
+    space_name = space.name
     already_member = (
         await session.execute(
             select(SpaceMembership.id)
@@ -160,16 +215,7 @@ async def create_invitation(
             409, "already_member", "That person is already a member of this household."
         )
     await expire_due(session, space_id)
-    pending = (
-        await session.execute(
-            select(Invitation.id).where(
-                Invitation.space_id == space_id,
-                Invitation.email == email,
-                Invitation.status == InvitationStatus.pending,
-            )
-        )
-    ).first()
-    if pending is not None:
+    if await _other_pending(session, space_id, email, None):
         await session.rollback()
         raise _already_invited()
     token = new_token()
@@ -190,23 +236,35 @@ async def create_invitation(
     except IntegrityError:
         await session.rollback()
         raise _already_invited() from None
-    # Send before committing: if delivery fails nothing is stored.
     inviter = await _inviter_name(session, actor)
-    try:
-        await _send(
-            sender,
-            to=email,
-            space_name=space.name,
-            inviter=inviter,
-            link_base=link_base,
-            token=token,
-        )
-    except HTTPException:
-        await session.rollback()
-        raise
-    await session.commit()
+    await session.commit()  # releases the space lock before any network call
     await session.refresh(inv)
-    return _out(inv)
+    out = _out(inv)
+    await _deliver(
+        session,
+        sender,
+        invitation_id=inv.id,
+        undo_resend_count=False,
+        to=email,
+        space_name=space_name,
+        inviter=inviter,
+        link_base=link_base,
+        token=token,
+    )
+    return out
+
+
+async def _other_pending(
+    session: AsyncSession, space_id: UUID, email: str, except_id: UUID | None
+) -> bool:
+    stmt = select(Invitation.id).where(
+        Invitation.space_id == space_id,
+        Invitation.email == email,
+        Invitation.status == InvitationStatus.pending,
+    )
+    if except_id is not None:
+        stmt = stmt.where(Invitation.id != except_id)
+    return (await session.execute(stmt)).first() is not None
 
 
 async def list_invitations_page(
@@ -229,7 +287,12 @@ async def list_invitations_page(
     return [_out(i) for i in page], nxt
 
 
-async def _own_pending(session: AsyncSession, space_id: UUID, invitation_id: UUID) -> Invitation:
+async def _own_actionable(session: AsyncSession, space_id: UUID, invitation_id: UUID) -> Invitation:
+    """Lock an invitation of this space that an admin may still resend or revoke.
+
+    Pending and expired rows qualify (a pending row past its expiry counts as expired).
+    Accepted, declined and revoked rows are final: 409.
+    """
     inv = (
         await session.execute(
             select(Invitation)
@@ -240,11 +303,8 @@ async def _own_pending(session: AsyncSession, space_id: UUID, invitation_id: UUI
     ).scalar_one_or_none()
     if inv is None:
         raise HTTPException(404, detail="Invitation not found.")
-    if inv.status == InvitationStatus.pending and inv.expires_at <= _now():
-        inv.status = InvitationStatus.expired
-        inv.responded_at = _now()
-        await session.commit()
-    if inv.status != InvitationStatus.pending:
+    if inv.status not in (InvitationStatus.pending, InvitationStatus.expired):
+        await session.rollback()
         raise HTTPException(409, detail="That invitation is no longer pending.")
     return inv
 
@@ -258,9 +318,11 @@ async def resend_invitation(
     invitation_id: UUID,
     link_base: str,
 ) -> InvitationOut:
+    _require_configured(sender)
     space = await _lock_space(session, space_id)
     _require_rank(await _actor_role(session, space_id, actor), Role.admin)
-    inv = await _own_pending(session, space_id, invitation_id)
+    space_name = space.name
+    inv = await _own_actionable(session, space_id, invitation_id)
     now = _now()
     retry_after = resend_retry_after(
         resend_count=inv.resend_count,
@@ -276,29 +338,41 @@ async def resend_invitation(
             "Too many resends for this invitation. Try again later.",
             headers={"Retry-After": str(retry_after)},
         )
+    if inv.status == InvitationStatus.expired:
+        # Reviving it must not collide with a newer pending invitation for the same email.
+        if await _other_pending(session, space_id, inv.email, inv.id):
+            await session.rollback()
+            raise _already_invited()
+        inv.status = InvitationStatus.pending
+        inv.responded_at = None
     if inv.resend_window_start is None or now - inv.resend_window_start >= RESEND_WINDOW:
         inv.resend_window_start = now
         inv.resend_count = 0
-    inv.last_sent_at = now
     token = new_token()  # rotating the hash kills the previous token
     inv.token_hash = hash_token(token)
     inv.expires_at = now + INVITATION_TTL
     inv.resend_count += 1
+    inv.last_sent_at = now
+    to = inv.email
     inviter = await _inviter_name(session, actor)
     try:
-        await _send(
-            sender,
-            to=inv.email,
-            space_name=space.name,
-            inviter=inviter,
-            link_base=link_base,
-            token=token,
-        )
-    except HTTPException:
+        await session.commit()  # releases the locks before any network call
+    except IntegrityError:
         await session.rollback()
-        raise
-    await session.commit()
-    return _out(inv)
+        raise _already_invited() from None
+    out = _out(inv)
+    await _deliver(
+        session,
+        sender,
+        invitation_id=inv.id,
+        undo_resend_count=True,
+        to=to,
+        space_name=space_name,
+        inviter=inviter,
+        link_base=link_base,
+        token=token,
+    )
+    return out
 
 
 async def revoke_invitation(
@@ -306,7 +380,7 @@ async def revoke_invitation(
 ) -> None:
     await _lock_space(session, space_id)
     _require_rank(await _actor_role(session, space_id, actor), Role.admin)
-    inv = await _own_pending(session, space_id, invitation_id)
+    inv = await _own_actionable(session, space_id, invitation_id)
     inv.status = InvitationStatus.revoked
     inv.responded_at = _now()
     await session.commit()
@@ -316,20 +390,19 @@ async def revoke_invitation(
 
 
 async def _load_for_invitee(
-    session: AsyncSession, token: str, email: str, email_verified: bool
+    session: AsyncSession, token: str, email: str, email_verified: bool, *, lock: bool = True
 ) -> Invitation:
-    """Lock and return the matching pending invitation, or raise the generic 404.
+    """Return the matching pending invitation (row-locked unless `lock` is False, for
+    read-only callers), or raise the generic 404.
 
     Every failure mode (unknown token, wrong status, expired, unverified or different email)
     is indistinguishable to the caller.
     """
+    stmt = select(Invitation).where(Invitation.token_hash == hash_token(token))
+    if lock:
+        stmt = stmt.with_for_update()
     inv = (
-        await session.execute(
-            select(Invitation)
-            .where(Invitation.token_hash == hash_token(token))
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        )
+        await session.execute(stmt.execution_options(populate_existing=True))
     ).scalar_one_or_none()
     if inv is None or inv.status != InvitationStatus.pending:
         await session.rollback()
@@ -350,7 +423,7 @@ async def _load_for_invitee(
 async def preview(
     session: AsyncSession, token: str, email: str, email_verified: bool
 ) -> InvitationPreview:
-    inv = await _load_for_invitee(session, token, email, email_verified)
+    inv = await _load_for_invitee(session, token, email, email_verified, lock=False)
     space = await session.get(Space, inv.space_id)
     name = await _inviter_name(session, inv.invited_by)
     # Read everything before rolling back: rollback expires loaded ORM objects, and touching

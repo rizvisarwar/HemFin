@@ -69,4 +69,18 @@ CI run 45881870870 failed `test_preview_and_decline` with a 500 on `/invitations
 - Email compare in `_load_for_invitee` now uses `hmac.compare_digest`. Client regenerated.
 - Limitation: the DB tests could not run locally (no Postgres); they run in CI.
 
+### 2026-11-26 (review round 1 fixes), Engineer (Sonnet 5.5)
+One line per finding.
+- **B2:** `user_metadata` is no longer read. `email_verified` is now true when the verified token has a non-empty `email`, `is_anonymous` is not true, and a top-level `email_verified` claim (if present) is not false (`_email_is_verified`, `core/security.py`, with a comment). `docs/deploy.md` section 2 lists "Confirm email" and "Secure email change" as REQUIRED and ties them to this gate (anonymous sign-ins must stay off). `tests/authkit.py` emits a top-level `email_verified` (omittable) plus optional `user_metadata`/`extra_claims`. Tests in `tests/test_email_verified.py`: user_metadata alone changes nothing (both directions), `is_anonymous: true` rejected, `email_verified: false` rejected, blank email rejected.
+- **B1:** blank-to-None validator on `JOB_SECRET`, `RESEND_API_KEY` and `SUPABASE_JWT_SECRET`; the jobs dependency also answers 503 for a blank configured secret and 401 for a missing, empty or whitespace `X-Job-Secret` before comparing. Tests in `tests/test_jobs_config.py`.
+- **B3:** resend and revoke now accept pending and expired rows (`_own_actionable`); accepted, declined and revoked rows give 409 and are never changed. Resend of an expired row issues a new token, sets status pending, clears `responded_at`, resets `expires_at` to 7 days, and still goes through the 60 s cooldown and the daily cap. Reviving an expired row while a newer pending invite for the same email exists gives 409 `already_invited` (the DB partial unique index would refuse it). DB tests for expired resend, cooldown and cap on expired, the conflict, revoke of expired, and accepted/declined being final.
+- **N1:** the preview returns `inviter_name: null` when there is no display name. The email body still falls back to "A HemFin member" for its own sentence. DB test asserts null.
+- **N2:** covered by B1.
+- **N3:** `jobs-cron.yml` header comment updated (daily exists, weekly does not, 503/401 meanings).
+- **N4:** create and resend commit first (releasing the space and invitation locks) and send afterwards. If the send fails: the invitation stays as saved, the cooldown and resend count are rolled back by a small compensating update, and both create and resend return 503 problem+json `code: email_not_sent` ("saved but not sent, use resend"). A completely unconfigured email sender still returns 503 up front and stores nothing. **Behaviour change to note:** a failed resend email now leaves the OLD link dead, because the rotation was committed before sending; the admin retries resend at once. Tests for both paths.
+- **N5:** unused `log` removed from the invitations service.
+- **N6:** `_load_for_invitee(..., lock=False)` for preview; accept and decline still lock.
+- **N7:** startup logs a warning when `APP_ENV=production` and `WEB_BASE_URL` is unset or points to localhost/127.0.0.1 (tested).
+- DB tests could not run locally; CI runs them.
+
 ## Review

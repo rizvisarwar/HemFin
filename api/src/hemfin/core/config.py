@@ -80,6 +80,16 @@ class Settings(BaseSettings):
             return [o.strip() for o in v.split(",") if o.strip()]
         return v
 
+    @field_validator("RESEND_API_KEY", "JOB_SECRET", "SUPABASE_JWT_SECRET", mode="before")
+    @classmethod
+    def _blank_secret_is_unset(cls, v: Any) -> Any:
+        """An empty or whitespace value (e.g. `JOB_SECRET=` in a template) means unset, so a
+        blank string can never be used as a credential."""
+        raw = v.get_secret_value() if isinstance(v, SecretStr) else v
+        if isinstance(raw, str) and not raw.strip():
+            return None
+        return v
+
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def _async_driver(cls, v: Any) -> Any:

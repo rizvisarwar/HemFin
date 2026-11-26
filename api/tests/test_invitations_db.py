@@ -219,14 +219,28 @@ async def test_missing_email_config_is_503_and_stores_nothing(
     assert listing.json()["items"] == []
 
 
-async def test_delivery_failure_is_503_and_stores_nothing(
+async def test_delivery_failure_keeps_the_invitation_and_resend_recovers(
     aclient: httpx.AsyncClient, key: TestKey, outbox: FakeSender
 ) -> None:
+    """The email goes out after the commit (no lock held during the network call), so a
+    failed send leaves a pending invitation and a 503 the admin can recover from."""
     sid, owner, *_ = await _setup(aclient, key)
+    email = _new_email()
     outbox.fail = True
-    assert (await _invite(aclient, key, sid, owner, _new_email())).status_code == 503
-    listing = await aclient.get(f"{API}/{sid}/invitations", headers=_auth(key, owner))
-    assert listing.json()["items"] == []
+    r = await _invite(aclient, key, sid, owner, email)
+    assert r.status_code == 503
+    assert r.headers["content-type"].startswith("application/problem+json")
+    assert r.json()["code"] == "email_not_sent"
+    items = (await aclient.get(f"{API}/{sid}/invitations", headers=_auth(key, owner))).json()[
+        "items"
+    ]
+    assert [(i["email"], i["status"]) for i in items] == [(email.lower(), "pending")]
+    # Creating again is a conflict; resend works at once (the cooldown was cleared).
+    assert (await _invite(aclient, key, sid, owner, email)).status_code == 409
+    outbox.fail = False
+    url = f"{API}/{sid}/invitations/{items[0]['id']}/resend"
+    assert (await aclient.post(url, headers=_auth(key, owner))).status_code == 200
+    assert (await _accept(aclient, key, outbox.last_token(), uuid4(), email)).status_code == 200
 
 
 # --- list ------------------------------------------------------------------------------------
@@ -318,7 +332,7 @@ async def test_resend_is_rate_limited_with_retry_after(
     assert (await aclient.post(url, headers=_auth(key, owner))).status_code == 200
 
 
-async def test_resend_delivery_failure_keeps_old_token(
+async def test_resend_delivery_failure_is_503_and_can_be_retried(
     aclient: httpx.AsyncClient, key: TestKey, outbox: FakeSender
 ) -> None:
     sid, owner, *_ = await _setup(aclient, key)
@@ -331,8 +345,18 @@ async def test_resend_delivery_failure_keeps_old_token(
         f"{API}/{sid}/invitations/{created['id']}/resend", headers=_auth(key, owner)
     )
     assert r.status_code == 503
+    assert r.json()["code"] == "email_not_sent"
+    # The rotation was committed before sending, so the old link is dead; the failed attempt
+    # neither used up the daily allowance nor left a cooldown, so a retry works at once.
+    inv = await _get(created["id"])
+    assert inv.resend_count == 0 and inv.last_sent_at is None
     outbox.fail = False
-    assert (await _accept(aclient, key, old, uuid4(), email)).status_code == 200
+    r2 = await aclient.post(
+        f"{API}/{sid}/invitations/{created['id']}/resend", headers=_auth(key, owner)
+    )
+    assert r2.status_code == 200
+    assert (await _accept(aclient, key, old, uuid4(), email)).status_code == 404
+    assert (await _accept(aclient, key, outbox.last_token(), uuid4(), email)).status_code == 200
 
 
 async def test_revoke(aclient: httpx.AsyncClient, key: TestKey, outbox: FakeSender) -> None:
@@ -356,6 +380,118 @@ async def test_revoke(aclient: httpx.AsyncClient, key: TestKey, outbox: FakeSend
             f"{API}/{other}/invitations/{created['id']}", headers=_auth(key, owner)
         )
     ).status_code == 404
+
+
+async def _set(invitation_id: str, **values: object) -> None:
+    async with db.get_session_ctx() as s:
+        await s.execute(
+            update(Invitation).where(Invitation.id == UUID(invitation_id)).values(**values)
+        )
+        await s.commit()
+
+
+async def _expire(invitation_id: str) -> None:
+    await _set(
+        invitation_id,
+        expires_at=datetime.now(UTC) - timedelta(seconds=1),
+        last_sent_at=datetime.now(UTC) - timedelta(minutes=5),
+    )
+
+
+async def test_expired_invitation_can_be_resent(
+    aclient: httpx.AsyncClient, key: TestKey, outbox: FakeSender
+) -> None:
+    sid, owner, *_ = await _setup(aclient, key)
+    email = _new_email()
+    created = (await _invite(aclient, key, sid, owner, email)).json()
+    old = outbox.last_token()
+    await _expire(created["id"])
+    assert (await _accept(aclient, key, old, uuid4(), email)).status_code == 404  # expires it
+    assert (await _get(created["id"])).status == "expired"
+    url = f"{API}/{sid}/invitations/{created['id']}/resend"
+    r = await aclient.post(url, headers=_auth(key, owner))
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "pending" and r.json()["responded_at"] is None
+    inv = await _get(created["id"])
+    assert timedelta(days=6, hours=23) < inv.expires_at - datetime.now(UTC) <= timedelta(days=7)
+    assert (await _accept(aclient, key, old, uuid4(), email)).status_code == 404
+    assert (await _accept(aclient, key, outbox.last_token(), uuid4(), email)).status_code == 200
+
+
+async def test_expired_resend_still_follows_cooldown_and_daily_cap(
+    aclient: httpx.AsyncClient, key: TestKey, outbox: FakeSender
+) -> None:
+    sid, owner, *_ = await _setup(aclient, key)
+    created = (await _invite(aclient, key, sid, owner, _new_email())).json()
+    url = f"{API}/{sid}/invitations/{created['id']}/resend"
+    # Cooldown: expired but emailed a moment ago.
+    await _set(created["id"], status="expired", expires_at=datetime.now(UTC) - timedelta(days=1))
+    r = await aclient.post(url, headers=_auth(key, owner))
+    assert r.status_code == 429 and "retry-after" in r.headers
+    assert (await _get(created["id"])).status == "expired"
+    # Daily cap.
+    await _set(
+        created["id"],
+        resend_count=3,
+        resend_window_start=datetime.now(UTC) - timedelta(hours=1),
+        last_sent_at=datetime.now(UTC) - timedelta(minutes=5),
+    )
+    r = await aclient.post(url, headers=_auth(key, owner))
+    assert r.status_code == 429 and int(r.headers["retry-after"]) > 60
+    assert (await _get(created["id"])).status == "expired"
+
+
+async def test_expired_resend_conflicts_with_a_newer_pending_invitation(
+    aclient: httpx.AsyncClient, key: TestKey, outbox: FakeSender
+) -> None:
+    sid, owner, *_ = await _setup(aclient, key)
+    email = _new_email()
+    first = (await _invite(aclient, key, sid, owner, email)).json()
+    await _expire(first["id"])
+    assert (await _invite(aclient, key, sid, owner, email)).status_code == 201  # replaces it
+    r = await aclient.post(
+        f"{API}/{sid}/invitations/{first['id']}/resend", headers=_auth(key, owner)
+    )
+    assert r.status_code == 409 and r.json()["code"] == "already_invited"
+    assert (await _get(first["id"])).status == "expired"
+
+
+async def test_expired_invitation_can_be_revoked(
+    aclient: httpx.AsyncClient, key: TestKey, outbox: FakeSender
+) -> None:
+    sid, owner, *_ = await _setup(aclient, key)
+    email = _new_email()
+    created = (await _invite(aclient, key, sid, owner, email)).json()
+    token = outbox.last_token()
+    await _expire(created["id"])
+    url = f"{API}/{sid}/invitations/{created['id']}"
+    assert (await aclient.delete(url, headers=_auth(key, owner))).status_code == 204
+    assert (await _get(created["id"])).status == "revoked"
+    assert (await _accept(aclient, key, token, uuid4(), email)).status_code == 404
+
+
+async def test_accepted_and_declined_invitations_are_final(
+    aclient: httpx.AsyncClient, key: TestKey, outbox: FakeSender
+) -> None:
+    sid, owner, *_ = await _setup(aclient, key)
+    for action in ("accept", "decline"):
+        email, sub = _new_email(), uuid4()
+        created = (await _invite(aclient, key, sid, owner, email)).json()
+        r = await aclient.post(
+            f"{INV}/{action}",
+            json={"token": outbox.last_token()},
+            headers=_auth(key, sub, email),
+        )
+        assert r.status_code in (200, 204)
+        want = "accepted" if action == "accept" else "declined"
+        assert (await _get(created["id"])).status == want
+        url = f"{API}/{sid}/invitations/{created['id']}"
+        await _set(created["id"], last_sent_at=datetime.now(UTC) - timedelta(minutes=5))
+        sent = len(outbox.sent)
+        assert (await aclient.post(f"{url}/resend", headers=_auth(key, owner))).status_code == 409
+        assert (await aclient.delete(url, headers=_auth(key, owner))).status_code == 409
+        assert (await _get(created["id"])).status == want
+        assert len(outbox.sent) == sent
 
 
 # --- accept / decline / preview --------------------------------------------------------------
@@ -488,6 +624,8 @@ async def test_preview_and_decline(
     assert p.status_code == 200
     assert set(p.json()) == {"household_name", "inviter_name"}
     assert p.json()["household_name"] == "Home"
+    # The owner has no display name: null, not placeholder text.
+    assert p.json()["inviter_name"] is None
     # Preview does not consume; a wrong account sees the same generic 404.
     other = await aclient.post(
         f"{INV}/preview", json={"token": token}, headers=_auth(key, uuid4(), _new_email())

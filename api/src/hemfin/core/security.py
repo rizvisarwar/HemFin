@@ -50,9 +50,26 @@ class AuthUnavailableError(Exception):
 class TokenClaims:
     sub: UUID
     email: str
-    # True only when Supabase marks the email as confirmed (token `email_verified`, or
-    # `user_metadata.email_verified`). Invitation acceptance requires it.
+    # See `_email_is_verified`. Invitation acceptance requires it.
     email_verified: bool = False
+
+
+def _email_is_verified(payload: dict[str, Any]) -> bool:
+    """Whether the token's email can be trusted as confirmed, from server-controlled claims.
+
+    `user_metadata` is writable by the user (`auth.updateUser({data})`), so it is never used.
+    Instead this relies on two REQUIRED Supabase Auth settings (docs/deploy.md section 2):
+    "Confirm email" (no session exists for an unconfirmed email user) and "Secure email
+    change" (the `email` claim only changes after the new address is confirmed). Given
+    those, a verified token with a non-empty `email`, not anonymous, and no top-level
+    `email_verified: false`, carries a confirmed address.
+    """
+    email = payload.get("email")
+    if not isinstance(email, str) or not email.strip():
+        return False
+    if payload.get("is_anonymous") is True:
+        return False
+    return payload.get("email_verified") is not False
 
 
 def issuer_for(supabase_url: str) -> str:
@@ -186,11 +203,7 @@ class TokenVerifier:
         email = payload.get("email")
         if not isinstance(email, str) or not email:
             raise InvalidTokenError("missing_email")
-        meta = payload.get("user_metadata")
-        verified = payload.get("email_verified") is True or (
-            isinstance(meta, dict) and meta.get("email_verified") is True
-        )
-        return TokenClaims(sub=sub, email=email, email_verified=verified)
+        return TokenClaims(sub=sub, email=email, email_verified=_email_is_verified(payload))
 
 
 def build_verifier(

@@ -34,6 +34,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     if settings.HEMFIN_TEST_MODE and settings.APP_ENV.strip().lower() not in TEST_MODE_ENVS:
         raise RuntimeError("HEMFIN_TEST_MODE is only allowed when APP_ENV is 'local' or 'test'.")
+    base = settings.WEB_BASE_URL.strip().lower()
+    if settings.APP_ENV.strip().lower() == "production" and (
+        not base or "localhost" in base or "127.0.0.1" in base
+    ):
+        # Invitation links are built from this, so emails would carry a dead link.
+        log.warning("WEB_BASE_URL is unset or points to localhost in production")
     # Fail fast at startup if the DB secret is missing or malformed (names the variable only).
     if not settings.HEMFIN_TEST_MODE:
         db.parse_database_url(settings.require_database_url())
