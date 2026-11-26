@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { connection } from "next/server";
+import { FlashToast } from "@/components/households/flash-toast";
 import { MembersView } from "@/components/households/members-view";
 import { RetryButton } from "@/components/profile/retry-button";
 import { FormMessage } from "@/components/ui/form-message";
@@ -24,13 +25,16 @@ async function MembersContent({ params }: { params: Promise<{ spaceId: string }>
     );
   }
   return (
-    <MembersView
-      spaceId={spaceId}
-      householdName={lookup.space.name}
-      viewerId={me.id}
-      viewerRole={lookup.space.role}
-      members={members}
-    />
+    <>
+      <FlashToast />
+      <MembersView
+        spaceId={spaceId}
+        householdName={lookup.space.name}
+        viewerId={me.id}
+        viewerRole={lookup.space.role}
+        members={members}
+      />
+    </>
   );
 }
 

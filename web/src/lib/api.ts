@@ -7,7 +7,10 @@ export type AddressResponse = components["schemas"]["AddressOut"];
 export type SpaceListItem = components["schemas"]["SpaceListItem"];
 export type SpaceDetail = components["schemas"]["SpaceOut"];
 export type MemberResponse = components["schemas"]["MemberOut"];
-export type Role = components["schemas"]["Role"];
+export type InvitationResponse = components["schemas"]["InvitationOut"];
+export type InvitationPreview = components["schemas"]["InvitationPreview"];
+export type InvitationAccepted = components["schemas"]["InvitationAccepted"];
+export type Role =components["schemas"]["Role"];
 
 /**
  * Browser API client: sends the current Supabase access token with every request. Import from

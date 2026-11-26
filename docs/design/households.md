@@ -530,11 +530,12 @@ After a failed submit, focus moves to the name field. Errors are announced polit
 | Already a member (409) | Field error under the email field. | "This person is already a member of the household." |
 | Already invited (409, pending exists) | Field error under the email field. | "There is already a pending invitation for this address. Resend it or revoke it below." |
 | Email not set up (503) | `FormMessage` kind error above the form. | "Invitations are not available right now. Try again later." |
+| Saved, email not sent (503 `email_not_sent`, create or resend) | `FormMessage` kind info (calm, not red) above the form on create, inside the row on resend. The invitation exists: its row shows with Resend available. Agreed in HEM-016 (N11). | "We saved the invitation but couldn't send the email. Try Resend in a moment." |
 | No permission (403, role changed) | `FormMessage` kind error above the form. The page reloads its role-based view on the next navigation. | "You no longer have permission to invite people." |
 | Network error | `FormMessage` kind error above the form. | "We could not reach the server. Check your connection and try again." |
 | Resend busy | Row button "Sending…", others in the row disabled. | "Sending…" |
 | Resent | Row `FormMessage` kind success (inside the row, `role="status"`). Expiry date updates. | "Invitation resent. The old link no longer works." |
-| Resend rate limited (429) | Row `FormMessage` kind error. | "You can resend this invitation up to 3 times a day. Try again tomorrow." |
+| Resend rate limited (429) | Row message. The API's `Retry-After` decides the copy (HEM-016): under an hour is the 60 second cooldown, shown as a live countdown that ends by itself, with Resend held off meanwhile; longer is the daily cap, shown as text. | Cooldown: "You can resend this invitation again in 42 seconds." Daily cap: "You can resend this invitation up to 3 times a day. Try again in about 5 hours." |
 | Revoked | Row leaves "Pending" and shows "Revoked". Focus moves to the list heading. Status message. | "Invitation revoked." |
 | Load more (busy) | "Loading…" on the button. | "Loading…" |
 

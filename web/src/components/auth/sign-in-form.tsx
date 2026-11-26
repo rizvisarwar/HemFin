@@ -68,6 +68,12 @@ export function SignInForm() {
   return (
     // method="post": if the form is ever submitted without JavaScript, nothing goes into the URL.
     <form ref={form} method="post" noValidate onSubmit={onSubmit} className="space-y-4" aria-busy={busy || undefined}>
+      {/* Sent here when the API rejected the session in the middle of a flow (for example /invite). */}
+      {params.get("reason") === "session" ? (
+        <FormMessage kind="info" id="signin-session-notice">
+          Sign in again to continue.
+        </FormMessage>
+      ) : null}
       <FormMessage kind="error" id="signin-form-error">
         {formError}
       </FormMessage>
