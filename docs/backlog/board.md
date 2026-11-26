@@ -37,7 +37,7 @@ Deferred (not planned yet): native mobile app, WhatsApp notifications, push noti
 | HEM-008 | API: Supabase JWT auth, users and personal space | Engineer | Done | #15 |
 | HEM-009 | API: profile and addresses | Engineer | Done | #17 (replaces #16) |
 | HEM-010 | Web: auth flows | Engineer | Done | #18 |
-| HEM-011 | Web: profile page | Engineer | In Progress | |
+| HEM-011 | Web: profile page | Engineer | In Review | |
 
 ## Follow-ups (not yet ticketed)
 - Phase 2 (space switcher with real households): the phone switcher sheet gets the SpaceBadge heading row from spec 4.2, and long household names stay readable (from the HEM-003 design review).

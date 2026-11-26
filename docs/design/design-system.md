@@ -314,13 +314,13 @@ Rules:
 | `text-body` | 16 / 24 | 16 / 24 | 400 | Running text, form input text |
 | `text-body-strong` | 16 / 24 | 16 / 24 | 600 | Row titles, emphasised labels |
 | `text-small` | 14 / 20 | 14 / 20 | 400 / 500 | Helper text, meta, timestamps, form errors |
-| `text-caption` | 12 / 16 | 12 / 16 | 500 | Bottom-nav labels and chart axis only |
+| `text-caption` | 12 / 16 | 12 / 16 | 500 | Bottom-nav labels, chart axes and status badges (for example "Default") only |
 | `text-money-lg` | 28 / 36 | 32 / 40 | 600 | Hero totals on the dashboard |
 | `text-money` | 16 / 24 | 16 / 24 | 500 | Amounts in lists and tables |
 
 Rules:
 - **Body text is never below 16 px.** Helper text (14 px) is allowed for metadata only, never for paragraphs.
-- Nothing is below 12 px. Captions are for nav labels and chart axes only.
+- Nothing is below 12 px. Captions are for nav labels, chart axes and status badges only.
 - Line length for running text stays under about 70 characters (`max-w-prose` on the body).
 - Headings use sentence case ("Your renewals this month"), not Title Case.
 

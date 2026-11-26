@@ -16,6 +16,7 @@ export interface EmptyStateProps {
   secondaryAction?: { label: string; href: string };
   space?: SpaceType | "active"; // "active" follows the shell's active space via CSS. Tints the icon circle with the space accent
   variant?: "page" | "inline"; // default "page"
+  titleAs?: "h2" | "h3"; // heading level of the title, default "h2". Use "h3" inside a section that has its own h2
 }
 
 export function EmptyState({
@@ -26,6 +27,7 @@ export function EmptyState({
   secondaryAction,
   space,
   variant = "page",
+  titleAs: Title = "h2",
 }: EmptyStateProps) {
   const inline = variant === "inline";
   const circle =
@@ -55,7 +57,7 @@ export function EmptyState({
         <Icon aria-hidden="true" className={inline ? "size-5" : "size-8"} />
       </div>
       <div className={cn(inline ? "min-w-0 flex-1" : "mt-4 flex max-w-md flex-col items-center")}>
-        <h2 className={cn("text-h3", inline && "text-body-strong")}>{title}</h2>
+        <Title className={cn("text-h3", inline && "text-body-strong")}>{title}</Title>
         <p className={cn("mt-2 text-body text-muted-foreground", inline && "text-small")}>
           {description}
         </p>

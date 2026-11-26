@@ -5,23 +5,34 @@ import { AppShellClient } from "@/components/layout/app-shell-client";
 import { ApiUnavailable } from "@/components/layout/api-unavailable";
 import type { SpaceSummary } from "@/components/layout/types";
 import { Skeleton } from "@/components/ui/skeleton";
-import { fetchMe } from "@/lib/api-server";
+import { FormatProvider } from "@/components/format-provider";
+import { fetchMe, fetchProfile } from "@/lib/api-server";
+import { DEFAULT_PREFS } from "@/lib/format";
+import { isUsableLocale } from "@/lib/profile/locales";
 import { resolveSpaceId, SPACE_COOKIE } from "@/lib/space";
 
 async function ShellWithSpace({ children }: { children: React.ReactNode }) {
   // Request-time work (session, API call, timeouts) must come after a dynamic API (see HEM-007).
   await connection();
   // The user's real spaces come from the API (the first call also provisions a new user).
-  const me = await fetchMe();
+  const [me, profile] = await Promise.all([fetchMe(), fetchProfile()]);
   if (!me || me.spaces.length === 0) return <ApiUnavailable />;
   const spaces: SpaceSummary[] = me.spaces.map((s) => ({ id: s.id, name: s.name, type: s.type, role: s.role }));
   // The active space is read from the cookie so the server renders it first time.
   const jar = await cookies();
   const initialSpaceId = resolveSpaceId(jar.get(SPACE_COOKIE)?.value, spaces);
+  // Base currency and locale for every amount shown in the app. A missing or unusable profile
+  // falls back to the defaults rather than blocking the page.
+  const prefs = {
+    currency: profile?.base_currency ?? DEFAULT_PREFS.currency,
+    locale: profile && isUsableLocale(profile.locale) ? profile.locale : DEFAULT_PREFS.locale,
+  };
   return (
-    <AppShellClient spaces={spaces} initialSpaceId={initialSpaceId}>
-      {children}
-    </AppShellClient>
+    <FormatProvider prefs={prefs}>
+      <AppShellClient spaces={spaces} initialSpaceId={initialSpaceId}>
+        {children}
+      </AppShellClient>
+    </FormatProvider>
   );
 }
 

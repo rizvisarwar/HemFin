@@ -43,6 +43,16 @@ async def test_profile_defaults_and_patch(aclient: httpx.AsyncClient, key: TestK
     assert r.json()["base_currency"] == "USD"
 
 
+async def test_display_name_roundtrip(aclient: httpx.AsyncClient, key: TestKey) -> None:
+    h = _h(key, uuid4())
+    assert (await aclient.get("/api/v1/me/profile", headers=h)).json()["display_name"] is None
+    r = await aclient.patch("/api/v1/me/profile", headers=h, json={"display_name": " Sam "})
+    assert r.json()["display_name"] == "Sam"
+    assert (await aclient.get("/api/v1/me", headers=h)).json()["display_name"] == "Sam"
+    r = await aclient.patch("/api/v1/me/profile", headers=h, json={"display_name": None})
+    assert r.json()["display_name"] is None
+
+
 async def test_invalid_phone_is_422(aclient: httpx.AsyncClient, key: TestKey) -> None:
     r = await aclient.patch(
         "/api/v1/me/profile", headers=_h(key, uuid4()), json={"phone_e164": "+987 6543 21"}

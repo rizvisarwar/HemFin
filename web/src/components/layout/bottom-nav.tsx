@@ -32,6 +32,7 @@ export function BottomNav({ items, moreItems, currentPath, notificationCount = 0
     <nav
       aria-label="Main"
       data-testid="bottom-nav"
+      data-viewport-inset="bottom" // overlays such as the combobox list keep clear of this bar
       className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       <ul className="flex">

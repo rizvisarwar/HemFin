@@ -48,6 +48,7 @@ function userState(claims) {
   if (!state.has(claims.sub)) {
     state.set(claims.sub, {
       email: claims.email,
+      display_name: null,
       profile: { phone_e164: null, base_currency: "EUR", locale: "en", updated_at: null },
       addresses: [],
     });
@@ -74,7 +75,7 @@ function meFor(claims) {
       created_at: "2026-11-25T10:05:00Z",
     });
   }
-  return { id: claims.sub, email: claims.email, display_name: null, spaces };
+  return { id: claims.sub, email: claims.email, display_name: userState(claims).display_name, spaces };
 }
 
 const routes = [];
@@ -138,6 +139,162 @@ addRoute("GET", /^\/api\/v1\/me$/, async ({ claims }) =>
   claims ? [200, meFor(claims)] : problem(401, "Not authenticated."),
 );
 
+// ---- Profile and addresses (HEM-009 API, mirrored closely enough for UI tests) ----------------
+const MAX_ADDRESSES = 20;
+const validation = (...errors) => [
+  422,
+  {
+    type: "about:blank",
+    title: "Validation Error",
+    status: 422,
+    detail: "Request validation failed.",
+    errors: errors.map(([field, msg]) => ({ loc: ["body", field], msg, type: "value_error" })),
+  },
+  "application/problem+json",
+];
+const authed = (handler) => async (ctx) => (ctx.claims ? handler(ctx) : problem(401, "Not authenticated."));
+
+const profileOut = (u) => ({ display_name: u.display_name, ...u.profile });
+const sortedAddresses = (u) =>
+  [...u.addresses].sort((a, b) => Number(b.is_default) - Number(a.is_default) || a.created_at.localeCompare(b.created_at));
+
+let addressSeq = 0;
+function newAddress(u, data, isDefault) {
+  addressSeq += 1;
+  const now = new Date(Date.UTC(2026, 10, 26, 10, 0, addressSeq)).toISOString();
+  return { id: uuidFor(`address:${addressSeq}:${Math.random()}`), line2: null, region: null, postcode: null, ...data, is_default: isDefault, created_at: now, updated_at: now };
+}
+
+const REQUIRED = ["label", "line1", "city", "country"];
+function addressErrors(data, partial) {
+  const errors = [];
+  for (const f of REQUIRED) {
+    if (partial && !(f in data)) continue;
+    if (typeof data[f] !== "string" || data[f].trim() === "") errors.push([f, "String should have at least 1 character"]);
+  }
+  // The mock treats XX as the one unknown country, like the API's pycountry check.
+  if (typeof data.country === "string" && data.country.trim() !== "" && (data.country.length !== 2 || data.country.toUpperCase() === "XX")) {
+    errors.push(["country", "Value error, Must be an ISO 3166-1 alpha-2 country code, for example NL."]);
+  }
+  return errors;
+}
+
+addRoute(
+  "GET",
+  /^\/api\/v1\/me\/profile$/,
+  authed(async ({ me }) => (me.fail_profile ? [500, { type: "about:blank", title: "Internal Server Error", status: 500 }, "application/problem+json"] : [200, profileOut(me)])),
+);
+addRoute(
+  "PATCH",
+  /^\/api\/v1\/me\/profile$/,
+  authed(async ({ me, body }) => {
+    const errors = [];
+    const next = {};
+    if ("display_name" in body) {
+      const name = body.display_name === null ? null : String(body.display_name).trim();
+      if (name !== null && (name === "" || [...name].length > 80)) errors.push(["display_name", "String should have at most 80 characters"]);
+      else next.display_name = name;
+    }
+    if ("phone_e164" in body) {
+      if (body.phone_e164 === null) next.phone_e164 = null;
+      else {
+        const digits = String(body.phone_e164).replace(/[^\d+]/g, "");
+        // Mock rule: "+<country code><6 to 12 digits>", and +99x is not assigned.
+        if (!/^\+[1-9]\d{6,14}$/.test(digits) || digits.startsWith("+99")) errors.push(["phone_e164", "Value error, Not a valid phone number."]);
+        else next.phone_e164 = digits;
+      }
+    }
+    if ("base_currency" in body) {
+      const code = String(body.base_currency ?? "").trim().toUpperCase();
+      if (!/^[A-Z]{3}$/.test(code) || code === "XXQ") errors.push(["base_currency", "Value error, Must be an ISO 4217 currency code, for example EUR."]);
+      else next.base_currency = code;
+    }
+    if ("locale" in body) {
+      const tag = String(body.locale ?? "");
+      if (!/^[A-Za-z]{2,3}(-[A-Za-z]{4})?(-([A-Za-z]{2}|\d{3}))?$/.test(tag)) errors.push(["locale", "Value error, Must be a BCP-47 language tag, for example en or nl-NL."]);
+      else next.locale = tag;
+    }
+    if (errors.length) return validation(...errors);
+    if ("display_name" in next) me.display_name = next.display_name;
+    for (const k of ["phone_e164", "base_currency", "locale"]) if (k in next) me.profile[k] = next[k];
+    me.profile.updated_at = new Date().toISOString();
+    return [200, profileOut(me)];
+  }),
+);
+addRoute("GET", /^\/api\/v1\/me\/addresses$/, authed(async ({ me }) => [200, sortedAddresses(me)]));
+addRoute(
+  "POST",
+  /^\/api\/v1\/me\/addresses$/,
+  authed(async ({ me, body }) => {
+    const errors = addressErrors(body, false);
+    if (errors.length) return validation(...errors);
+    if (me.addresses.length >= MAX_ADDRESSES) return problem(409, `At most ${MAX_ADDRESSES} addresses are allowed.`);
+    const makeDefault = body.is_default === true || me.addresses.length === 0;
+    if (makeDefault) for (const a of me.addresses) a.is_default = false;
+    const data = { ...body };
+    delete data.is_default;
+    const address = newAddress(me, { ...data, country: String(data.country).toUpperCase() }, makeDefault);
+    me.addresses.push(address);
+    return [201, address];
+  }),
+);
+addRoute(
+  "PATCH",
+  /^\/api\/v1\/me\/addresses\/([0-9a-f-]+)$/,
+  authed(async ({ me, body, match }) => {
+    const address = me.addresses.find((a) => a.id === match[1]);
+    if (!address) return problem(404, "Address not found.");
+    const errors = addressErrors(body, true);
+    if (errors.length) return validation(...errors);
+    Object.assign(address, body, body.country ? { country: String(body.country).toUpperCase() } : {}, { updated_at: new Date().toISOString() });
+    return [200, address];
+  }),
+);
+addRoute(
+  "DELETE",
+  /^\/api\/v1\/me\/addresses\/([0-9a-f-]+)$/,
+  authed(async ({ me, match }) => {
+    const i = me.addresses.findIndex((a) => a.id === match[1]);
+    if (i < 0) return problem(404, "Address not found.");
+    me.addresses.splice(i, 1); // the API does not promote another default
+    return [204, null];
+  }),
+);
+addRoute(
+  "POST",
+  /^\/api\/v1\/me\/addresses\/([0-9a-f-]+)\/default$/,
+  authed(async ({ me, match }) => {
+    const address = me.addresses.find((a) => a.id === match[1]);
+    if (!address) return problem(404, "Address not found.");
+    for (const a of me.addresses) a.is_default = false;
+    address.is_default = true;
+    return [200, address];
+  }),
+);
+// Test helper: how many times a user called each API path (to check pages do not fetch twice).
+const hits = new Map();
+addRoute("POST", /^\/__test\/hits$/, async ({ body }) => {
+  const sub = uuidFor(`user:${body.email}`);
+  const out = {};
+  for (const [key, n] of hits) if (key.startsWith(`${sub} `)) out[key.slice(sub.length + 1)] = n;
+  return [200, out];
+});
+// Test helper: seed a user's profile and addresses. Body: {email, display_name?, profile?, addresses?: number | object[]}.
+addRoute("POST", /^\/__test\/seed$/, async ({ body }) => {
+  const sub = uuidFor(`user:${body.email}`);
+  const me = userState({ sub, email: body.email });
+  if (body.display_name !== undefined) me.display_name = body.display_name;
+  if (body.profile) Object.assign(me.profile, body.profile);
+  if (body.fail_profile !== undefined) me.fail_profile = body.fail_profile;
+  if (body.addresses !== undefined) {
+    const items = typeof body.addresses === "number"
+      ? Array.from({ length: body.addresses }, (_, i) => ({ label: `Address ${i + 1}`, line1: `Street ${i + 1}`, city: "Utrecht", country: "NL" }))
+      : body.addresses;
+    me.addresses = items.map((data, i) => newAddress(me, data, i === 0));
+  }
+  return [204, null];
+});
+
 const server = createServer(async (req, res) => {
   const cors = {
     "access-control-allow-origin": req.headers.origin ?? "*",
@@ -157,6 +314,7 @@ const server = createServer(async (req, res) => {
     return;
   }
   const claims = claimsFrom(req);
+  if (claims) hits.set(`${claims.sub} ${req.method} ${url.pathname}`, (hits.get(`${claims.sub} ${req.method} ${url.pathname}`) ?? 0) + 1);
   const body = req.method === "GET" || req.method === "DELETE" ? {} : await readBody(req);
   const [status, payload, type] = await route.handler({
     req,

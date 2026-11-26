@@ -33,8 +33,9 @@ _CONFLICT: dict[int | str, dict[str, Any]] = {
 }
 
 
-def _profile_out(p: Any) -> ProfileOut:
+def _profile_out(p: Any, display_name: str | None) -> ProfileOut:
     return ProfileOut(
+        display_name=display_name,
         phone_e164=p.phone_e164,
         base_currency=p.base_currency,
         locale=p.locale,
@@ -44,12 +45,14 @@ def _profile_out(p: Any) -> ProfileOut:
 
 @router.get("/profile", summary="Get my profile", responses=_AUTH)
 async def get_profile(user: User, session: Session) -> ProfileOut:
-    return _profile_out(await service.get_profile(session, user.id))
+    profile = await service.get_profile(session, user.id)
+    return _profile_out(profile, await service.get_display_name(session, user.id))
 
 
 @router.patch("/profile", summary="Update my profile", responses=_AUTH)
 async def patch_profile(body: ProfilePatch, user: User, session: Session) -> ProfileOut:
-    return _profile_out(await service.update_profile(session, user.id, body))
+    profile = await service.update_profile(session, user.id, body)
+    return _profile_out(profile, await service.get_display_name(session, user.id))
 
 
 @router.get("/addresses", summary="List my addresses", responses=_AUTH)
