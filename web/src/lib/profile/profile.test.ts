@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { addressLines, addressPayload, validateAddress, type AddressValues } from "./address.ts";
 import { COUNTRIES, countryByCode, countryForDial, countryOptions } from "./countries.ts";
-import { CURRENCY_CODES, currencyOptions, isKnownCurrency } from "./currencies.ts";
+import { CURRENCY_CODES, currencyOptions } from "./currencies.ts";
 import { isUsableLocale, localeOptionsWith } from "./locales.ts";
-import { buildPhone, splitPhone } from "./phone.ts";
+import { buildPhone, phoneDefaults, regionOfLocale, splitPhone } from "./phone.ts";
 import { ADDRESS_LIMIT_MESSAGE, parseProblem } from "./problem.ts";
 
 describe("phone", () => {
@@ -29,6 +29,25 @@ describe("phone", () => {
     assert.deepEqual(splitPhone("+442079460958"), { country: "GB", national: "2079460958" });
     assert.equal(splitPhone(null), null);
     assert.equal(splitPhone("0612345678"), null);
+  });
+  it("treats a leading 00 like a plus", () => {
+    assert.equal(buildPhone("NL", "0044 20 7946 0958"), "+442079460958");
+    assert.equal(buildPhone("NL", "0031 6 12345678"), "+31612345678");
+  });
+  it("derives the country from the locale's region, never from the browser", () => {
+    assert.equal(regionOfLocale("nl-NL"), "NL");
+    assert.equal(regionOfLocale("en"), undefined);
+    assert.equal(regionOfLocale("not a locale"), undefined);
+    assert.deepEqual(phoneDefaults(null, "nl-NL"), { country: "NL", number: "" });
+    assert.deepEqual(phoneDefaults(null, "en"), { country: null, number: "" });
+    assert.deepEqual(phoneDefaults("+31612345678", "en-US"), { country: "NL", number: "612345678" });
+  });
+  it("keeps a stored number whose calling code is not in the table, whole", () => {
+    assert.equal(splitPhone("+80012345678"), null);
+    assert.deepEqual(phoneDefaults("+80012345678", "nl-NL"), { country: null, number: "+80012345678" });
+    // Saving it unchanged sends the same number back, never null.
+    assert.equal(buildPhone("NL", "+80012345678"), "+80012345678");
+    assert.equal(buildPhone("", "+88212345678"), "+88212345678");
   });
   it("round-trips split and build", () => {
     for (const e164 of ["+31612345678", "+4915112345678", "+85291234567", "+351912345678"]) {
@@ -59,8 +78,7 @@ describe("country, currency and locale lists", () => {
   it("has unique three-letter currencies including EUR and USD", () => {
     assert.equal(new Set(CURRENCY_CODES).size, CURRENCY_CODES.length);
     assert.ok(CURRENCY_CODES.every((c) => /^[A-Z]{3}$/.test(c)));
-    assert.ok(isKnownCurrency(" eur "));
-    assert.ok(!isKnownCurrency("XXX1"));
+    assert.ok(CURRENCY_CODES.includes("EUR"));
     const eur = currencyOptions("en").find((o) => o.value === "EUR");
     assert.equal(eur?.label, "Euro");
     assert.ok(eur?.search.includes("euro"));

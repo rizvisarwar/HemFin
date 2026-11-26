@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createApiClient } from "@hemfin/api-client";
 import { API_URL } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
@@ -16,8 +17,11 @@ export async function createServerApi() {
   return createApiClient(API_URL, async () => (await supabase.auth.getSession()).data.session?.access_token);
 }
 
-/** The signed-in user with their spaces, or null when the API cannot be reached or rejects the token. */
-export async function fetchMe(): Promise<MeResponse | null> {
+/**
+ * The signed-in user with their spaces, or null when the API cannot be reached or rejects the token.
+ * Wrapped in React cache(): one request per render, shared by the layout and the page.
+ */
+export const fetchMe = cache(async (): Promise<MeResponse | null> => {
   try {
     const api = await createServerApi();
     const { data, response } = await api.GET("/api/v1/me", {
@@ -28,10 +32,13 @@ export async function fetchMe(): Promise<MeResponse | null> {
   } catch {
     return null;
   }
-}
+});
 
-/** The user's profile (base currency, locale, phone), or null when the API cannot be reached. */
-export async function fetchProfile(): Promise<ProfileResponse | null> {
+/**
+ * The user's profile (base currency, locale, phone), or null when the API cannot be reached.
+ * Wrapped in React cache(), so the (app) layout and the page share one request per render.
+ */
+export const fetchProfile = cache(async (): Promise<ProfileResponse | null> => {
   try {
     const api = await createServerApi();
     const { data, response } = await api.GET("/api/v1/me/profile", {
@@ -42,7 +49,7 @@ export async function fetchProfile(): Promise<ProfileResponse | null> {
   } catch {
     return null;
   }
-}
+});
 
 /** The user's saved addresses (default first), or null when the API cannot be reached. */
 export async function fetchAddresses(): Promise<AddressResponse[] | null> {

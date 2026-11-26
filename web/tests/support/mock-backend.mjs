@@ -179,7 +179,11 @@ function addressErrors(data, partial) {
   return errors;
 }
 
-addRoute("GET", /^\/api\/v1\/me\/profile$/, authed(async ({ me }) => [200, profileOut(me)]));
+addRoute(
+  "GET",
+  /^\/api\/v1\/me\/profile$/,
+  authed(async ({ me }) => (me.fail_profile ? [500, { type: "about:blank", title: "Internal Server Error", status: 500 }, "application/problem+json"] : [200, profileOut(me)])),
+);
 addRoute(
   "PATCH",
   /^\/api\/v1\/me\/profile$/,
@@ -188,7 +192,7 @@ addRoute(
     const next = {};
     if ("display_name" in body) {
       const name = body.display_name === null ? null : String(body.display_name).trim();
-      if (name !== null && (name === "" || name.length > 80)) errors.push(["display_name", "String should have at most 80 characters"]);
+      if (name !== null && (name === "" || [...name].length > 80)) errors.push(["display_name", "String should have at most 80 characters"]);
       else next.display_name = name;
     }
     if ("phone_e164" in body) {
@@ -267,12 +271,21 @@ addRoute(
     return [200, address];
   }),
 );
+// Test helper: how many times a user called each API path (to check pages do not fetch twice).
+const hits = new Map();
+addRoute("POST", /^\/__test\/hits$/, async ({ body }) => {
+  const sub = uuidFor(`user:${body.email}`);
+  const out = {};
+  for (const [key, n] of hits) if (key.startsWith(`${sub} `)) out[key.slice(sub.length + 1)] = n;
+  return [200, out];
+});
 // Test helper: seed a user's profile and addresses. Body: {email, display_name?, profile?, addresses?: number | object[]}.
 addRoute("POST", /^\/__test\/seed$/, async ({ body }) => {
   const sub = uuidFor(`user:${body.email}`);
   const me = userState({ sub, email: body.email });
   if (body.display_name !== undefined) me.display_name = body.display_name;
   if (body.profile) Object.assign(me.profile, body.profile);
+  if (body.fail_profile !== undefined) me.fail_profile = body.fail_profile;
   if (body.addresses !== undefined) {
     const items = typeof body.addresses === "number"
       ? Array.from({ length: body.addresses }, (_, i) => ({ label: `Address ${i + 1}`, line1: `Street ${i + 1}`, city: "Utrecht", country: "NL" }))
@@ -301,6 +314,7 @@ const server = createServer(async (req, res) => {
     return;
   }
   const claims = claimsFrom(req);
+  if (claims) hits.set(`${claims.sub} ${req.method} ${url.pathname}`, (hits.get(`${claims.sub} ${req.method} ${url.pathname}`) ?? 0) + 1);
   const body = req.method === "GET" || req.method === "DELETE" ? {} : await readBody(req);
   const [status, payload, type] = await route.handler({
     req,

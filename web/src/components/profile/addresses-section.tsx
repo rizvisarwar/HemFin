@@ -132,6 +132,7 @@ export function AddressesSection({ initial }: { initial: AddressResponse[] }) {
           <EmptyState
             variant="inline"
             icon={MapPin}
+            titleAs="h3"
             title="No addresses yet"
             description="Add your home address and any others you use. Your first one becomes the default."
             primaryAction={{ label: "Add address", onClick: () => setEditing({ address: null }) }}
@@ -152,11 +153,15 @@ export function AddressesSection({ initial }: { initial: AddressResponse[] }) {
                   ) : null}
                 </div>
                 <address className="mt-2 flex-1 text-body not-italic text-muted-foreground">
-                  {addressLines(a).map((line, i) => (
-                    <span key={i} className="block break-words">
-                      {line}
-                    </span>
-                  ))}
+                  {/* Phone: one summary clamped to two lines, so cards stay compact. md and up: every line. */}
+                  <span className="line-clamp-2 break-words md:hidden">{addressLines(a).join(", ")}</span>
+                  <span className="hidden md:block">
+                    {addressLines(a).map((line, i) => (
+                      <span key={i} className="block break-words">
+                        {line}
+                      </span>
+                    ))}
+                  </span>
                 </address>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {!a.is_default ? (
@@ -166,9 +171,11 @@ export function AddressesSection({ initial }: { initial: AddressResponse[] }) {
                       size="sm"
                       disabled={busyId !== null}
                       onClick={() => makeDefault(a)}
-                      aria-label={`Set ${a.label} as default`}
+                      // The accessible name starts with the visible text (WCAG 2.5.3, Label in Name).
+                      aria-label={busyId === a.id ? undefined : `Set as default: ${a.label}`}
+                      aria-busy={busyId === a.id || undefined}
                     >
-                      {busyId === a.id ? "Saving" : "Set as default"}
+                      {busyId === a.id ? "Saving…" : "Set as default"}
                     </Button>
                   ) : null}
                   <Button
@@ -233,8 +240,8 @@ export function AddressesSection({ initial }: { initial: AddressResponse[] }) {
         }
         footer={
           <>
-            <Button type="button" variant="destructive" onClick={confirmDelete} disabled={deleteBusy} data-testid="confirm-delete">
-              {deleteBusy ? "Deleting" : "Delete address"}
+            <Button type="button" variant="destructive" onClick={confirmDelete} disabled={deleteBusy} aria-busy={deleteBusy || undefined} data-testid="confirm-delete">
+              {deleteBusy ? "Deleting…" : "Delete address"}
             </Button>
             <Button ref={cancelRef} type="button" variant="outline" onClick={() => setDeleting(null)} disabled={deleteBusy}>
               Cancel

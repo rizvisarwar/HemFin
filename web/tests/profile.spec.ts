@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
-import { seed, signInAs, uniqueUser } from "./support/auth";
+import { apiHits, seed, signInAs, uniqueUser } from "./support/auth";
 
 // HEM-011: profile page and addresses, against the mock backend (tests/support/mock-backend.mjs).
 // Each test signs in as its own user, so parallel tests never share profile or address state.
@@ -186,13 +186,17 @@ test.describe("profile form", () => {
     await openProfile(page, info, context, SEEDED);
     const currency = page.getByLabel("Base currency");
     await currency.fill("swiss");
-    const list = page.getByRole("listbox");
+    const list = page.getByRole("listbox", { name: "Currencies" }); // named, not "Options"
     await expect(list.getByRole("option")).toHaveCount(1);
+    await expect(currency).toHaveAttribute("aria-controls", "base_currency-list");
     await expect(list.getByRole("option").first()).toContainText("Swiss Franc");
     await currency.fill("gbp");
     await expect(list.getByRole("option").first()).toContainText("British Pound");
     await currency.fill("qqqq");
-    await expect(list).toContainText("No match");
+    // "No match" is a message outside the listbox; there is no list to point aria-controls at.
+    await expect(page.getByTestId("combobox-empty")).toContainText("No match");
+    await expect(page.getByRole("listbox")).toHaveCount(0);
+    await expect(currency).not.toHaveAttribute("aria-controls", /.+/);
     await currency.fill("pound");
     const second = await list.getByRole("option").nth(1).locator("span").last().innerText(); // its code
     await currency.press("ArrowDown");
@@ -240,9 +244,12 @@ test.describe("before JavaScript is ready", () => {
     await expect(form).toHaveAttribute("method", "post");
     await page.getByLabel("Display name").fill("leak-check-name");
     await phoneInput(page).fill("0699999999");
-    await form.evaluate((f) => (f as HTMLFormElement).requestSubmit()); // bypasses the disabled button: the worst case
+    // requestSubmit() bypasses the disabled button: the worst case. The form posts to the page, which
+    // is a full navigation we can wait for.
+    const navigated = page.waitForEvent("framenavigated", (frame) => frame === page.mainFrame());
+    await form.evaluate((f) => (f as HTMLFormElement).requestSubmit());
+    await navigated;
     await page.waitForLoadState("load");
-    await page.waitForTimeout(500);
     const url = page.url();
     expect(new URL(url).search, `ended at ${url}`).toBe("");
     expect(decodeURIComponent(url)).not.toContain("leak-check");
@@ -362,11 +369,11 @@ test.describe("addresses", () => {
     await expect(cards.first()).toContainText("Greater London");
 
     // Set the other one as default.
-    await page.getByRole("button", { name: "Set Home as default" }).click();
+    await page.getByRole("button", { name: "Set as default: Home" }).click();
     await expect(page.locator("#addresses-message")).toHaveText("Home is now your default address.");
     await expect(cards.first()).toContainText("Home");
     await expect(cards.first().getByText("Default", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Set Home as default" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Set as default: Home" })).toHaveCount(0);
     await shot(page, info, "addresses-populated-light");
     await page.emulateMedia({ colorScheme: "dark" });
     await expect(page.locator("html")).toHaveClass(/dark/);
@@ -509,5 +516,185 @@ test.describe("addresses", () => {
     await confirm.getByTestId("confirm-delete").click();
     await expect(confirm.getByTestId("form-message")).toContainText("Something went wrong");
     await expect(page.getByTestId("address-card")).toHaveCount(1);
+  });
+});
+
+test.describe("review round 1", () => {
+  test("Escape closes an open country list first, then the dialog; typed text stays", async ({ page, context }, info) => {
+    await openProfile(page, info, context, { addresses: [HOME] });
+    await page.getByTestId("addresses").getByRole("button", { name: "Add address" }).click();
+    const dialog = page.getByRole("dialog", { name: "Add address" });
+    const country = dialog.getByLabel("Country", { exact: true });
+    await country.fill("nether");
+    await expect(dialog.getByRole("listbox", { name: "Countries" })).toBeVisible();
+    await country.press("Escape");
+    await expect(dialog.getByRole("listbox")).toHaveCount(0);
+    await expect(dialog).toBeVisible(); // the first Escape only closed the list
+    await expect(country).toHaveValue("nether");
+    await country.press("Escape"); // the list is closed now, so this one reaches the dialog
+    await expect(dialog).toBeHidden();
+  });
+
+  test("the country and currency lists are fully visible and scrollable inside the bottom sheet", async ({ page, context }, info) => {
+    await openProfile(page, info, context, { addresses: [HOME] });
+    await page.getByTestId("addresses").getByRole("button", { name: "Add address" }).click();
+    const dialog = page.getByRole("dialog", { name: "Add address" });
+    const country = dialog.getByLabel("Country", { exact: true });
+    await country.fill("a");
+    const list = dialog.getByRole("listbox", { name: "Countries" });
+    await list.scrollIntoViewIfNeeded();
+    const view = page.viewportSize()!;
+    const box = (await list.boundingBox())!;
+    const scroller = await list.evaluate((el) => {
+      const r = (el.parentElement!.closest(".overflow-y-auto") as HTMLElement).getBoundingClientRect();
+      return { top: r.top, bottom: r.bottom };
+    });
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(view.width);
+    // Inside the visible part of the sheet's scroll area, not hidden behind the pinned footer or cut off.
+    expect(box.y).toBeGreaterThanOrEqual(scroller.top - 1);
+    expect(box.y + box.height).toBeLessThanOrEqual(scroller.bottom + 1);
+    expect(box.y + box.height).toBeLessThanOrEqual(view.height);
+    // Every option can be reached by scrolling the list: the last one becomes visible and can be picked.
+    expect(await list.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+    await list.evaluate((el) => (el.scrollTop = el.scrollHeight));
+    const last = list.getByRole("option").last();
+    await expect(last).toBeInViewport();
+    await last.click();
+    await expect(country).not.toHaveValue("a");
+    await expect(dialog).toBeVisible();
+    await viewShot(page, info, "country-list-in-sheet");
+
+    // The currency list on the page, with the same checks against the viewport.
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    const currency = page.getByLabel("Base currency");
+    await currency.fill("a");
+    const currencies = page.getByRole("listbox", { name: "Currencies" });
+    await currencies.scrollIntoViewIfNeeded();
+    const cbox = (await currencies.boundingBox())!;
+    expect(cbox.x + cbox.width).toBeLessThanOrEqual(view.width);
+    await currencies.evaluate((el) => (el.scrollTop = el.scrollHeight));
+    await expect(currencies.getByRole("option").last()).toBeInViewport();
+  });
+
+  test("the phone country comes from the locale's region, the same on server and client", async ({ page, context }, info) => {
+    await openProfile(page, info, context, { profile: { locale: "nl-NL" } });
+    await expect(page.getByLabel("Phone country")).toHaveValue("Netherlands (+31)");
+  });
+
+  test("with no region in the locale the country is empty and must be chosen", async ({ page, context }, info) => {
+    await openProfile(page, info, context, { profile: { locale: "en" } });
+    await expect(page.getByLabel("Phone country")).toHaveValue("");
+    await phoneInput(page).fill("6 12345678");
+    await page.getByTestId("save-profile").click();
+    await expect(page.locator("#phone-error")).toContainText("Choose the country this number belongs to.");
+    await expect(phoneInput(page)).toBeFocused();
+    await page.getByLabel("Phone country").fill("netherlands");
+    await page.getByRole("option", { name: /^Netherlands/ }).click();
+    await page.getByTestId("save-profile").click();
+    await expect(message(page)).toHaveText("Profile saved.");
+  });
+
+  test("a stored number with an unlisted calling code is shown whole and survives a save", async ({ page, context }, info) => {
+    await openProfile(page, info, context, { profile: { phone_e164: "+80012345678", locale: "en" } });
+    await expect(phoneInput(page)).toHaveValue("+80012345678");
+    await page.getByLabel("Display name").fill("Changed name");
+    await page.getByTestId("save-profile").click();
+    await expect(message(page)).toHaveText("Profile saved.");
+    await page.reload();
+    await expect(page.getByTestId("save-profile")).toBeEnabled();
+    await expect(page.getByLabel("Display name")).toHaveValue("Changed name");
+    await expect(phoneInput(page)).toHaveValue("+80012345678"); // not cleared
+  });
+
+  test("a number typed with a leading 00 is read as international", async ({ page, context }, info) => {
+    await openProfile(page, info, context, SEEDED);
+    await phoneInput(page).fill("0044 20 7946 0958");
+    await page.getByTestId("save-profile").click();
+    await expect(message(page)).toHaveText("Profile saved.");
+    await expect(page.getByLabel("Phone country")).toHaveValue("United Kingdom (+44)");
+    await expect(phoneInput(page)).toHaveValue("2079460958");
+  });
+
+  test("the money example follows the currency being picked", async ({ page, context }, info) => {
+    await openProfile(page, info, context, SEEDED);
+    const example = page.getByTestId("money-example");
+    await expect(example).toHaveText("€1,240.50");
+    await pickCurrency(page, "swiss", /^Swiss Franc/);
+    await expect(example).toContainText("CHF"); // before saving
+    await expect(example).toContainText("1,240.50");
+  });
+
+  test("a display name is counted in characters, not UTF-16 units", async ({ page, context }, info) => {
+    await openProfile(page, info, context, SEEDED);
+    await page.getByLabel("Display name").fill("\u{1F600}".repeat(80)); // 80 characters, 160 UTF-16 units
+    await page.getByTestId("save-profile").click();
+    await expect(message(page)).toHaveText("Profile saved.");
+    await page.getByLabel("Display name").fill("\u{1F600}".repeat(81));
+    await page.getByTestId("save-profile").click();
+    await expect(page.locator("#display_name-error")).toContainText("Use at most 80 characters.");
+  });
+
+  test("the page does not fetch the profile or the user twice", async ({ page, context }, info) => {
+    const user = await openProfile(page, info, context, SEEDED);
+    await page.waitForLoadState("networkidle");
+    const hits = await apiHits(user);
+    expect(hits["GET /api/v1/me/profile"]).toBe(1);
+    expect(hits["GET /api/v1/me"]).toBe(1);
+  });
+
+  test("the header has no space badge, and the empty state title is an h3", async ({ page, context }, info) => {
+    await openProfile(page, info, context);
+    await expect(page.locator('[data-slot="page-header"]').getByText("Personal")).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 3, name: "No addresses yet" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "Addresses" })).toBeVisible();
+  });
+
+  test("set-as-default has an accessible name that starts with its visible text", async ({ page, context }, info) => {
+    await openProfile(page, info, context, { addresses: [HOME, WORK] });
+    const button = page.getByRole("button", { name: "Set as default: Work" });
+    await expect(button).toHaveText("Set as default");
+    await expect(button).toBeVisible();
+  });
+
+  test("on phone an address card shows a two-line summary", async ({ page, context }, info) => {
+    test.skip(info.project.name !== "phone", "the compact summary is phone-only");
+    await openProfile(page, info, context, { addresses: [WORK] });
+    const summary = page.getByTestId("address-card").locator("address .line-clamp-2");
+    await expect(summary).toBeVisible();
+    await expect(summary).toHaveText("Station Road 12, Floor 3, EC1A 1BB London, Greater London, United Kingdom");
+    await expect(summary).toHaveCSS("-webkit-line-clamp", "2");
+  });
+
+  test("a failed profile load shows an alert with Retry, and Retry loads the page", async ({ page, context }, info) => {
+    const user = uniqueUser(info);
+    await seed(user, { ...SEEDED, fail_profile: true });
+    await signInAs(context, user);
+    await page.goto("/profile");
+    const alert = page.getByRole("alert").filter({ hasText: "We could not load your profile" });
+    await expect(alert).toBeVisible();
+    const retry = alert.getByRole("button", { name: "Retry" });
+    await expectTapTarget(retry, "retry");
+    await shot(page, info, "load-error");
+    await seed(user, { fail_profile: false });
+    await retry.click();
+    await expect(page.getByTestId("profile-form")).toBeVisible();
+    await expect(page.getByLabel("Display name")).toHaveValue("Sam Example");
+  });
+
+  test("the whole page and the edit dialog, in light and dark", async ({ page, context }, info) => {
+    await openProfile(page, info, context, { ...SEEDED, addresses: [HOME, WORK] });
+    await expectNoHorizontalScroll(page);
+    await shot(page, info, "full-light");
+    await page.emulateMedia({ colorScheme: "dark" });
+    await expect(page.locator("html")).toHaveClass(/dark/);
+    await shot(page, info, "full-dark");
+    await page.getByRole("button", { name: "Edit Home" }).click();
+    await viewShot(page, info, "edit-dialog-dark");
+    await page.keyboard.press("Escape");
+    await page.emulateMedia({ colorScheme: "light" });
+    await expect(page.locator("html")).not.toHaveClass(/dark/);
+    await page.getByRole("button", { name: "Edit Home" }).click();
+    await viewShot(page, info, "edit-dialog-light");
   });
 });

@@ -43,8 +43,8 @@ export function AddressFormDialog({ open, onOpenChange, address, isFirst, onSave
       description={address ? undefined : "Where should we send things, or which address do your documents use?"}
       footer={
         <>
-          <Button type="submit" form="address-form" disabled={busy} aria-disabled={busy || undefined} data-testid="save-address">
-            {busy ? "Saving" : address ? "Save address" : "Add address"}
+          <Button type="submit" form="address-form" disabled={busy} aria-disabled={busy || undefined} aria-busy={busy || undefined} data-testid="save-address">
+            {busy ? "Saving…" : address ? "Save address" : "Add address"}
           </Button>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
             Cancel
@@ -147,6 +147,7 @@ function AddressForm({
         <Combobox
           id="country"
           name="country"
+          listLabel="Countries"
           options={countries}
           defaultText={address ? countryName(address.country) : ""}
           invalid={!!errors.country}

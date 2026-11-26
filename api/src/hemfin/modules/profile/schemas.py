@@ -1,4 +1,5 @@
 import re
+import unicodedata
 from datetime import datetime
 from typing import Annotated
 from uuid import UUID
@@ -66,7 +67,17 @@ Locale = Annotated[str, StringConstraints(min_length=2, max_length=35), AfterVal
 Phone = Annotated[str, StringConstraints(max_length=32), AfterValidator(_phone)]
 
 
-DisplayName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+def _no_control_chars(v: str) -> str:
+    if any(unicodedata.category(ch) == "Cc" for ch in v):
+        raise ValueError("Must not contain control characters or line breaks.")
+    return v
+
+
+DisplayName = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=80),
+    AfterValidator(_no_control_chars),
+]
 
 
 class ProfileOut(BaseModel):

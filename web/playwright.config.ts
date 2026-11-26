@@ -18,8 +18,9 @@ export default defineConfig({
     reducedMotion: "reduce", // sheets and menus appear without animation, so screenshots are stable
   },
   projects: [
-    // Phone (375 px class): WebKit through the iPhone 13 profile.
-    { name: "phone", use: { ...devices["iPhone 13"] } },
+    // Phone: WebKit through the iPhone 13 profile (touch, mobile user agent) at the 375 px width
+    // CLAUDE.md requires. The profile's own viewport is 390 px.
+    { name: "phone", use: { ...devices["iPhone 13"], viewport: { width: 375, height: 812 } } },
     // Tablet (768 px): icon rail.
     { name: "tablet", use: { ...devices["Desktop Chrome"], viewport: { width: 768, height: 1024 } } },
     // Desktop (1280 px): expanded sidebar.

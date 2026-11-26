@@ -25,8 +25,3 @@ export function currencyOptions(locale = "en"): ComboOption[] {
     return { value: code, label: name, hint: code, search: `${code} ${name}`.toLowerCase() };
   }).sort((a, b) => a.label.localeCompare(b.label, locale));
 }
-
-/** True for a code in the list (case-insensitive, trimmed). */
-export function isKnownCurrency(code: string): boolean {
-  return CURRENCY_CODES.includes(code.trim().toUpperCase());
-}

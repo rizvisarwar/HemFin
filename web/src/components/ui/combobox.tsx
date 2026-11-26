@@ -35,6 +35,8 @@ export interface ComboboxProps {
   /** Text put in the input when an option is picked. */
   textFor?: (o: ComboOption) => string;
   label?: string; // accessible name when there is no <label for>
+  /** Accessible name of the list of options, for example "Currencies". */
+  listLabel: string;
   placeholder?: string;
   invalid?: boolean;
   describedBy?: string;
@@ -42,6 +44,8 @@ export interface ComboboxProps {
   className?: string;
   listClassName?: string;
   onPick?: (o: ComboOption) => void;
+  /** Called with the input's text after typing, picking or tidying on blur. */
+  onTextChange?: (text: string) => void;
 }
 
 /**
@@ -56,6 +60,7 @@ export function Combobox({
   defaultText,
   textFor = (o) => o.label,
   label,
+  listLabel,
   placeholder,
   invalid,
   describedBy,
@@ -63,6 +68,7 @@ export function Combobox({
   className,
   listClassName,
   onPick,
+  onTextChange,
 }: ComboboxProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [open, setOpen] = React.useState(false);
@@ -80,6 +86,7 @@ export function Combobox({
     setQuery("");
     setOpen(false);
     onPick?.(o);
+    onTextChange?.(textFor(o));
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -96,6 +103,9 @@ export function Combobox({
       pick(shown[active]);
     } else if (e.key === "Escape" && open) {
       e.preventDefault();
+      // Base UI's dialog closes on a document-level keydown that ignores defaultPrevented, so stop
+      // the event here: the first Escape closes the list, a second one closes the dialog around it.
+      e.stopPropagation();
       setOpen(false);
     }
   }
@@ -104,6 +114,8 @@ export function Combobox({
   React.useEffect(() => {
     if (open) document.getElementById(`${id}-opt-${active}`)?.scrollIntoView?.({ block: "nearest" });
   }, [open, active, id]);
+
+  const hasList = open && shown.length > 0;
 
   return (
     <div
@@ -114,7 +126,10 @@ export function Combobox({
         // Tidy a text that names an option ("eur" becomes "EUR"); anything else is left for validation.
         const input = inputRef.current;
         const match = input ? resolveOption(options, input.value, textFor) : undefined;
-        if (input && match) input.value = textFor(match);
+        if (input && match) {
+          input.value = textFor(match);
+          onTextChange?.(input.value);
+        }
         setQuery("");
       }}
     >
@@ -125,9 +140,9 @@ export function Combobox({
         type="text"
         role="combobox"
         aria-expanded={open}
-        aria-controls={listId}
+        aria-controls={hasList ? listId : undefined}
         aria-autocomplete="list"
-        aria-activedescendant={open && shown[active] ? `${id}-opt-${active}` : undefined}
+        aria-activedescendant={hasList && shown[active] ? `${id}-opt-${active}` : undefined}
         aria-label={label}
         aria-invalid={invalid || undefined}
         aria-describedby={describedBy}
@@ -141,48 +156,52 @@ export function Combobox({
         onClick={() => setOpen(true)}
         onInput={(e) => {
           setQuery(e.currentTarget.value);
+          onTextChange?.(e.currentTarget.value);
           setActive(0);
           setOpen(true);
         }}
         onKeyDown={onKeyDown}
       />
       <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-3.5 size-4 text-muted-foreground" />
-      {open ? (
+      {hasList ? (
         <ul
           id={listId}
           role="listbox"
-          aria-label={label ?? "Options"}
+          aria-label={listLabel}
           className={cn(
             "absolute left-0 z-40 mt-1 max-h-64 w-full min-w-[16rem] overflow-y-auto overscroll-contain rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-lg",
             listClassName,
           )}
         >
-          {shown.length === 0 ? (
-            <li role="presentation" className="px-3 py-3 text-small text-muted-foreground">
-              No match. Try another search.
+          {shown.map((o, i) => (
+            <li
+              key={o.value}
+              id={`${id}-opt-${i}`}
+              role="option"
+              aria-selected={i === active}
+              // mousedown would blur the input and close the list before the click lands.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => pick(o)}
+              onMouseMove={() => i !== active && setActive(i)}
+              className={cn(
+                "flex min-h-11 cursor-pointer items-center justify-between gap-3 px-3 py-2 text-body",
+                i === active && "bg-accent text-accent-foreground",
+              )}
+            >
+              <span className="min-w-0 truncate">{o.label}</span>
+              {o.hint ? <span className="shrink-0 text-small text-muted-foreground">{o.hint}</span> : null}
             </li>
-          ) : (
-            shown.map((o, i) => (
-              <li
-                key={o.value}
-                id={`${id}-opt-${i}`}
-                role="option"
-                aria-selected={i === active}
-                // mousedown would blur the input and close the list before the click lands.
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => pick(o)}
-                onMouseMove={() => i !== active && setActive(i)}
-                className={cn(
-                  "flex min-h-11 cursor-pointer items-center justify-between gap-3 px-3 py-2 text-body",
-                  i === active && "bg-accent text-accent-foreground",
-                )}
-              >
-                <span className="min-w-0 truncate">{o.label}</span>
-                {o.hint ? <span className="shrink-0 text-small text-muted-foreground">{o.hint}</span> : null}
-              </li>
-            ))
-          )}
+          ))}
         </ul>
+      ) : null}
+      {open && shown.length === 0 ? (
+        // A message, not an option: it lives outside the listbox.
+        <p
+          data-testid="combobox-empty"
+          className="absolute left-0 z-40 mt-1 w-full min-w-[16rem] rounded-md border border-border bg-popover px-3 py-3 text-small text-muted-foreground shadow-lg"
+        >
+          No match. Try another search.
+        </p>
       ) : null}
       <p className="sr-only" role="status" aria-live="polite">
         {open ? (shown.length === 0 ? "No results." : `${shown.length} result${shown.length === 1 ? "" : "s"} available.`) : ""}
