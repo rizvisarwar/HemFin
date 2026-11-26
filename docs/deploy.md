@@ -160,7 +160,8 @@ Settings > Secrets and variables > Actions:
 - Schedules: daily at 05:15 UTC (`/internal/jobs/daily`) and Mondays 06:30 UTC (`/internal/jobs/weekly`). Run one manually from Actions > Scheduled jobs > Run workflow.
 - It calls `POST $API_BASE_URL/internal/jobs/<name>` with the header `X-Job-Secret: $JOB_SECRET`.
 - If `API_BASE_URL` or `JOB_SECRET` is unset, the run **succeeds with a notice** and does nothing (so forks and fresh clones stay green).
-- **The `/internal/jobs/*` endpoints do not exist yet.** The workflow only calls them. Until a later ticket adds them, a configured run fails with HTTP 404. That is expected; leave the two settings unset until the endpoints ship. The API's side (checking `X-Job-Secret` against `JOB_SECRET` with a constant-time comparison) is part of that later ticket.
+- `POST /internal/jobs/daily` exists (HEM-013: expires overdue invitations; checks `X-Job-Secret` against `JOB_SECRET` with a constant-time comparison; 503 if `JOB_SECRET` is unset on the API, 401 on a wrong secret). `/internal/jobs/weekly` does not exist yet and returns 404.
+- Invitation emails need `RESEND_API_KEY` (secret), `EMAIL_FROM` and `WEB_BASE_URL` in the Render environment; without the key, invitations return 503.
 - GitHub may disable scheduled workflows after 60 days without repository activity in public repos, and scheduled runs can start several minutes late. UNVERIFIED current policy; re-enable from the Actions tab if needed.
 - The first call after a sleep wakes Render. The workflow retries only connection-level failures and HTTP 502/503/504 (up to 4 attempts, 20 s apart, 120 s each). Any other status, including 404 and 500, fails immediately so a half-run job is never repeated. Make the endpoints idempotent when they land.
 

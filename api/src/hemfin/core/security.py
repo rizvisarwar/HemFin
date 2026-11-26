@@ -50,6 +50,9 @@ class AuthUnavailableError(Exception):
 class TokenClaims:
     sub: UUID
     email: str
+    # True only when Supabase marks the email as confirmed (token `email_verified`, or
+    # `user_metadata.email_verified`). Invitation acceptance requires it.
+    email_verified: bool = False
 
 
 def issuer_for(supabase_url: str) -> str:
@@ -183,7 +186,11 @@ class TokenVerifier:
         email = payload.get("email")
         if not isinstance(email, str) or not email:
             raise InvalidTokenError("missing_email")
-        return TokenClaims(sub=sub, email=email)
+        meta = payload.get("user_metadata")
+        verified = payload.get("email_verified") is True or (
+            isinstance(meta, dict) and meta.get("email_verified") is True
+        )
+        return TokenClaims(sub=sub, email=email, email_verified=verified)
 
 
 def build_verifier(

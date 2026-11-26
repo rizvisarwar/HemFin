@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     # Local/test only: HS256 secret of the local Supabase CLI stack (see core/security.py).
     # Ignored (HS256 stays off) unless APP_ENV is local or test.
     SUPABASE_JWT_SECRET: SecretStr | None = None
+    # Optional: without it the app starts and invitation emails return a 503 problem.
+    RESEND_API_KEY: SecretStr | None = None
+    # Shared secret for /internal/jobs/*; without it those endpoints return 503.
+    JOB_SECRET: SecretStr | None = None
 
     # Non-secret settings
     # Defaults to production so nothing local-only (HS256 tokens, test mode) is on unless the
@@ -48,6 +52,10 @@ class Settings(BaseSettings):
     CORS_ORIGINS: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
     LOG_LEVEL: str = "INFO"
     SUPABASE_URL: str = ""
+    # Sender address for invitation emails (a verified Resend sender). Empty disables sending.
+    EMAIL_FROM: str = ""
+    # Public web origin used to build invite links (the token goes in the URL fragment).
+    WEB_BASE_URL: str = "http://localhost:3000"
     SUPABASE_JWT_AUDIENCE: str = "authenticated"
     # How long fetched signing keys are trusted, and the minimum gap between forced refetches
     # (triggered by an unknown `kid`, so a flood of bad tokens cannot hammer Supabase).

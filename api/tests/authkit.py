@@ -42,6 +42,7 @@ class TestKey:
         sub: UUID | str,
         email: str | None = "user@example.test",
         *,
+        email_verified: bool = True,
         iss: str = ISSUER,
         aud: str = AUDIENCE,
         exp_in: int = 3600,
@@ -59,6 +60,7 @@ class TestKey:
         }
         if email is not None:
             claims["email"] = email
+            claims["user_metadata"] = {"email_verified": email_verified}
         return jwt.encode(
             claims,
             signing_key or self.private,
