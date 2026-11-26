@@ -12,4 +12,4 @@ This link expires in 1 hour and can be used once.
 If you were not expecting this invitation, you can ignore this email.
 
 --
-HemFin. You are receiving this because of activity on your account.
+You're receiving this because this address was used on HemFin. If that was not you, you can ignore this email. Sent by HemFin ({{ .SiteURL }}).

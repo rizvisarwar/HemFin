@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { CHECK_EMAIL_MESSAGE, GENERIC_ERROR, mapAuthError } from "@/lib/auth/errors";
 import { isEmailValid } from "@/lib/auth/password";
-import { cooldownRemaining, parsePending, readPendingRaw, rememberPending } from "@/lib/auth/pending";
-import { Field, FormMessage } from "./form-parts";
+import { parsePending, readPendingRaw, rememberPending } from "@/lib/auth/pending";
+import { CooldownNote, useCooldown } from "./cooldown";
+import { Field, FormMessage, useHydrated } from "./form-parts";
 
 const noopSubscribe = () => () => {};
 
@@ -15,25 +16,19 @@ export function CheckEmail() {
   // sessionStorage exists only in the browser: the server snapshot is null (shown after hydration).
   const raw = React.useSyncExternalStore(noopSubscribe, readPendingRaw, () => null);
   const ready = raw !== null;
+  const hydrated = useHydrated();
   const stored = parsePending(raw ?? "	");
   const [override, setOverride] = React.useState<{ email: string; sentAt: number } | null>(null);
   const email = override?.email ?? stored.email;
   const sentAt = override?.sentAt ?? stored.sentAt;
-  // The clock starts at the send time and is advanced by the interval below (no clock read while rendering).
-  const [now, setNow] = React.useState<number | null>(null);
-  const remaining = cooldownRemaining(sentAt, now ?? sentAt ?? 0);
+  const { remaining, announcement } = useCooldown(sentAt);
   const [message, setMessage] = React.useState<{ kind: "error" | "success"; text: string } | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [emailError, setEmailError] = React.useState<string>();
 
-  React.useEffect(() => {
-    if (sentAt === null || remaining <= 0) return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [sentAt, remaining]);
-
   async function resend(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // aria-disabled (not disabled) keeps focus on the button during the cooldown, so this guard stops the send.
     if (remaining > 0 || busy) return;
     let target = email;
     if (!target) {
@@ -58,9 +53,7 @@ export function CheckEmail() {
       } else {
         setMessage({ kind: "success", text: CHECK_EMAIL_MESSAGE });
         rememberPending(target);
-        const sent = Date.now();
-        setOverride({ email: target, sentAt: sent });
-        setNow(sent);
+        setOverride({ email: target, sentAt: Date.now() });
       }
     } catch {
       setMessage({ kind: "error", text: GENERIC_ERROR });
@@ -68,30 +61,41 @@ export function CheckEmail() {
     setBusy(false);
   }
 
+  const cooling = remaining > 0;
   return (
     <div className="space-y-4">
+      {/* Neutral wording, true on every path (a new sign-up, or an address that already has an account). */}
       <p className="text-body">
         {email ? (
           <>
-            We sent a link to <strong className="font-medium">{email}</strong>. Open it on this device to finish creating your
-            account.
+            If you can sign up with <strong className="font-medium">{email}</strong>, we&apos;ve sent a link to confirm it.
           </>
         ) : (
-          "We sent you a link to confirm your email address. Open it on this device to finish creating your account."
-        )}
+          "If you can sign up with that address, we've sent a link to confirm it."
+        )}{" "}
+        Open the link on this device to finish creating your account.
       </p>
       <ul className="list-disc space-y-1 pl-5 text-small text-muted-foreground">
         <li>It can take a few minutes. Check your spam folder too.</li>
         <li>The link works once and expires after an hour.</li>
       </ul>
-      <form onSubmit={resend} noValidate className="space-y-3">
+      {/* method="post": if the form is ever submitted without JavaScript, nothing goes into the URL. */}
+      <form onSubmit={resend} method="post" noValidate className="space-y-3">
         <FormMessage kind={message?.kind ?? "info"}>{message?.text}</FormMessage>
         {ready && !email ? (
           <Field id="email" label="Email" type="email" autoComplete="email" inputMode="email" error={emailError} />
         ) : null}
-        <Button type="submit" variant="outline" className="w-full" disabled={busy || remaining > 0} data-testid="resend">
-          {remaining > 0 ? `Send again in ${remaining}s` : "Send the email again"}
+        <Button
+          type="submit"
+          variant="outline"
+          className="w-full"
+          disabled={!hydrated}
+          aria-disabled={busy || cooling || undefined}
+          data-testid="resend"
+        >
+          {cooling ? `Send again in ${remaining}s` : "Send the email again"}
         </Button>
+        <CooldownNote remaining={remaining} announcement={announcement} />
       </form>
       <p className="text-center text-body text-muted-foreground">
         Wrong address?{" "}

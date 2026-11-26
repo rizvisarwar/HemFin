@@ -7,13 +7,13 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { GENERIC_ERROR, mapAuthError } from "@/lib/auth/errors";
 import { isPasswordValid } from "@/lib/auth/password";
-import { Field, FormMessage, PasswordRules, useFocusFirstInvalid } from "./form-parts";
+import { Field, FormMessage, PasswordRules, useFocusFirstInvalid, useHydrated } from "./form-parts";
 
 /** Reached from the reset email: the callback has already exchanged the code for a session. */
 export function ResetPasswordForm() {
   const router = useRouter();
   const form = React.useRef<HTMLFormElement>(null);
-  const [password, setPassword] = React.useState("");
+  const hydrated = useHydrated();
   const [errors, setErrors] = React.useState<{ password?: string; confirm?: string }>({});
   const [formError, setFormError] = React.useState("");
   const [done, setDone] = React.useState(false);
@@ -23,7 +23,10 @@ export function ResetPasswordForm() {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const confirm = String(new FormData(e.currentTarget).get("confirm") ?? "");
+    // Both passwords are uncontrolled inputs read on submit, so text typed before hydration survives it.
+    const data = new FormData(e.currentTarget);
+    const password = String(data.get("password") ?? "");
+    const confirm = String(data.get("confirm") ?? "");
     const found: typeof errors = {};
     if (!isPasswordValid(password)) found.password = "Your password does not meet all the rules yet.";
     if (confirm !== password) found.confirm = "The two passwords do not match.";
@@ -58,7 +61,8 @@ export function ResetPasswordForm() {
     );
   }
   return (
-    <form ref={form} noValidate onSubmit={onSubmit} className="space-y-4" aria-busy={busy || undefined}>
+    // method="post": if the form is ever submitted without JavaScript, nothing goes into the URL.
+    <form ref={form} method="post" noValidate onSubmit={onSubmit} className="space-y-4" aria-busy={busy || undefined}>
       <FormMessage kind="error">{formError}</FormMessage>
       <div className="space-y-2">
         <Field
@@ -66,15 +70,13 @@ export function ResetPasswordForm() {
           label="New password"
           type="password"
           autoComplete="new-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
           error={errors.password}
-          aria-describedby="password-rules password-error"
+          describedBy="password-rules"
         />
-        <PasswordRules password={password} id="password-rules" />
+        <PasswordRules inputId="password" id="password-rules" />
       </div>
       <Field id="confirm" label="Confirm new password" type="password" autoComplete="new-password" error={errors.confirm} />
-      <Button type="submit" className="w-full" disabled={busy}>
+      <Button type="submit" className="w-full" disabled={busy || !hydrated}>
         {busy ? "Saving" : "Change password"}
       </Button>
       <p className="text-center text-body text-muted-foreground">

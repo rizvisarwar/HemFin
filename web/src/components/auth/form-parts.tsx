@@ -7,6 +7,17 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { passwordRuleResults } from "@/lib/auth/password";
 
+const noopSubscribe = () => () => {};
+
+/**
+ * False in the server HTML and during hydration, true once the component has mounted in the
+ * browser. Submit buttons stay disabled until then, so a form can never be submitted before its
+ * JavaScript is attached (which would send it as a plain browser form post).
+ */
+export function useHydrated(): boolean {
+  return React.useSyncExternalStore(noopSubscribe, () => true, () => false);
+}
+
 /** Moves focus to the first invalid field after a failed submit. Bump `attempt` on each submit. */
 export function useFocusFirstInvalid(form: React.RefObject<HTMLFormElement | null>, attempt: number) {
   React.useEffect(() => {
@@ -20,10 +31,14 @@ export interface FieldProps extends Omit<React.ComponentProps<"input">, "id"> {
   label: string;
   error?: string;
   hint?: string;
+  /** Mark the field invalid without an inline message (the message lives elsewhere). */
+  invalid?: boolean;
+  /** Extra element ids that describe the field (for example a form-level error). */
+  describedBy?: string;
 }
 
 /** Label above, input, then an inline error (announced politely) or hint. */
-export function Field({ id, label, error, hint, className, ...props }: FieldProps) {
+export function Field({ id, label, error, hint, invalid, describedBy, className, ...props }: FieldProps) {
   const errorId = `${id}-error`;
   const hintId = `${id}-hint`;
   return (
@@ -34,8 +49,10 @@ export function Field({ id, label, error, hint, className, ...props }: FieldProp
       <Input
         id={id}
         name={id}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={[error ? errorId : null, hint ? hintId : null].filter(Boolean).join(" ") || undefined}
+        aria-invalid={error || invalid ? true : undefined}
+        aria-describedby={
+          [error ? errorId : null, hint ? hintId : null, describedBy].filter(Boolean).join(" ") || undefined
+        }
         className={className}
         {...props}
       />
@@ -56,25 +73,65 @@ export function Field({ id, label, error, hint, className, ...props }: FieldProp
   );
 }
 
-/** Live checklist of the password rules. Each rule is a list item with a text status. */
-export function PasswordRules({ password, id }: { password: string; id: string }) {
+/**
+ * Live checklist of the password rules for the (uncontrolled) input with id `inputId`.
+ *
+ * The input is not controlled by React: a password typed before hydration must survive it. The
+ * checklist reads the input's value through useSyncExternalStore, which re-reads it once on mount
+ * (so text typed earlier is counted) and on every `input` event afterwards.
+ *
+ * A short polite summary ("2 of 4 password rules met") is announced a moment after typing
+ * stops, and only when it changes, so screen reader users are not told about every keystroke.
+ */
+export function PasswordRules({ inputId, id }: { inputId: string; id: string }) {
+  const password = React.useSyncExternalStore(
+    React.useCallback(
+      (onChange) => {
+        const el = document.getElementById(inputId);
+        el?.addEventListener("input", onChange);
+        return () => el?.removeEventListener("input", onChange);
+      },
+      [inputId],
+    ),
+    () => (document.getElementById(inputId) as HTMLInputElement | null)?.value ?? "",
+    () => "",
+  );
   const rules = passwordRuleResults(password);
+  const metCount = rules.filter((r) => r.met).length;
+  const summary =
+    password === ""
+      ? ""
+      : metCount === rules.length
+        ? "All password rules met."
+        : `${metCount} of ${rules.length} password rules met.`;
+
+  const [announced, setAnnounced] = React.useState("");
+  React.useEffect(() => {
+    const t = setTimeout(() => setAnnounced(summary), 1000);
+    return () => clearTimeout(t);
+  }, [summary]);
+
   return (
-    <ul id={id} aria-label="Password rules" className="space-y-1 text-small">
-      {rules.map((r) => (
-        <li key={r.id} className={cn("flex items-center gap-2", r.met ? "text-success" : "text-muted-foreground")}>
-          {r.met ? (
-            <CircleCheck aria-hidden="true" className="size-4 shrink-0" />
-          ) : (
-            <Circle aria-hidden="true" className="size-4 shrink-0" />
-          )}
-          <span>
-            {r.label}
-            <span className="sr-only">{r.met ? " (done)" : " (not done yet)"}</span>
-          </span>
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul id={id} aria-label="Password rules" className="space-y-1 text-small">
+        {rules.map((r) => (
+          <li key={r.id} className={cn("flex items-center gap-2", r.met ? "text-success" : "text-muted-foreground")}>
+            {r.met ? (
+              <CircleCheck aria-hidden="true" className="size-4 shrink-0" />
+            ) : (
+              <Circle aria-hidden="true" className="size-4 shrink-0" />
+            )}
+            <span>
+              {r.label}
+              <span className="sr-only">{r.met ? " (done)" : " (not done yet)"}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="sr-only" role="status" aria-live="polite" data-testid="password-rules-summary">
+        {announced}
+      </p>
+    </>
   );
 }
 
@@ -82,12 +139,19 @@ export function PasswordRules({ password, id }: { password: string; id: string }
 export function FormMessage({
   kind,
   children,
+  id,
 }: {
   kind: "error" | "success" | "info";
   children?: React.ReactNode;
+  id?: string;
 }) {
   return (
-    <div aria-live={kind === "error" ? "assertive" : "polite"} role={kind === "error" ? "alert" : "status"} data-testid="form-message">
+    <div
+      id={id}
+      aria-live={kind === "error" ? "assertive" : "polite"}
+      role={kind === "error" ? "alert" : "status"}
+      data-testid="form-message"
+    >
       {children ? (
         <p
           className={cn(

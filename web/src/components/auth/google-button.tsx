@@ -1,15 +1,24 @@
 "use client";
 
 import * as React from "react";
+import { Roboto } from "next/font/google";
 import { createClient } from "@/lib/supabase/client";
 import { mapAuthError } from "@/lib/auth/errors";
 import { sanitizeNext } from "@/lib/auth/next-path";
 
+// Scoped to this button only (applied through its className); the rest of the app stays on Inter.
+const roboto = Roboto({ weight: "500", subsets: ["latin"], display: "swap" });
+
 /**
- * "Continue with Google" button following Google's branding guidelines: the unmodified
- * four-colour "G" mark on a plain light (or dark) surface with a neutral stroke, Roboto-style
- * medium label text, 12 px between mark and label, and the exact label wording.
- * Colours: light #FFFFFF / #747775 stroke / #1F1F1F text; dark #131314 / #8E918F / #E3E3E3.
+ * "Continue with Google" button following Google's branding guidelines
+ * (https://developers.google.com/identity/branding-guidelines, checked 2026-11-26):
+ *   - Label: "Sign in with Google", "Sign up with Google" or "Continue with Google" (we use the last).
+ *   - Font: the guideline table lists "Google Sans Medium | 14/20" (14 px on a 20 px line). Google Sans
+ *     is not licensed for general use, so this uses Roboto Medium (weight 500), the closest freely
+ *     available face and the one earlier versions of the guideline named.
+ *   - Spacing on web: 10 px after the Google logo, before the label.
+ *   - Scaling is allowed but the logo's aspect ratio is kept; the four-colour "G" is unmodified.
+ *   - Colours: light #FFFFFF / #747775 stroke / #1F1F1F text; dark #131314 / #8E918F / #E3E3E3.
  */
 export function GoogleButton({
   next,
@@ -47,7 +56,7 @@ export function GoogleButton({
       disabled={busy}
       aria-busy={busy || undefined}
       data-testid="google-button"
-      className="inline-flex h-11 w-full items-center justify-center gap-3 rounded-full border border-[#747775] bg-white px-3 text-[14px] leading-5 font-medium text-[#1F1F1F] transition-colors outline-none hover:bg-[#F2F2F2] focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60 dark:border-[#8E918F] dark:bg-[#131314] dark:text-[#E3E3E3] dark:hover:bg-[#1f2022]"
+      className={`${roboto.className} inline-flex h-11 w-full items-center justify-center gap-2.5 rounded-full border border-[#747775] bg-white px-3 text-[14px] leading-5 font-medium text-[#1F1F1F] transition-colors hover:bg-[#F2F2F2] disabled:opacity-60 dark:border-[#8E918F] dark:bg-[#131314] dark:text-[#E3E3E3] dark:hover:bg-[#1f2022]`}
     >
       <svg aria-hidden="true" viewBox="0 0 48 48" className="size-[18px] shrink-0">
         <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />

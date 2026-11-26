@@ -12,4 +12,4 @@ This link expires in 1 hour and can be used once.
 If you did not ask for this change, ignore this email and consider changing your password.
 
 --
-HemFin. You are receiving this because of activity on your account.
+You're receiving this because this address was used on HemFin. If that was not you, you can ignore this email. Sent by HemFin ({{ .SiteURL }}).

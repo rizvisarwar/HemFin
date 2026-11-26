@@ -188,8 +188,10 @@ test.describe("app shell", () => {
       /^[0-9a-f-]{36}$/,
     );
 
-    // The switch ends with router.refresh() (an RSC fetch). Let it settle, otherwise the reload
-    // interrupts it ("Frame load interrupted" in WebKit).
+    // The switch ends with router.refresh() (an RSC fetch). Wait for the shell to report it is done
+    // (cookie written and refresh finished), otherwise the reload interrupts it ("Frame load
+    // interrupted" in WebKit).
+    await expect(page.locator("[data-space-sync]")).toHaveAttribute("data-space-sync", "idle");
     await page.waitForLoadState("networkidle");
     // The server renders the stored space first time.
     await page.reload();

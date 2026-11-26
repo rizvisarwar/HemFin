@@ -10,6 +10,9 @@ import type { MeResponse } from "@/lib/api";
  */
 export async function createServerApi() {
   const supabase = await createClient();
+  // getSession() on the server reads the cookie without verifying it, which is fine here: it only
+  // forwards the token, and the API verifies the signature on every call. Never use it for an
+  // access decision in the web app (the proxy uses getClaims() for its optimistic check).
   return createApiClient(API_URL, async () => (await supabase.auth.getSession()).data.session?.access_token);
 }
 

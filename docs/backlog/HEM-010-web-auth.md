@@ -72,4 +72,27 @@ Users can sign up, confirm their email, sign in (password or Google), reset a pa
 - Follow-up: preserve text typed into controlled inputs before hydration (for example by reading the DOM value on submit instead of state).
 - Follow-up (Designer): review the auth screenshots in `web/test-results/screenshots/{phone,desktop}-auth-*.png`.
 
+### 2026-11-26 Engineer, Round 1 fixes (code review 7186997907, design review 7186856513)
+- **B1:** every auth form is `method="post"` and its submit button is disabled until hydrated (`useHydrated`). New Playwright tests block `/_next/static/**`, fill and `requestSubmit()` each server-rendered form (`/forgot-password`, `/reset-password`, `/check-email`) and assert no value in the URL. `/sign-in` and `/sign-up` are client-rendered (no form exists without JS); the test records that.
+- **B2:** reset-password and sign-up passwords are uncontrolled (read from `FormData`). `PasswordRules` reads the input via `useSyncExternalStore` (re-read on mount, updated on `input`). New test holds the JS chunks, types, releases them and asserts the value and the checklist survive. `gotoHydrated` is removed: the disabled-until-hydrated button makes clicks wait on their own.
+- **N1:** covered by B2 (sign-up). **N2:** covered by B1.
+- **N3:** comments on `getSession()` in `lib/api.ts` and `lib/api-server.ts`.
+- **N4:** `docs/deploy.md` says where the `.txt` templates go (nothing reads them; paste where a text body exists, UNVERIFIED that the dashboard has one); `config.jsonc` comment corrected.
+- **N5:** callback test for `?code=bad`.
+- **N6:** Google `skip_nonce_check` is `false`, with a comment.
+- **D1:** Roboto Medium 500 via `next/font`, applied to the button only. I fetched Google's current guideline: it now names **Google Sans Medium, 14/20** (not Roboto) and a **10 px** logo-to-text gap on web (12 px is iOS). Google Sans is not freely licensed, so Roboto Medium is used and the gap is now 10 px; both are quoted in the code comment and `docs/design/auth-flows.md`. Deviation from the review text (which said 12 px); please confirm.
+- **D2:** resend uses `aria-disabled` plus a handler guard (focus stays); a visible normal-colour sentence; a polite "You can send the email again now." when it ends (clock-driven test).
+- **D3:** neutral check-email copy ("If you can sign up with {email}, we've sent a link to confirm it."), agreed in the new `docs/design/auth-flows.md`.
+- **D4:** brand-panel rule documented in `docs/design/auth-flows.md`.
+- **D5:** sign-in auth error marks both fields `aria-invalid` and `aria-describedby` the message.
+- **D6:** screenshots take the pointer off the page first. The dimming was hover, not a disabled button.
+- **D7:** polite password-rules summary ("2 of 4 password rules met."), one second after typing stops, only on change.
+- **D8:** Button, Input and Badge use the global 2 px outline with 2 px offset from design-system 4.5 (translucent 3 px ring and focus border change removed); test asserts it.
+- **D9:** forgot-password has the same cooldown pattern (shared `useCooldown` / `CooldownNote`).
+- **D10:** email footer reworded, sender line with `{{ .SiteURL }}`.
+- **D11:** expiry line 16 px in normal text colour; light-only noted in a comment in the templates and the design doc.
+- **D12:** new screenshots: dark (sign-in, sign-up, forgot-password), reduced motion (sign-in; note the whole suite already runs with reduced motion on), sign-up success, sign-in wrong credentials.
+- Also: the space-switcher smoke test still flaked on WebKit with `networkidle`, so `AppShellClient` now exposes `data-space-sync` (pending/idle, `display: contents` wrapper) and the test waits for `idle`. 12 repeats and 3 full runs pass.
+- Checks: lint pass, unit 24/24, build pass, Playwright 3 full runs x 103 passed, dev config 1 passed.
+
 ## Review

@@ -29,7 +29,7 @@ export function AppShellClient({
   const pathname = usePathname();
   const router = useRouter();
   const [activeId, setActiveId] = React.useState(initialSpaceId);
-  const [, startTransition] = React.useTransition();
+  const [syncing, startTransition] = React.useTransition();
   const active = spaces.find((s) => s.id === activeId) ?? spaces[0];
 
   function onSpaceChange(id: string) {
@@ -42,15 +42,19 @@ export function AppShellClient({
 
   return (
     <ActiveSpaceContext.Provider value={active}>
-      <AppShell
-        spaces={spaces}
-        activeSpaceId={active.id}
-        onSpaceChange={onSpaceChange}
-        navItems={NAV_ITEMS}
-        currentPath={pathname}
-      >
-        {children}
-      </AppShell>
+      {/* display: contents keeps the layout unchanged. data-space-sync lets tests wait until the
+          space cookie is written and router.refresh() has finished. */}
+      <div className="contents" data-space-sync={syncing ? "pending" : "idle"}>
+        <AppShell
+          spaces={spaces}
+          activeSpaceId={active.id}
+          onSpaceChange={onSpaceChange}
+          navItems={NAV_ITEMS}
+          currentPath={pathname}
+        >
+          {children}
+        </AppShell>
+      </div>
     </ActiveSpaceContext.Provider>
   );
 }
