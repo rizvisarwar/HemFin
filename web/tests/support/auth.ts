@@ -61,7 +61,7 @@ export function seedHouseholds(who: { email: string }, households: SeedHousehold
 }
 
 /** Makes the user's spaces and/or members list calls fail with a 500, to see the error states. */
-export function failLists(who: { email: string }, flags: { spaces?: boolean; members?: boolean; delay_ms?: number }) {
+export function failLists(who: { email: string }, flags: { spaces?: boolean; members?: boolean; me?: boolean; delay_ms?: number }) {
   return post<void>("/__test/fail", { email: who.email, ...flags });
 }
 

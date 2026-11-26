@@ -192,7 +192,7 @@ export function MembersView({
                   <td className="px-4 py-3">
                     <RoleBadge role={m.role} />
                   </td>
-                  <td className="hidden px-4 py-3 text-right text-small text-muted-foreground xl:table-cell">{date(m.joined_at)}</td>
+                  <td className="hidden whitespace-nowrap px-4 py-3 text-right text-small text-muted-foreground xl:table-cell">{date(m.joined_at)}</td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">{rowActions(m)}</div>
                   </td>

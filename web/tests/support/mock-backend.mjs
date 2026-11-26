@@ -167,7 +167,7 @@ addRoute("POST", /^\/auth\/v1\/signup$/, async ({ body }) => [
 addRoute("POST", /^\/auth\/v1\/(recover|resend)$/, async () => [200, {}]);
 addRoute("POST", /^\/auth\/v1\/logout$/, async () => [204, null]);
 addRoute("GET", /^\/api\/v1\/me$/, async ({ claims }) =>
-  claims ? [200, meFor(claims)] : problem(401, "Not authenticated."),
+  !claims ? problem(401, "Not authenticated.") : userState(claims).fail_me ? [500, { type: "about:blank", title: "Internal Server Error", status: 500 }, "application/problem+json"] : [200, meFor(claims)],
 );
 
 // ---- Profile and addresses (HEM-009 API, mirrored closely enough for UI tests) ----------------
@@ -493,6 +493,7 @@ addRoute("POST", /^\/__test\/fail$/, async ({ body }) => {
   if (body.members !== undefined) me.fail_members = body.members;
   // Slow down this user's /api/v1/spaces* calls, to hold the loading and busy states still.
   if (body.delay_ms !== undefined) me.delay_ms = body.delay_ms;
+  if (body.me !== undefined) me.fail_me = body.me; // GET /api/v1/me fails: the shell shows "could not load your account"
   return [204, null];
 });
 // Test helper: remove a user from a household behind the app's back (someone else removed them).

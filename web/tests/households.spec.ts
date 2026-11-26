@@ -835,6 +835,26 @@ test.describe("space switcher", () => {
     expect(await cookie()).toBeUndefined();
   });
 
+  test("the 'could not load your account' screen signs out the same way: storage and cookie cleared", async ({ page, context }, info) => {
+    const { me, ids } = await setup(context, info, [{ name: "Secret Hideaway", role: "owner" }]);
+    const cookie = async () => (await context.cookies()).find((c) => c.name === "hemfin-space")?.value;
+    await page.goto("/dashboard");
+    const { menu } = await openSwitcher(page);
+    await menu.getByRole("menuitemradio", { name: /Secret Hideaway/ }).click();
+    await expect.poll(cookie).toBe(ids[0]);
+    await expect(page.locator("[data-space-sync]")).toHaveAttribute("data-space-sync", "idle");
+    const keys = () => page.evaluate(() => Object.keys(sessionStorage).filter((k) => k.startsWith("hemfin-")));
+    expect((await keys()).length).toBeGreaterThan(0);
+
+    await failLists(me, { me: true });
+    await page.goto("/dashboard");
+    await expect(page.getByRole("heading", { level: 1, name: "We could not load your account" })).toBeVisible();
+    await page.getByRole("button", { name: "Sign out" }).click();
+    await expect(page).toHaveURL(/\/sign-in/);
+    await expect.poll(cookie).toBeUndefined();
+    expect(await keys()).toEqual([]);
+  });
+
   test("a store left behind by an abandoned session is never read by another user", async ({ page, context }, info) => {
     await setup(context, info, [{ name: LEE, role: "owner" }]);
     await page.goto("/dashboard");
