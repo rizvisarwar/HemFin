@@ -79,4 +79,11 @@ Nits:
 - **6.** `design-system.md` section 7 EmptyState row records the role-based exception (`households.md` 6.3).
 **Verify:** docs only in this round, so no code changed. `npm run lint && npm run build` from round 1 still apply.
 
+### 2026-11-26 Designer, merge with origin/main (PR #21 was CONFLICTING)
+- Merged `origin/main` (HEM-012 merged, board and HEM-013 edits) into `hem-014-design-households` with a merge commit, no rebase, no force-push.
+- `board.md`, `HEM-012` and `HEM-013` take main's version. `HEM-014` and `HEM-016` keep this branch's handoff entries and checkboxes, and main has no edits to them.
+- Board status not touched.
+- `cd web && npm run lint && npm run build` pass after the merge.
+- Pushed to PR #21. `gh pr checks 21` shows `api`, `web`, `docker` and `gitleaks` pending (started after the push); PR is MERGEABLE.
+
 ## Review
