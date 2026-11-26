@@ -6,8 +6,8 @@ Full scope of each phase: `docs/PROJECT_PLAN.md`, section 4.
 | # | Phase | Status |
 |---|---|---|
 | 0 | Foundations & team setup | **Done** (HEM-001 to HEM-007). The first real deploy is waiting for the user's Supabase, Render and Vercel accounts (`docs/deploy.md`). |
-| 1 | Auth & Profile | **Done** (HEM-008 to HEM-011; PRs #15, #17, #18, #19). Waiting for the user's demo and approval of Phase 2. |
-| 2 | Households & Invitations | Waiting for user approval |
+| 1 | Auth & Profile | **Done** (HEM-008 to HEM-011; PRs #15, #17, #18, #19). |
+| 2 | Households & Invitations | **In progress** (HEM-012 to HEM-016). Approved by the user 2026-11-26. |
 | 3 | Core Finance | Not started |
 | 4 | Documents | Not started |
 | 5 | Notifications | Not started |
@@ -37,7 +37,17 @@ Deferred (not planned yet): native mobile app, WhatsApp notifications, push noti
 | HEM-008 | API: Supabase JWT auth, users and personal space | Engineer | Done | #15 |
 | HEM-009 | API: profile and addresses | Engineer | Done | #17 (replaces #16) |
 | HEM-010 | Web: auth flows | Engineer | Done | #18 |
-| HEM-011 | Web: profile page | Engineer | In Review | |
+| HEM-011 | Web: profile page | Engineer | Done | #19 |
+
+## Phase 2 tickets
+
+| Ticket | Title | Owner | Status | PR |
+|---|---|---|---|---|
+| HEM-012 | API: households and members | Engineer | Todo | |
+| HEM-013 | API: invitations (PM security review) | Engineer | Todo (after HEM-012) | |
+| HEM-014 | Design spec: households, invitations, switcher | Designer | Todo | |
+| HEM-015 | Web: households, members, switcher | Engineer | Todo (after 012, 014) | |
+| HEM-016 | Web: invitations and accept page (PM security review) | Engineer | Todo (after 013, 014, 015) | |
 
 ## Follow-ups (not yet ticketed)
 - Phase 2 (space switcher with real households): the phone switcher sheet gets the SpaceBadge heading row from spec 4.2, and long household names stay readable (from the HEM-003 design review).
