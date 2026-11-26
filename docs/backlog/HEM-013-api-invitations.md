@@ -21,6 +21,14 @@ Admins invite people to a household by email. The invitee accepts only with the 
 - Verified email: use the email claim from the Supabase JWT and require `email_verified`/confirmed. If the existing `get_current_user` does not expose it, extend it.
 - Email content: plain, short, household name and inviter name only; no finance data.
 
+## Carry-over from the HEM-012 review (PR #20, approved; fix these in this PR first)
+- `transfer_ownership` 409 hard-codes "10" and reveals the target's household count; use `MAX_OWNED_HOUSEHOLDS` and a neutral message.
+- `MemberRoleChange.role` should be `Literal[Role.admin, Role.member]` so `owner` is not in the OpenAPI/TS types; regenerate the client.
+- `_space_out(space: Any, ...)` should take `space: Space`; `change_member_role` returns a value the router discards.
+- `counts` subquery in `list_spaces_page` should be limited to the caller's spaces.
+- Tests: `test_concurrent_demote_and_remove_keep_owner` must target the owner and assert status codes; make the `count(204) >= 1` assertion exact; add member-removes-member (403); give the 14-request concurrency test pool headroom.
+- Future finance tables must use `ON DELETE CASCADE` on `space_id`, and the household delete test should cover them (Phase 3).
+
 ## Handoff log
 
 ## Review
