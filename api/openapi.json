@@ -325,6 +325,17 @@
             "title": "Base Currency",
             "type": "string"
           },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
           "locale": {
             "title": "Locale",
             "type": "string"
@@ -354,6 +365,7 @@
           }
         },
         "required": [
+          "display_name",
           "phone_e164",
           "base_currency",
           "locale",
@@ -377,6 +389,19 @@
               }
             ],
             "title": "Base Currency"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
           },
           "locale": {
             "anyOf": [

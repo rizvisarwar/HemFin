@@ -243,6 +243,8 @@ export interface components {
         ProfileOut: {
             /** Base Currency */
             base_currency: string;
+            /** Display Name */
+            display_name: string | null;
             /** Locale */
             locale: string;
             /** Phone E164 */
@@ -254,6 +256,8 @@ export interface components {
         ProfilePatch: {
             /** Base Currency */
             base_currency?: string | null;
+            /** Display Name */
+            display_name?: string | null;
             /** Locale */
             locale?: string | null;
             /** Phone E164 */

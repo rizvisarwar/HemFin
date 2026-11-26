@@ -82,3 +82,12 @@ async def test_requires_auth(aclient: httpx.AsyncClient, method: str, path: str)
     r = await aclient.request(method, path, json={})
     assert r.status_code == 401
     assert r.headers["www-authenticate"] == "Bearer"
+
+
+def test_display_name_is_trimmed_bounded_and_clearable() -> None:
+    assert ProfilePatch(display_name="  Sam Example ").display_name == "Sam Example"
+    cleared = ProfilePatch.model_validate({"display_name": None})
+    assert "display_name" in cleared.model_fields_set and cleared.display_name is None
+    for bad in ("", "   ", "x" * 81):
+        with pytest.raises(ValidationError):
+            ProfilePatch(display_name=bad)

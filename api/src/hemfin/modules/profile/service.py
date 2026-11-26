@@ -44,10 +44,26 @@ async def get_profile(session: AsyncSession, user_id: UUID) -> Profile:
 async def update_profile(session: AsyncSession, user_id: UUID, patch: ProfilePatch) -> Profile:
     await get_profile(session, user_id)
     values = {name: getattr(patch, name) for name in patch.model_fields_set}
+    # The display name lives on the user row (it is also returned by GET /me).
+    if "display_name" in values:
+        await session.execute(
+            update(User).where(User.id == user_id).values(display_name=values.pop("display_name"))
+        )
+        await session.commit()
     if values:
         await session.execute(update(Profile).where(Profile.user_id == user_id).values(**values))
         await session.commit()
     return await get_profile(session, user_id)
+
+
+async def get_display_name(session: AsyncSession, user_id: UUID) -> str | None:
+    return (
+        await session.execute(
+            select(User.display_name)
+            .where(User.id == user_id)
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
 
 
 async def list_addresses(session: AsyncSession, user_id: UUID) -> list[Address]:
