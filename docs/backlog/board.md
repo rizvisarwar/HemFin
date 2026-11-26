@@ -46,8 +46,8 @@ Deferred (not planned yet): native mobile app, WhatsApp notifications, push noti
 | HEM-012 | API: households and members | Engineer | Done | #20 |
 | HEM-013 | API: invitations (PM security review) | Engineer | Done | #22 |
 | HEM-014 | Design spec: households, invitations, switcher | Designer | Done | #21 |
-| HEM-015 | Web: households, members, switcher | Engineer | In Progress | |
-| HEM-016 | Web: invitations and accept page (PM security review) | Engineer | Todo (after 013, 014, 015) | |
+| HEM-015 | Web: households, members, switcher | Engineer | Done | #23 |
+| HEM-016 | Web: invitations and accept page (PM security review) | Engineer | In Progress | |
 
 ## Follow-ups (not yet ticketed)
 - Phase 2 (space switcher with real households): the phone switcher sheet gets the SpaceBadge heading row from spec 4.2, and long household names stay readable (from the HEM-003 design review).
