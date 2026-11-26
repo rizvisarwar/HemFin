@@ -51,4 +51,25 @@ Users can sign up, confirm their email, sign in (password or Google), reset a pa
 - The branch history contains a commit named "WIP HEM-010 web auth (local only)" from before the first push; it cannot be rewritten without a force-push.
 - Local verification of real Supabase behaviour (email links, Google, PKCE across browsers) is UNVERIFIED: Docker is not available here.
 
+### 2026-11-26 Engineer (resumed, complete, PR opened)
+**PR:** see the PR for `hem-010-web-auth` (title "HEM-010: Web auth flows", base `main`).
+
+**Done**
+- Playwright, reset password on phone (WebKit): root cause was not focus management. The test filled the controlled "New password" input before React had hydrated; hydration then reset it to "", so the password was the first invalid field and correctly got focus (the log showed `focusin` on `password`). Fixed in the tests with a `gotoHydrated` helper (waits for React to attach to the form) used for every form page; the component's `useFocusFirstInvalid` is unchanged because it was correct. Real-world note: a very fast typist on a slow phone can lose text typed before hydration; acceptable for now, follow-up below.
+- Space switcher flake: the test now waits for `networkidle` (the `router.refresh()` RSC fetch) before `page.reload()`.
+- Full Playwright suite (phone, tablet, desktop) run 3 times in a row: 73 passed, 2 skipped (phone-only test skipped on other projects), 0 failed, each time.
+- `supabase/config.jsonc`: confirmations on, `/auth/callback` redirect URLs (localhost and 127.0.0.1), password policy 8 + `lower_upper_letters_digits`, Google stub (already present, disabled, `env(...)` client id and secret), four templates wired in.
+- `supabase/templates/`: `confirmation`, `recovery`, `email_change`, `invite` (reserved), each `.html` (inline CSS, table layout, 480 px max, design-system colours as hex, no images or tracking, "expires in 1 hour", fallback plain link) and `.txt`.
+- Env wiring: `web/.env.example`, root `.env.example`, `docker-compose.yml` (web service), Aspire AppHost (`supabase-url`, `supabase-anon-key` parameters, `SUPABASE_URL` for the API), README.
+- `docs/deploy.md`: Auth URL configuration, auth settings and templates, Google Cloud OAuth client, Resend SMTP with SPF/DKIM/DMARC, Vercel env vars, checklist. Unverified items marked UNVERIFIED.
+- `next dev` regression test now signs in through the mock backend and covers `/dashboard` and `/contracts` (checks the real personal space renders). `playwright.dev.config.ts` starts the mock.
+
+**Verify:** `cd web && npx playwright test` (x3), `npx playwright test -c playwright.dev.config.ts`, `npm run lint`, `npm test`, `npm run build`; `dotnet build aspire/HemFin.AppHost`; `POSTGRES_PASSWORD=x docker compose config -q`.
+
+**Known limitations and follow-ups**
+- Not verified (no Docker for `supabase start`): real email links, PKCE across browsers, Google sign-in, the template rendering in real mail clients, `content_path` resolution by the Supabase CLI, `docker compose up` for the web service. The optional `SUPABASE_E2E=1` test was not written.
+- The Google `enabled` flag cannot be driven by `env()` in the CLI config (only strings), so it is a manual flip; documented.
+- Follow-up: preserve text typed into controlled inputs before hydration (for example by reading the DOM value on submit instead of state).
+- Follow-up (Designer): review the auth screenshots in `web/test-results/screenshots/{phone,desktop}-auth-*.png`.
+
 ## Review

@@ -32,10 +32,13 @@ Environment variable names used across the system:
 | `SECRETS_DIR` | Render (optional) | no | Defaults to `/etc/secrets` (where Render mounts Secret Files). |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | Render (optional) | no | Leave unset to keep telemetry off. |
 | `NEXT_PUBLIC_API_URL` | Vercel | no | Public API base URL, no trailing slash. Visible in the browser. |
+| `NEXT_PUBLIC_SUPABASE_URL` | Vercel | no | Supabase project URL. Visible in the browser; same value as the API's `SUPABASE_URL`. |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Vercel | no | Supabase anon (publishable) key. Public by design; never the `service_role` key. |
+| `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` / `_SECRET` | local `supabase/.env` only (hosted: Supabase dashboard) | **secret** is yes | Google OAuth client for the local CLI stack. |
 | `API_BASE_URL` | GitHub Actions **variable** | no | Same API URL, used by the cron workflow. |
 | `HEMFIN_TEST_MODE` | tests only | no | **Never set this in a deployment.** It skips the startup database check, and the API refuses to start unless `APP_ENV` is `local` or `test`. |
 
-Later tickets (Auth, email) add more variables (Supabase keys, Resend key, SMTP settings). When they land, add them to this table and to the Secrets section. Anything with a secret value follows section 8.
+Later tickets (email, jobs) add more variables (Resend key, SMTP settings). When they land, add them to this table and to the Secrets section. Anything with a secret value follows section 8.
 
 ## 2. Supabase
 
@@ -44,10 +47,25 @@ Later tickets (Auth, email) add more variables (Supabase keys, Resend key, SMTP 
    - Use the **session pooler** (port 5432) rather than the transaction pooler (port 6543): the API uses SQLAlchemy with asyncpg and Alembic, and transaction-mode pooling needs prepared-statement workarounds that are not configured here. UNVERIFIED against the real pooler; if you see "prepared statement" errors, tell the team.
    - The direct connection host is IPv6-only on the free plan and Render's free network may not reach it, which is why the pooler is recommended. UNVERIFIED.
 3. This string is `DATABASE_URL`. It is a secret: it goes into Render only (section 3). Do not paste it into chat, issues, `render.yaml` or the repo.
-4. **Auth URLs** (needed once the Auth ticket lands): Authentication > URL Configuration. Set **Site URL** to your Vercel production URL and add redirect URLs for `https://<your-vercel-domain>/**` and, for local work, `http://localhost:3000/**`. Preview deployments need their own wildcard entry (for example `https://*-<team>.vercel.app/**`). UNVERIFIED; the exact pages are defined by the Auth ticket.
-5. **Email via Resend** (after section 5): Authentication > Emails > SMTP Settings. Host `smtp.resend.com`, port `465`, username `resend`, password = your Resend API key. UNVERIFIED.
-6. Project settings > API shows the project URL (`SUPABASE_URL`) and the `anon` key (public) and `service_role` key (**secret, never in the browser or in a `NEXT_PUBLIC_` variable**).
-7. The `app` schema is created by Alembic on the first API start. You do not create tables by hand.
+4. **Auth URL configuration** (Authentication > URL Configuration; UNVERIFIED label and layout, Supabase moves these pages):
+   - **Site URL**: your Vercel production URL, e.g. `https://<your-app>.vercel.app` (or your custom domain). Supabase uses it to build the links in emails.
+   - **Redirect URLs** (an allow-list; the web app's callback is `/auth/callback`, and the sign-in flows pass it as `redirectTo`): `https://<your-app>.vercel.app/auth/callback`, and for local work `http://localhost:3000/auth/callback` and `http://127.0.0.1:3000/auth/callback`. Preview deployments need their own entry, for example `https://*-<team>.vercel.app/auth/callback` (wildcard syntax UNVERIFIED). Prefer exact callback URLs over `/**`.
+   - If a redirect is not on the list, Supabase falls back to the Site URL, and the PKCE code exchange then lands on the wrong page. That is the first thing to check when "the email link goes to the home page".
+5. **Auth settings** (Authentication > Sign In / Providers and Emails; mirror `supabase/config.jsonc`, which only configures the local stack):
+   - Email provider on, **Confirm email** on.
+   - Minimum password length 8, required characters: lowercase, uppercase and digits. The web form checks the same rules (`web/src/lib/auth/password.ts`).
+   - Email OTP/link expiry 3600 seconds (1 hour): the email templates say "expires in 1 hour". If you change it, change the templates too.
+   - **Email templates** (Authentication > Emails > Templates): paste in `supabase/templates/confirmation.html` (Confirm signup), `recovery.html` (Reset password) and `email_change.html` (Change email address), and set the subjects from `supabase/config.jsonc`. `invite.html` is reserved for Phase 2. The hosted dashboard does not read `config.jsonc`, so this is manual. UNVERIFIED.
+6. **Google sign-in** (needs a Google Cloud project; UNVERIFIED, Google renames console pages):
+   1. Google Cloud console > APIs & Services > OAuth consent screen (Google Auth Platform > Branding): app name HemFin, support email, authorised domain = your Supabase project domain (`<project-ref>.supabase.co`) and your own domain. Scopes: `openid`, `email`, `profile` (non-sensitive, so no verification review). While the app is in **Testing**, only listed test users can sign in; publish it to **In production** for everyone.
+   2. Credentials > Create credentials > **OAuth client ID** > Application type **Web application**.
+      - **Authorised JavaScript origins**: your web origin, `https://<your-app>.vercel.app` (and `http://localhost:3000` for a dev client). The browser never talks to Google directly with this client, since Supabase runs the flow, but Google's form asks for it.
+      - **Authorised redirect URI**: `https://<project-ref>.supabase.co/auth/v1/callback` (the Supabase Auth callback shown on the provider page, not the web app's `/auth/callback`). For the local CLI stack it is `http://127.0.0.1:54321/auth/v1/callback`.
+   3. Copy the client ID and client secret. The **secret is a secret**: paste it only into the Supabase dashboard (Authentication > Sign In / Providers > Google) and, locally, `supabase/.env` (gitignored). Never into the repo or `NEXT_PUBLIC_` variables.
+   4. Enable the Google provider in Supabase. Locally set `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` and `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET` in `supabase/.env` and flip `auth.external.google.enabled` to `true` in `config.jsonc` (it is `false` by default because the CLI cannot make `enabled` env-driven).
+7. **Email via Resend** (after section 5): Authentication > Emails > SMTP Settings > Enable custom SMTP. Host `smtp.resend.com`, port `465`, username `resend`, password = your Resend API key, sender = an address on your verified Resend domain (for example `HemFin <no-reply@mail.<your-domain>>`). Supabase's built-in mailer is for testing only (very low hourly limit, team addresses only), so sign-up confirmation needs this before real users arrive. After enabling it, raise the Auth email rate limit (Authentication > Rate Limits) from its low default. UNVERIFIED.
+8. Project settings > API shows the project URL (`SUPABASE_URL`) and the `anon` key (public) and `service_role` key (**secret, never in the browser or in a `NEXT_PUBLIC_` variable**). The web app needs only the URL and anon key.
+9. The `app` schema is created by Alembic on the first API start. You do not create tables by hand.
 
 ## 3. Render (API)
 
@@ -80,7 +98,9 @@ The web app is `web/`, an npm workspace of the root `package.json` (workspaces `
 6. **Node version:** Project Settings > General > Node.js Version should be 22.x or newer (the repo needs `>=22.18`, see `package.json` `engines` and `.nvmrc`). Vercel also reads `engines`.
 7. **Environment variables** (Project Settings > Environment Variables, Production and Preview):
    - `NEXT_PUBLIC_API_URL` = the Render URL, e.g. `https://<your-service>.onrender.com`, no trailing slash.
-   - Later tickets add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (public by design). Never create a `NEXT_PUBLIC_` variable for a secret.
+   - `NEXT_PUBLIC_SUPABASE_URL` = `https://<project-ref>.supabase.co`, the same value as the API's `SUPABASE_URL` (the token issuer is checked against it).
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = the project's anon (publishable) key from Supabase > Project settings > API. Public by design. Never use the `service_role` key here, and never create a `NEXT_PUBLIC_` variable for a secret.
+   - Without the two Supabase variables the web app cannot sign anyone in (it throws "NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be set"). Set them for both Production and Preview.
    - `NEXT_PUBLIC_*` values are inlined at build time: change one, then redeploy.
 8. Deploy. Copy the production URL into Render's `CORS_ORIGINS` (section 3, step 6). Preview deployments use different origins; add them to `CORS_ORIGINS` only if you test the API from previews.
 
@@ -89,8 +109,13 @@ The web app is `web/`, an npm workspace of the root `package.json` (workspaces `
 ## 5. Resend
 
 1. Create an account at resend.com. Free tier at the time of writing: 3,000 emails per month, 100 per day (UNVERIFIED, check Resend's current limits).
-2. **Domains > Add Domain** if you own a domain, and add the DNS records Resend lists (SPF, DKIM). Without a verified domain Resend only lets you send test emails to your own address. UNVERIFIED current limits.
-3. **API Keys > Create API Key** with "Sending access". Copy it once. This is a secret: it is used as the Supabase SMTP password (section 2, step 5) and, in later tickets, as an API variable (the Email ticket names it). Store it per section 8.
+2. **Domains > Add Domain.** Use a sending subdomain such as `mail.<your-domain>` so mail reputation stays separate from your main domain. Resend then lists DNS records to add at your DNS host:
+   - **SPF**: a `TXT` record (on a `send` subdomain of the sending domain) with `v=spf1 include:amazonses.com ~all`, plus an `MX` record for bounce handling. Use exactly the values Resend shows.
+   - **DKIM**: a `TXT` record at `resend._domainkey.<sending-domain>` holding the public key Resend shows.
+   - Optional **DMARC**: a `TXT` record at `_dmarc.<your-domain>`, for example `v=DMARC1; p=none; rua=mailto:<your-address>` to start, tightening later.
+   - Click **Verify** and wait for the records to propagate (minutes to hours). Without a verified domain Resend only lets you send test emails to your own address.
+   - The record names and values above are the usual ones, but Resend generates them per domain: copy from its page, not from here. UNVERIFIED (no Resend account access).
+3. **API Keys > Create API Key** with "Sending access", restricted to that domain. Copy it once. This is a secret: it is the Supabase SMTP password (section 2, step 7), pasted only into the Supabase dashboard, and, in later tickets, an API variable (the Email ticket names it). Store it per section 8; never put it in the repo, `supabase/config.jsonc` (use `env(...)` if you configure SMTP locally) or a `NEXT_PUBLIC_` variable.
 
 ## 6. UptimeRobot
 
@@ -185,4 +210,7 @@ Rules that still apply: values stay in the manager, `render.yaml` stays keys-onl
 - [ ] GitHub variable `API_BASE_URL` and secret `JOB_SECRET` set (after the job endpoints exist).
 - [ ] Branch protection on `main` requires `api`, `docker`, `web`, `gitleaks`.
 - [ ] UptimeRobot monitor on `/health`.
-- [ ] Resend domain verified and wired into Supabase SMTP (when Auth ships).
+- [ ] Resend domain verified (SPF, DKIM) and wired into Supabase SMTP; a test sign-up delivers the confirmation email.
+- [ ] Supabase Auth: Site URL and redirect URLs (including `/auth/callback`) set; Confirm email on; password policy and email templates match `supabase/`.
+- [ ] Google OAuth client created (origin, Supabase callback URI), enabled in Supabase; "Continue with Google" completes on the deployed site.
+- [ ] `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` set in Vercel; API `SUPABASE_URL` is the same host.

@@ -58,6 +58,10 @@ services:
     environment:
       # Read by the browser, so it is the host-reachable API URL, not the compose-internal one.
       NEXT_PUBLIC_API_URL: http://localhost:8000
+      # Public values from `npx supabase status` (Project URL, anon key). Sign-in needs the Supabase
+      # CLI stack running on the host; this compose file only provides Postgres. UNVERIFIED (no Docker here).
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-http://127.0.0.1:54321}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
       PORT: "3000"
       WATCHPACK_POLLING: "true"
     command: sh -c "npm ci && npm run dev --workspace web -- --hostname 0.0.0.0"

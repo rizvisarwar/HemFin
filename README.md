@@ -56,12 +56,16 @@ Never commit real values. Each file below is gitignored; its `.example` is commi
 | File | Used by | Notes |
 |---|---|---|
 | `api/.env` (from `api/.env.example`) | API run directly (`uv run uvicorn ...`) | `DATABASE_URL` is a secret. `APP_ENV` defaults to `production`; the example sets `local` (needed for local-only HS256 tokens) |
-| `web/.env.local` (from `web/.env.example`) | Next.js run directly | `NEXT_PUBLIC_API_URL`; public values only |
-| `.env` (from `.env.example`) | docker compose | `POSTGRES_PASSWORD`, optional `OTEL_EXPORTER_OTLP_ENDPOINT` |
+| `web/.env.local` (from `web/.env.example`) | Next.js run directly | `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (from `npx supabase status`); public values only |
+| `.env` (from `.env.example`) | docker compose | `POSTGRES_PASSWORD`, `NEXT_PUBLIC_SUPABASE_*` for the web service, optional `OTEL_EXPORTER_OTLP_ENDPOINT` |
 | `supabase/.env` (from `supabase/.env.example`) | Supabase CLI | Only for enabling Google sign-in |
-| .NET user secrets | Aspire AppHost | `Parameters:database-url` |
+| .NET user secrets | Aspire AppHost | `Parameters:database-url` (secret), `Parameters:supabase-anon-key` (public value) |
 
-Under Aspire you don't need `api/.env` or `web/.env.local`: the AppHost sets those variables. If you run the web by hand against an API, put `NEXT_PUBLIC_API_URL=http://localhost:8000` in `web/.env.local`.
+Under Aspire you don't need `api/.env` or `web/.env.local`: the AppHost sets those variables, including `SUPABASE_URL` for the API and the two `NEXT_PUBLIC_SUPABASE_*` values for the web. Set the anon key once with `dotnet user-secrets set "Parameters:supabase-anon-key" "<anon key from supabase status>"`. If you run the web by hand against an API, put `NEXT_PUBLIC_API_URL=http://localhost:8000` and the two Supabase values in `web/.env.local`.
+
+### Trying sign-up locally
+
+With `npx supabase start` running, email confirmation is on: sign up at http://localhost:3000/sign-up, then open the local mail catcher at http://127.0.0.1:54324, and click the confirmation link (it returns to `/auth/callback`). The branded email templates are in `supabase/templates/` and are wired in by `supabase/config.jsonc`. Use `localhost` or `127.0.0.1` consistently in the browser, because the session cookie is per host. UNVERIFIED end to end (needs Docker).
 
 ### Supabase config
 
