@@ -236,6 +236,7 @@ The space switcher is the most important control in the shell. It is always visi
 **Behaviour**
 - Selecting a space changes the accent line, the trigger fill and the badges immediately.
 - The current page stays the same. The user is not sent back to the dashboard.
+- **Exception (HEM-014, PM decision):** on a household page (`/household/[spaceId]/...`), the page is bound to the household in its URL. Choosing a different space opens that space's dashboard (`/`), so a household's pages never show another space's name in the badge. Choosing the same space keeps the page. See `households.md` D21.
 - While the new space's data loads, page content shows skeletons. It never shows the previous space's numbers under the new space's badge.
 - The active space is kept in a cookie (for example `hemfin-space`) so server components render the right space first time. PM decision: the active space is stored in the `hemfin-space` cookie.
 

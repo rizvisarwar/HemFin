@@ -33,4 +33,13 @@ A written spec in `docs/design/households.md` (and any needed presentational com
 **Open for the PM (section 13):** repeat accept after success (idempotent or generic 404), previous owner's role after transfer (spec assumes admin), member and admin record permissions, delete cascade contents, and the exception that switching space on a household page opens the dashboard.
 **Not done:** the Alert primitive (none exists; `FormMessage` is used), the `FormMessage` move to `ui/` (for HEM-015), and any screenshots (no screens built yet).
 
+### 2026-11-26 Designer, PM decisions applied (docs/design/households.md section 13)
+1. Repeat accept: the API returns the generic 404 for a used token. After a successful accept the page clears the token, stores a tab-only marker (id and name, no token), navigates to the household and toasts "You joined {household}." A reload of `/invite` in that tab shows the joined state from the marker, never the generic message (6.8 K, D19).
+2. Previous owner becomes admin after a transfer (matches HEM-012). Transfer dialog says so.
+3. Record permissions: every member, any role, reads and writes shared records. Admins and owner also manage members, invitations and the name. Only the owner deletes the household or transfers ownership. Role copy and wireframes updated (section 4, D18, 8.2).
+4. Delete cascade: the household and all shared data are deleted permanently. Copy says "all shared data" with no record types (6.7, 8.2, D20).
+5. Household-page switch exception approved and applied to `docs/design/app-shell.md` section 4.2 (D21).
+6. `FormMessage` move to `components/ui/` is for HEM-015 (D22). Not done in this ticket.
+**Verify:** docs only in this update, so no code changed. `npm run lint && npm run build` from the first handoff still apply.
+
 ## Review

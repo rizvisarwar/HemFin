@@ -37,12 +37,17 @@ These decisions are made here so that HEM-015 and HEM-016 can start. Items that 
 | D9 | Logged-out users see a generic invitation banner, not "You were invited to [household]". | The preview needs a signed-in user, so the household name is not known yet. This replaces the banner example in `app-shell.md` section 7 (rules) for this flow only. |
 | D10 | Declining an invitation asks for confirmation. | Declining is final for that link, and the inviter has to send a new one. |
 | D11 | Destructive actions use an alert dialog with the action's name on the button. Delete household also needs the household name typed. | `design-system.md` 7.1, and the ticket's typed-name rule. |
-| D12 | Selecting another space while on a household page opens that space's dashboard. | A household page is bound to the household in its URL. Staying on it would show another space's name on a page of this household. This is an exception to `app-shell.md` 4.2, see section 13. |
+| D12 | Selecting another space while on a household page opens that space's dashboard. | A household page is bound to the household in its URL. Staying on it would show another space's name on a page of this household. This is an exception to `app-shell.md` 4.2, approved by the PM (D21). |
 | D13 | The switcher's phone sheet has a heading row with the active space's `SpaceBadge` (label: the household name, per `app-shell.md` 4.3). | Ticket HEM-014 asks for it. Using the name keeps it matching the top bar. |
 | D14 | The switcher footer has two links: "Manage households" (`/household`) and "Create a household" (`/household/new`). | The current single footer link cannot reach the list. |
 | D15 | The Households list has no space badge. It shows the personal space as a reference card that is not a link. | The page spans spaces. The personal card explains why personal records are not listed. |
 | D16 | Empty-state titles have at most four words. The `app-shell.md` section 6 example "Share your finances with family" is kept as it is (four words). | `design-system.md` section 7 (EmptyState) and `app-shell.md` section 6. |
 | D17 | Role badges and invitation status chips are new presentational components (`RoleBadge`, `StatusChip`) in `web/src/components/ui/status-chip.tsx`. | No existing component covers them, and the colours must come from the `-subtle` tokens. |
+| D18 | Record permissions (PM decision): every member, of any role, can read and write shared records. Admins and the owner also manage members, invitations and the name. Only the owner deletes the household or transfers ownership. Role copy says only this. | Section 4 is the table. |
+| D19 | Repeat accept (PM decision): the API returns the generic 404 for a used token. After a successful accept the page clears the token, shows the joined state once, and navigates to the household (section 6.8). A reload of `/invite` in that tab shows the joined state from a marker, not the generic message. | Avoids a failure message after a successful join. |
+| D20 | Delete cascade wording (PM decision): deleting permanently removes the household and all shared data. The copy says "all shared data" and lists no record types, because finance records arrive in Phase 3. | PM decision. |
+| D21 | Switching space on a household page opens that space's dashboard. Approved by the PM and applied to `app-shell.md` section 4.2 in this ticket. | Replaces the open question. |
+| D22 | `FormMessage` moves from `components/auth/form-parts.tsx` to `components/ui/` in HEM-015, not in this ticket. | PM decision. |
 
 ---
 
@@ -96,6 +101,7 @@ The API is the authority. The UI hides an action when the viewer's role cannot u
 | Action | Owner | Admin | Member |
 |---|---|---|---|
 | See the members list and their emails | yes | yes | yes |
+| Read and write shared records (PM decision, D18) | yes | yes | yes |
 | Rename the household | yes | yes | no. The name is read-only, with a note. |
 | See the Invitations section | yes | yes | no (redirect, D4) |
 | Invite a member (email and role) | yes | yes | no |
@@ -434,7 +440,8 @@ After a failed submit, focus moves to the name field. Errors are announced polit
 | | They need to use this address to      | |  hint
 | | accept.                               | |
 | | Role                                  | |
-| | (o) Member   Sees the shared records. | |  radio group, 44 px rows
+| | (o) Member   Reads and writes shared  | |  radio group, 44 px rows
+| |              records.                 | |
 | | ( ) Admin    Can invite and remove    | |
 | |              members.                 | |
 | | [ Send invitation                  ]  | |  full width
@@ -535,14 +542,17 @@ All three use `ResponsiveDialog`: a centred dialog from md, a bottom sheet on ph
 Phone 375                              Desktop 1280
 +-------------------------------+      +--------------------------------+
 |        ---                    |      | Change role for Jordan Kim  x  |
-| Change role for Jordan Kim    |      | Admins can invite people and   |
-| Admins can invite people and  |      | remove members.                |
+| Change role for Jordan Kim    |      | Invite, remove members and     |
+| Invite, remove members and    |      | rename. Read and write shared  |
+| rename. Read and write shared |      | records.                       |
 | remove members.               |      |                                |
 | (o) Admin                     |      | (o) Admin                      |
-|     Can invite people and     |      |     Can invite people and      |
-|     remove members.           |      |     remove members.            |
+|     Invite, remove members,   |      |     Invite, remove members,    |
+|     rename. Read and write   |      |     rename. Read and write    |
+|     shared records.           |      |     shared records.            |
 | ( ) Member                    |      | ( ) Member                     |
-|     Sees the shared records.  |      |     Sees the shared records.   |
+|     Reads and writes shared   |      |     Reads and writes shared    |
+|     records.                  |      |     records.                   |
 |                               |      |                                |
 | Only one owner. To hand over  |      | Only one owner. To hand over   |
 | the household, transfer       |      | the household, transfer        |
@@ -554,7 +564,7 @@ Phone 375                              Desktop 1280
 +-------------------------------+
 ```
 
-- Title: "Change role for {name}". Description: "Admins can invite people and remove members." (the description reflects the current choice).
+- Title: "Change role for {name}". Description: the text for the currently selected role (section 8.2, "Role: Admin" or "Role: Member").
 - The "Transfer ownership" block appears only for an owner viewing a non-owner row. Its button opens the transfer alert.
 - The radio group starts on the current role. "Save role" is disabled until the role changes.
 - Initial focus: the selected radio.
@@ -637,10 +647,9 @@ Resend has no confirmation. It is not destructive, and the old link stops workin
 | +---------------------------------------+ |
 | +=======================================+ |  destructive border (danger zone)
 | | Delete household                      | |
-| | This removes the household, its       | |
-| | shared records, members and pending   | |
-| | invitations for everyone. It cannot   | |
-| | be undone.                            | |
+| | This permanently deletes the household| |
+| | and all shared data, for everyone.    | |
+| | It cannot be undone.                  | |
 | | [ Delete household                 ]  | |  destructive
 | +=======================================+ |
 +-------------------------------------------+
@@ -669,6 +678,7 @@ Resend has no confirmation. It is not destructive, and the old link stops workin
 - Body: "You lose access to this household's shared records. Your personal space is not affected. An owner or admin can invite you again."
 - Buttons: "Leave household" (destructive), "Cancel" (focused first).
 - On success: navigates to `/household` and shows the list with the message "You left {name}." The active space falls back to the personal space if this household was selected.
+- Owners do not open this dialog: their card shows the disabled button instead (section 6.7, owner and leave).
 
 **Delete dialog** (`alertdialog`, typed name, D11)
 
@@ -676,11 +686,10 @@ Resend has no confirmation. It is not destructive, and the old link stops workin
 Phone 375                              Desktop 1280
 +-------------------------------+      +--------------------------------+
 |        ---                    |      | Delete The Lee family?      x  |
-| Delete The Lee family?        |      | This removes the household for |
-| This removes the household    |      | everyone: its shared records,  |
-| for everyone: its shared      |      | members and pending            |
-| records, members and pending  |      | invitations. It cannot be      |
-| invitations. It cannot be     |      | undone.                        |
+| Delete The Lee family?        |      | This permanently deletes the   |
+| This permanently deletes the  |      | household and all shared data, |
+| household and all shared data,|      | for everyone. It cannot be     |
+| for everyone. It cannot be    |      | undone.                        |
 | undone.                       |      |                                |
 | Type The Lee family to confirm|      | Type The Lee family to confirm |
 | [                          ]  |      | [                          ]   |
@@ -775,7 +784,7 @@ Settings has no empty state: a household always has a name and an owner.
 
 **E. Accepting (busy).** "Joining…" on the accept button, keeps its width. Decline disabled. `aria-busy` on the card.
 
-**F. Accepted (success).**
+**F. Joined (shown from the marker only, see K).** The page normally navigates away after a success, so this state appears only on a reopened `/invite` in the same tab.
 
 ```
 +-------------------------------------------+
@@ -814,9 +823,16 @@ Settings has no empty state: a household always has a name and an owner.
 
 **I. Could not reach HemFin (server or network).** This is not about the invitation, so it can give the reason. h1 "We could not check your invitation". Text "We could not reach HemFin. Check your connection and try again." Button "Try again" (44 px). For a 5xx, the text is "HemFin is having trouble right now. Try again in a few minutes."
 
-**J. Session ended during the flow (401).** Redirect to sign-in with the token kept, with the banner "Sign in again to continue." (The invitation banner from `auth-flows.md` is not used here, D9.)
+**J. Session ended during the flow (401).** Redirect to sign-in with the token kept, with the banner "Sign in again to continue." (The invitation banner example in `app-shell.md` section 7 is not used here, D9.)
 
-**K. Already accepted (refresh after accept).** If `sessionStorage` shows this invitation as accepted in this tab, the page shows state F again without calling the API. Otherwise the API decides (section 13, question 2).
+**K. After a successful accept (PM decision, D19).** The API returns the generic 404 for a used token, so the page never calls accept twice and never shows state H after a success. Sequence:
+
+1. Accept succeeds. The page clears the token from memory and `sessionStorage` at once.
+2. The page stores a marker in `sessionStorage` for this tab only: the household's id and name, and no token. Its only use is state F below.
+3. The page navigates (replace, not push) to `/household/[spaceId]/members`, which is now the selected space. A toast says "You joined {household}."
+4. If `/invite` is reopened in the same tab with no token, and the marker is present, the page shows state F from the marker without calling the API. The marker is removed when the user leaves the accept flow with "Go to dashboard" or "View members".
+
+If there is no marker and no token, the page shows state H. The page never shows state H for a reload after a success.
 
 **Accept and decline buttons on phone.** Both are full width and 44 px tall. Accept is first in the reading order.
 
@@ -964,8 +980,8 @@ Used for any `/household/[spaceId]/*` route where the API returns 404, whether t
 | Members email note | "Email addresses are shown to members of this household only." |
 | Invite explanation | "They get an email with a link. It works only for the address you enter and expires after 7 days." |
 | Invite hint | "They need to use this address to accept." |
-| Role: Admin | "Can invite people and remove members." |
-| Role: Member | "Sees the shared records." |
+| Role: Admin | "Can invite people, remove members and rename the household. Reads and writes shared records." |
+| Role: Member | "Reads and writes shared records." |
 | Settings rename hint | "Shown to everyone in the household." |
 | Settings read-only name | "Only owners and admins can rename the household." |
 | Owner leave text | "You are the owner. Transfer ownership to another member before you leave." |
@@ -977,7 +993,7 @@ Used for any `/household/[spaceId]/*` route where the API returns 404, whether t
 | Accept, reach error | "We could not reach HemFin. Check your connection and try again." |
 | Joined | "You joined {household}." / "{household} is now your selected space." |
 | Declined | "Invitation declined." / "You did not join {household}." |
-| Delete warning | "This removes the household for everyone: its shared records, members and pending invitations. It cannot be undone." |
+| Delete warning | "This permanently deletes the household and all shared data, for everyone. Members lose access straight away. It cannot be undone." |
 | Leave warning | "You lose access to this household's shared records. Your personal space is not affected. An owner or admin can invite you again." |
 | Remove warning | "{name} loses access to the shared records of {household}. They keep their personal space. An owner or admin can invite them again." |
 | Transfer warning | "{name} becomes the only owner. They can rename or delete the household and change roles. You become an admin." |
@@ -1052,6 +1068,8 @@ Use the checklist in `app-shell.md` section 9 and add:
 - [ ] Members: phone cards, md+ table. Role and remove buttons follow section 4 for owner, admin and member (test each).
 - [ ] Invitations hidden for members, and their URL redirects to Members.
 - [ ] The accept page shows the generic message for an expired, revoked, used, unknown or mismatched invitation, with the same text and the same styling. No state names the reason.
+- [ ] After a successful accept, the page clears the token, navigates to the household, and a reload of `/invite` in that tab shows the joined state, not the generic message (6.8 K).
+- [ ] Role copy matches section 4 and D18 (members and admins read and write shared records; only the owner deletes or transfers).
 - [ ] The decline and revoke dialogs focus Cancel first. The delete dialog focuses the name input and disables the button until the name matches.
 - [ ] The switcher heading row shows the active space's badge, and the footer has two links.
 - [ ] Each status chip and role badge has text and an icon, and passes the contrast table in 5.3 in both themes.
@@ -1059,29 +1077,29 @@ Use the checklist in `app-shell.md` section 9 and add:
 
 ---
 
-## 13. Open questions for the PM and the API
+## 13. Decisions and open items
 
-These need an answer before the matching ticket is built. The spec's default is in brackets.
+The PM answered the open questions on 2026-11-26. Each answer is applied in the sections named.
 
-1. **Mismatch and invalid look the same (D7).** The API returns the same 404 for an email mismatch and for an invalid token. The spec shows one message for both. Is that the intended trade-off? [Yes. The API is the authority, and the spec does not add a separate mismatch state.]
-2. **Repeat accept by the same user.** After a successful accept, a refresh or a second accept can return the generic 404 (used token). [The API returns success again for the same signed-in member, so the page shows the joined state (6.8 K). If the API cannot do this, the page shows the generic message after a refresh.]
-3. **Preview before sign-in.** Showing the household name to signed-out users would need an unauthenticated preview, which HEM-013 does not provide. [No. The logged-out banner is generic (D9).]
-4. **Previous owner's role after a transfer.** HEM-012 does not say. [The previous owner becomes an admin. The transfer dialog says so.]
-5. **What members can do with shared records.** HEM-012 covers household roles, not record permissions. The copy "Sees the shared records" and "Can invite people and remove members" is accurate only if members can see shared records and admins have no record rights beyond invitations and removals. [Confirm before HEM-015 ships the role descriptions.]
-6. **Delete cascade.** The delete warning says "its shared records, members and pending invitations". HEM-012 says cascade rules are tested but does not list them. [Confirm the list, and whether contracts, expenses and documents in the household are removed.]
-7. **Switching space on a household page (D12).** This changes `app-shell.md` 4.2 ("the user is not sent back to the dashboard"), for household pages only. [Approve, or keep the page and show the household from the URL in the badge.]
-8. **Create makes the household active (D5).** [Yes.]
-9. **Accept and decline for an already-declined or revoked invitation.** Does the API return the generic 404? [Yes, which gives the generic state.]
-10. **`FormMessage` location.** Move it from `components/auth/form-parts.tsx` to `components/ui/` in HEM-015 (it is presentational). [Yes.]
-11. **Alert component.** The design system lists an Alert, and `ui/` has none. [Use `FormMessage` for now. Add an Alert in a later design-system change if the same pattern repeats.]
-12. **Section switching on the household page.** Section links are routes, not ARIA tabs (D2). [Confirm. ARIA tabs would need in-page panels and no URLs.]
+| # | Question | Decision | Applied in |
+|---|---|---|---|
+| 1 | Mismatch and invalid look the same (D7). | Yes. The API is the authority. One generic message. | 6.8 H |
+| 2 | Repeat accept after success. | The API returns the generic 404 for a used token. After a successful accept, the page clears the token and navigates to the household. It must not claim failure on reload. | 6.8 K, D19 |
+| 3 | Preview before sign-in. | No. Logged-out users see the generic banner (D9). | 6.8 B, D9 |
+| 4 | Previous owner's role after a transfer. | Becomes admin, matching HEM-012. | 6.5 transfer dialog |
+| 5 | Record permissions. | Every member, any role, reads and writes shared records. Admins and the owner also manage members, invitations and the name. Only the owner deletes the household or transfers ownership. | section 4, D18, section 8.2 role copy |
+| 6 | Delete cascade. | The household and all shared data are deleted permanently. Copy says "all shared data" and lists no record types, because finance records arrive in Phase 3. | 6.7, section 8.2, D20 |
+| 7 | Switching space on a household page. | Approved. Household pages open that space's dashboard. Applied to `app-shell.md` 4.2 in this ticket. | D21, 6.9 |
+| 8 | Create makes the household active. | Yes. | D5 |
+| 9 | Accept or decline of a declined or revoked invitation. | Generic 404, so the generic state. | 6.8 H |
+| 10 | `FormMessage` location. | Approved. Moved to `components/ui/` in HEM-015, not in this ticket. | D22 |
+| 11 | Alert component. | Not decided here. Use `FormMessage` until a repeated pattern needs an Alert. | 5.1 |
+| 12 | Section links instead of ARIA tabs. | Section links (D2). | 3.1 |
 
 ---
 
 ## 14. Changes to other specs
 
-Only these, and each is a pending decision in section 13:
-
-- `app-shell.md` 4.2: household pages keep their page on a space switch (D12), so they open that space's dashboard instead. Question 7.
-- `app-shell.md` 7 (rules): the invitation banner example ("You were invited to [household name]") is not used on the accept flow (D9).
-- `app-shell.md` 4.2 (footer): the switcher footer has two links (D14).
+- `app-shell.md` 4.2 (behaviour): on a household page, choosing another space opens that space's dashboard (D21). Applied in this ticket.
+- `app-shell.md` 4.2 (footer): the switcher footer has two links, "Manage households" and "Create a household" (D14). HEM-015 applies this to the component.
+- `app-shell.md` 7 (rules): the invitation banner example is not used on the accept flow (D9).
