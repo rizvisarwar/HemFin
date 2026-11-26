@@ -201,7 +201,7 @@ Rules:
 ### 5.2 Action labels and accessible names
 | Visible | Accessible name |
 |---|---|
-| Set as default | Set {name} as default |
+| Set as default | Set as default: {name} (WCAG 2.5.3: the visible label leads the accessible name) |
 | Edit | Edit {name} |
 | Delete | Delete {name} |
 
