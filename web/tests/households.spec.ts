@@ -363,18 +363,18 @@ test.describe("members", () => {
     await expect(page).toHaveURL(new RegExp(`/household/${ids[0]}/members$`));
   });
 
-  test("owners and admins reach the invitations placeholder; no invitation flow exists yet", async ({ page, context }, info) => {
+  test("owners and admins reach the invitations section from the invite prompt", async ({ page, context }, info) => {
     const { ids } = await setup(context, info, [{ name: LEE, role: "owner" }]);
     await page.goto(`/household/${ids[0]}/members`);
     // Only the owner is in the household: the invite prompt links to the Invitations section (HEM-016).
     await page.getByRole("button", { name: "Invite a member" }).click();
     await expect(page).toHaveURL(new RegExp(`/household/${ids[0]}/invitations$`));
-    await expect(page.getByTestId("invitations-placeholder")).toContainText("Invitations are coming soon");
+    await expect(page.getByRole("heading", { level: 2, name: "Invite someone" })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Household sections" }).getByRole("link", { name: "Invitations" })).toHaveAttribute(
       "aria-current",
       "page",
     );
-    await expect(page.locator("main form")).toHaveCount(0);
+    await expect(page.locator("main form")).toHaveCount(1); // the invite form
   });
 
   test("a refusal from the API shows its message in the dialog and keeps it open", async ({ page, context }, info) => {

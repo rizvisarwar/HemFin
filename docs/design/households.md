@@ -530,11 +530,12 @@ After a failed submit, focus moves to the name field. Errors are announced polit
 | Already a member (409) | Field error under the email field. | "This person is already a member of the household." |
 | Already invited (409, pending exists) | Field error under the email field. | "There is already a pending invitation for this address. Resend it or revoke it below." |
 | Email not set up (503) | `FormMessage` kind error above the form. | "Invitations are not available right now. Try again later." |
+| Saved, email not sent (503 `email_not_sent`, create or resend) | `FormMessage` kind info (calm, not red) above the form on create, inside the row on resend. The invitation exists: its row shows with Resend available. Agreed in HEM-016 (N11). | "We saved the invitation but couldn't send the email. Try Resend in a moment." |
 | No permission (403, role changed) | `FormMessage` kind error above the form. The page reloads its role-based view on the next navigation. | "You no longer have permission to invite people." |
 | Network error | `FormMessage` kind error above the form. | "We could not reach the server. Check your connection and try again." |
 | Resend busy | Row button "Sending…", others in the row disabled. | "Sending…" |
 | Resent | Row `FormMessage` kind success (inside the row, `role="status"`). Expiry date updates. | "Invitation resent. The old link no longer works." |
-| Resend rate limited (429) | Row `FormMessage` kind error. | "You can resend this invitation up to 3 times a day. Try again tomorrow." |
+| Resend rate limited (429) | Row message. The API's `Retry-After` decides the copy (HEM-016): under an hour is the 60 second cooldown, shown as a live countdown that ends by itself, with Resend held off meanwhile; longer is the daily cap, shown as text. | Cooldown: "You can resend this invitation again in 42 seconds." Daily cap: "You can resend this invitation up to 3 times a day. Try again in about 5 hours." |
 | Revoked | Row leaves "Pending" and shows "Revoked". Focus moves to the list heading. Status message. | "Invitation revoked." |
 | Load more (busy) | "Loading…" on the button. | "Loading…" |
 
@@ -844,14 +845,16 @@ Settings has no empty state: a household always has a name and an owner.
 | This invitation link is no longer valid.  |  text-lead
 | Ask the person who invited you to send    |
 | a new one.                                |
-| If you were invited at another address,   |
-| sign out, then sign in with that address. |  path forward (text-body)
+| If you were invited at a different email  |
+| address, sign out, then sign in with that |  path forward (text-body), signed in
+| address.                                  |  (signed out: "...address, sign in with that address.")
 | [ Sign out                            ]   |  outline (only when signed in)
 | [ Go to dashboard                     ]   |  primary (only when signed in)
 +-------------------------------------------+
 ```
 
-- Use this exact text for every case. Do not add a reason or a hint about which check failed. The 404 from the API is treated as this state.
+- Use this exact text for every case. Do not add a reason or a hint about which check failed. The 404 from the API is treated as this state. Every invitee-side 4xx except 401 and 429 maps to H (`classify` in `lib/invitations/classify.ts`, unit-tested for every status class). 401 is J. 429 and 5xx are I: rate limiting is transient, so "try again" is the right message.
+- A `?token=` query is never produced by the API (the link uses the fragment). If someone put the token in a query string by hand, it would reach the server and Vercel request logs before the page could remove it. The page ignores such a token, shows H, and removes the query string, but it cannot un-log the request.
 - Logged-out users never see this state, because the preview is not called until sign-in. A missing token skips the API call and shows this state.
 
 **I. Could not reach HemFin (server or network).** This is not about the invitation, so it can give the reason. h1 "We could not check your invitation". Text "We could not reach HemFin. Check your connection and try again." Button "Try again" (44 px). For a 5xx, the text is "HemFin is having trouble right now. Try again in a few minutes."
@@ -1038,7 +1041,7 @@ Used for any `/household/[spaceId]/*` route where the API returns 404, whether t
 | Accept, signed in | "{Inviter} invited you. Once you join, you see what the household shares. Your personal records stay private." |
 | Accept, reassurance | "Only you can see personal records. Household members see only what the household shares." |
 | Accept, signed in as | "Signed in as {email}. Not you? Sign out." |
-| Accept, generic (D7) | Title "This invitation can't be used". "This invitation link is no longer valid. Ask the person who invited you to send a new one. If you were invited at another address, sign out, then sign in with that address." |
+| Accept, generic (D7) | Title "This invitation can't be used". "This invitation link is no longer valid. Ask the person who invited you to send a new one. " Then, signed in: "If you were invited at a different email address, sign out, then sign in with that address." Signed out (no sign-out step, the only button is "Sign in"): "If you were invited at a different email address, sign in with that address." The sentence is conditional and shown for every failure, so it says nothing about this one (PM decision, HEM-016 review). |
 | Accept, reach error | "We could not reach HemFin. Check your connection and try again." |
 | Joined | "You joined {household}." / "{household} is now your selected space." |
 | Declined | "Invitation declined." / "You did not join {household}." |

@@ -7,6 +7,8 @@ export interface AuthLayoutProps {
   description?: string;
   banner?: string; // for example an invitation notice
   brandPanel?: boolean; // true on desktop only, split layout
+  titleRef?: React.Ref<HTMLHeadingElement>; // lets a page move focus to the h1 when its state changes
+  titleIcon?: React.ReactNode; // decorative icon before the title (for example a success check)
 }
 
 const POINTS = [
@@ -15,7 +17,15 @@ const POINTS = [
   "Shared household view, by invite",
 ];
 
-export function AuthLayout({ children, title, description, banner, brandPanel = true }: AuthLayoutProps) {
+export function AuthLayout({
+  children,
+  title,
+  description,
+  banner,
+  brandPanel = true,
+  titleRef,
+  titleIcon,
+}: AuthLayoutProps) {
   return (
     <div className="flex min-h-dvh flex-col xl:flex-row">
       {brandPanel ? (
@@ -43,7 +53,14 @@ export function AuthLayout({ children, title, description, banner, brandPanel = 
             {banner ? (
               <p className="mb-4 rounded-md bg-accent px-3 py-2 text-small text-accent-foreground">{banner}</p>
             ) : null}
-            <h1 className="text-h1 text-balance">{title}</h1>
+            <h1
+              ref={titleRef}
+              tabIndex={titleRef ? -1 : undefined}
+              className={`text-h1 text-balance [overflow-wrap:anywhere]${titleRef ? " rounded-sm focus:outline-2 focus:outline-offset-4 focus:outline-ring" : ""}${titleIcon ? " flex items-start gap-2" : ""}`}
+            >
+              {titleIcon}
+              <span>{title}</span>
+            </h1>
             {description ? <p className="mt-2 text-lead text-pretty text-muted-foreground">{description}</p> : null}
             <div className="mt-6">{children}</div>
           </div>

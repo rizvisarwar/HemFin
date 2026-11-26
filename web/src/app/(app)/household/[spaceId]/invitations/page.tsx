@@ -2,9 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
-import { Mail } from "lucide-react";
-import { EmptyState } from "@/components/ui/empty-state";
-import { HemCard } from "@/components/ui/hem-card";
+import { InvitationsView } from "@/components/invitations/invitations-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchSpace } from "@/lib/api-server";
 import { canInvite } from "@/lib/households/households";
@@ -18,19 +16,8 @@ async function InvitationsContent({ params }: { params: Promise<{ spaceId: strin
   if (lookup.status !== "ok" || lookup.space.type !== "household") return null; // the layout shows the not-found or error state
   // Members cannot invite (the API would answer 403), so they are sent to Members (D4).
   if (!canInvite(lookup.space.role)) redirect(`/household/${spaceId}/members`);
-  // HEM-016 builds the invite form, the invitation list, resend and revoke here. Until then this is a
-  // placeholder with no invitation behaviour.
-  return (
-    <HemCard data-testid="invitations-placeholder">
-      <EmptyState
-        variant="inline"
-        icon={Mail}
-        titleAs="h2"
-        title="Invitations are coming soon"
-        description="You will be able to invite a partner or family member by email from this page."
-      />
-    </HemCard>
-  );
+  // The form shows at once; the list reads its first page in the browser, so its own loading state shows.
+  return <InvitationsView spaceId={spaceId} />;
 }
 
 export default function InvitationsPage({ params }: { params: Promise<{ spaceId: string }> }) {

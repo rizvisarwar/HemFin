@@ -37,6 +37,14 @@ def test_500_has_request_id_and_cors(client: TestClient) -> None:
     assert r.json()["request_id"] == "rid-1"
 
 
+def test_cors_exposes_retry_after_to_the_browser(client: TestClient) -> None:
+    # The web app reads Retry-After from a 429 (invitation resend) to show a countdown; a browser
+    # hides any response header that is not listed here.
+    r = client.get("/health", headers={"Origin": "http://localhost:3000"})
+    exposed = {h.strip().lower() for h in r.headers["access-control-expose-headers"].split(",")}
+    assert {"x-request-id", "retry-after"} <= exposed
+
+
 def test_404_is_problem_json(client: TestClient) -> None:
     r = client.get("/nope")
     assert r.status_code == 404

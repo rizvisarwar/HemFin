@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { Mail } from "lucide-react";
 import { useFormat } from "@/components/format-provider";
 import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ResponsiveList } from "@/components/ui/responsive-list";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { FormMessage } from "@/components/ui/form-message";
 import { HemCard } from "@/components/ui/hem-card";
@@ -124,84 +126,82 @@ export function MembersView({
         </FormMessage>
       </div>
 
-      {/* Phone: one card per member. */}
-      <ul className="mt-4 space-y-3 md:hidden" aria-label="Members">
-        {sorted.map((m) => {
+      {/* Phone: one card per member. Tablet and desktop: a table ("Joined" appears from xl). Both are
+          the shared components in ui/, fed the same rows. */}
+      <ResponsiveList
+        className="mt-4"
+        label="Members"
+        rows={sorted}
+        getRowKey={(m) => m.user_id}
+        cardTestId="member-card"
+        renderCard={(m) => {
           const name = displayName(m);
           const actions = rowActions(m);
           return (
-            <li key={m.user_id}>
-              <HemCard data-testid="member-card">
-                <div className="flex items-start gap-3">
-                  <Avatar member={m} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="min-w-0 break-words text-body-strong">{name}</span>
-                      <RoleBadge role={m.role} />
-                    </div>
-                    {name !== m.email ? <p className="text-small text-muted-foreground [overflow-wrap:anywhere]">{m.email}</p> : null}
-                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-small text-muted-foreground">
-                      <span>Joined {date(m.joined_at)}</span>
-                      {m.user_id === viewerId ? <YouTag /> : null}
-                    </p>
+            <>
+              <div className="flex items-start gap-3">
+                <Avatar member={m} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="min-w-0 break-words text-body-strong">{name}</span>
+                    <RoleBadge role={m.role} />
                   </div>
+                  {name !== m.email ? <p className="text-small text-muted-foreground [overflow-wrap:anywhere]">{m.email}</p> : null}
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-small text-muted-foreground">
+                    <span>Joined {date(m.joined_at)}</span>
+                    {m.user_id === viewerId ? <YouTag /> : null}
+                  </p>
                 </div>
-                {actions ? <div className="mt-3 flex gap-2 [&>*]:flex-1">{actions}</div> : null}
-              </HemCard>
-            </li>
+              </div>
+              {actions ? <div className="mt-3 flex gap-2 [&>*]:flex-1">{actions}</div> : null}
+            </>
           );
-        })}
-      </ul>
-
-      {/* Tablet and desktop: a table. "Joined" appears from xl. */}
-      <div className="mt-4 hidden overflow-hidden rounded-lg border border-border bg-card md:block">
-        <table className="w-full text-left">
-          <thead className="border-b border-border text-small text-muted-foreground">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Member
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Role
-              </th>
-              <th scope="col" className="hidden px-4 py-3 text-right font-medium xl:table-cell">
-                Joined
-              </th>
-              <th scope="col" className="px-4 py-3 text-right font-medium">
-                <span className="sr-only">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {sorted.map((m) => {
+        }}
+      />
+      <DataTable
+        className="mt-4"
+        label="Members"
+        rows={sorted}
+        getRowKey={(m) => m.user_id}
+        rowTestId="member-row"
+        columns={[
+          {
+            id: "member",
+            header: "Member",
+            cell: (m) => {
               const name = displayName(m);
               return (
-                <tr key={m.user_id} data-testid="member-row">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <Avatar member={m} />
-                      <div className="min-w-0">
-                        <p className="flex flex-wrap items-center gap-2 text-body-strong">
-                          <span className="break-words">{name}</span>
-                          {m.user_id === viewerId ? <YouTag /> : null}
-                        </p>
-                        {name !== m.email ? <p className="text-small text-muted-foreground [overflow-wrap:anywhere]">{m.email}</p> : null}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <RoleBadge role={m.role} />
-                  </td>
-                  <td className="hidden whitespace-nowrap px-4 py-3 text-right text-small text-muted-foreground xl:table-cell">{date(m.joined_at)}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-2">{rowActions(m)}</div>
-                  </td>
-                </tr>
+                <div className="flex items-center gap-3">
+                  <Avatar member={m} />
+                  <div className="min-w-0">
+                    <p className="flex flex-wrap items-center gap-2 text-body-strong">
+                      <span className="break-words">{name}</span>
+                      {m.user_id === viewerId ? <YouTag /> : null}
+                    </p>
+                    {name !== m.email ? <p className="text-small text-muted-foreground [overflow-wrap:anywhere]">{m.email}</p> : null}
+                  </div>
+                </div>
               );
-            })}
-          </tbody>
-        </table>
-      </div>
+            },
+          },
+          { id: "role", header: "Role", cell: (m) => <RoleBadge role={m.role} /> },
+          {
+            id: "joined",
+            header: "Joined",
+            from: "xl",
+            align: "right",
+            className: "whitespace-nowrap text-small text-muted-foreground",
+            cell: (m) => date(m.joined_at),
+          },
+          {
+            id: "actions",
+            header: "Actions",
+            srOnlyHeader: true,
+            align: "right",
+            cell: (m) => <div className="flex justify-end gap-2">{rowActions(m)}</div>,
+          },
+        ]}
+      />
 
       {members.length === 1 ? (
         <HemCard className="mt-4" data-testid="only-owner">

@@ -6,3 +6,9 @@
 # False positive: a dummy value typed into a form by a Playwright test,
 # introduced in the HEM-010 round 1 commit and renamed in the next. Exact fingerprint only.
 7d891c1a1aee5023ebb1b5bd2cbce1a2f5883850:web/tests/auth.spec.ts:generic-api-key:69
+# False positives: made-up token-shaped values in HEM-016 tests (not real credentials). The first was
+# introduced in the HEM-016 UI commit, the other two in the HEM-016 test commit; all were replaced by
+# values built at run time in the next commit. Exact fingerprints only.
+ced9d3c8778becf62f0a812c59bb4189fbc99b86:web/src/lib/invitations/token.test.ts:generic-api-key:13
+b78eec40e8bf5677fade63b80f497ce1709edd0d:web/tests-dev/dev-errors.spec.ts:generic-api-key:12
+b78eec40e8bf5677fade63b80f497ce1709edd0d:web/tests-dev/dev-errors.spec.ts:generic-api-key:63

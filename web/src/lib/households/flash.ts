@@ -4,7 +4,9 @@
  * another user), and is wiped on sign-out by `clearHemfinSession`. Everything is wrapped because
  * storage can be blocked. Nothing here is ever put in a URL or a cookie.
  */
-const PREFIX = "hemfin-";
+/** Every HemFin sessionStorage key starts with this, so sign-out can remove them all. */
+export const SESSION_PREFIX = "hemfin-";
+const PREFIX = SESSION_PREFIX;
 const flashKey = (userId: string) => `${PREFIX}flash:${userId}`;
 const namesKey = (userId: string) => `${PREFIX}space-names:${userId}`;
 
@@ -49,13 +51,17 @@ export function recallSpaceName(userId: string, id: string): string | null {
   }
 }
 
-/** Removes every HemFin key from this tab's sessionStorage (household names, flash, joined marker). Call on sign-out. */
-export function clearHemfinSession(): void {
+/**
+ * Removes every HemFin key from this tab's sessionStorage (household names, flash, joined marker,
+ * invitation token, pending sign-up email). Call on sign-out. `keep` lists keys to leave alone; only
+ * the "Sign out" button on /invite uses it, to keep the invitation token (lib/invitations/token.ts).
+ */
+export function clearHemfinSession(keep: readonly string[] = []): void {
   try {
     const keys: string[] = [];
     for (let i = 0; i < window.sessionStorage.length; i++) {
       const key = window.sessionStorage.key(i);
-      if (key?.startsWith(PREFIX)) keys.push(key);
+      if (key?.startsWith(PREFIX) && !keep.includes(key)) keys.push(key);
     }
     for (const key of keys) window.sessionStorage.removeItem(key);
   } catch {

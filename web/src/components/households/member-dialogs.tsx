@@ -10,7 +10,7 @@ import { displayName, problemDetail } from "@/lib/households/households";
 const SAVE_FAILED = "We could not save that change. Refresh the page and try again.";
 const NETWORK_FAILED = "We could not save that change. Check your connection and try again.";
 
-const ROLE_COPY: Record<"admin" | "member", { label: string; help: string }> = {
+export const ROLE_COPY: Record<"admin" | "member", { label: string; help: string }> = {
   admin: { label: "Admin", help: "Can invite people, remove members and rename the household. Reads and writes shared records." },
   member: { label: "Member", help: "Reads and writes shared records." },
 };

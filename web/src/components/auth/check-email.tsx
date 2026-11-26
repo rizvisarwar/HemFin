@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { sanitizeNext } from "@/lib/auth/next-path";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { CHECK_EMAIL_MESSAGE, GENERIC_ERROR, mapAuthError } from "@/lib/auth/errors";
@@ -15,6 +16,13 @@ import { FormMessage } from "@/components/ui/form-message";
 const noopSubscribe = () => () => {};
 
 export function CheckEmail() {
+  // Where the sign-up was heading (for example /invite). Read from the address in the browser (not
+  // useSearchParams) so the page stays server-rendered and works as before without JavaScript.
+  const next = React.useSyncExternalStore(
+    noopSubscribe,
+    () => new URLSearchParams(window.location.search).get("next"),
+    () => null,
+  );
   // sessionStorage exists only in the browser: the server snapshot is null (shown after hydration).
   const raw = React.useSyncExternalStore(noopSubscribe, readPendingRaw, () => null);
   const ready = raw !== null;
@@ -47,7 +55,10 @@ export function CheckEmail() {
       const { error } = await createClient().auth.resend({
         type: "signup",
         email: target,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        // The same `next` the sign-up had (sanitised), so a new invitee who resends still comes back to /invite.
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(sanitizeNext(next))}` : ""}`,
+        },
       });
       const mapped = error ? mapAuthError(error, "resend") : null;
       if (mapped && !mapped.treatAsSuccess) {
@@ -101,7 +112,7 @@ export function CheckEmail() {
       </form>
       <p className="text-center text-body text-muted-foreground">
         Wrong address?{" "}
-        <Link href="/sign-up" className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline">
+        <Link href={next ? `/sign-up?next=${encodeURIComponent(sanitizeNext(next))}` : "/sign-up"} className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline">
           Start again
         </Link>
       </p>

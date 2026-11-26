@@ -11,7 +11,7 @@ import { clearHemfinSession } from "@/lib/households/flash";
  */
 export function SignOutForm({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <form action={signOut} onSubmit={clearHemfinSession} className={className}>
+    <form action={signOut} onSubmit={() => clearHemfinSession()} className={className}>
       {children}
     </form>
   );

@@ -7,6 +7,9 @@ export type AddressResponse = components["schemas"]["AddressOut"];
 export type SpaceListItem = components["schemas"]["SpaceListItem"];
 export type SpaceDetail = components["schemas"]["SpaceOut"];
 export type MemberResponse = components["schemas"]["MemberOut"];
+export type InvitationResponse = components["schemas"]["InvitationOut"];
+export type InvitationPreview = components["schemas"]["InvitationPreview"];
+export type InvitationAccepted = components["schemas"]["InvitationAccepted"];
 export type Role = components["schemas"]["Role"];
 
 /**
