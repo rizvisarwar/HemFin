@@ -6,6 +6,7 @@
 Admins send and manage invitations; invitees accept or decline through the web app, including when they are logged out or new.
 
 ## Acceptance criteria
+- [ ] Prerequisite (from the HEM-015 design review): build the shared `DataTable` and `ResponsiveList` components in `web/src/components/ui/` (spec `households.md` 5.1), use them for the invitations table, and move the HEM-015 members table onto them.
 - [ ] Invite form, pending list, resend and revoke, per the spec.
 - [ ] `/invite` reads the token from the URL **fragment**, immediately moves it into `sessionStorage` (or memory) and clears the fragment from the address bar; it is never put in a query string, a log, a `Referer`, or analytics. Page sets `Referrer-Policy: no-referrer`.
 - [ ] Logged out: the user chooses sign in or sign up and, after auth (including email verification and the PKCE callback), returns to `/invite` with the token kept. Sign up pre-fills nothing from the token.
