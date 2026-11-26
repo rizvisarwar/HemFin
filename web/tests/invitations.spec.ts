@@ -20,7 +20,8 @@ const LEE = "The Lee family";
 const INVITER = "Jordan Kim";
 const GENERIC_TITLE = "This invitation can't be used";
 const GENERIC_BODY = "This invitation link is no longer valid. Ask the person who invited you to send a new one.";
-const GENERIC_PATH = "If you were invited at another address, sign out, then sign in with that address.";
+const GENERIC_PATH = "If you were invited at a different email address, sign out, then sign in with that address.";
+const GENERIC_PATH_SIGNED_OUT = "If you were invited at a different email address, sign in with that address.";
 const TOKEN_KEY = "hemfin-invite-token";
 
 async function expectNoHorizontalScroll(page: Page) {
@@ -181,17 +182,33 @@ test.describe("invitations: admin", () => {
     await page.goto(invitationsUrl(spaceId));
     const row = rowFor(page, invitee.email);
     const resend = row.getByRole("button", { name: /^Resend/ });
+    // The row's polite live region is in the DOM, empty, before anything happens.
+    const live = row.getByTestId("row-live");
+    await expect(live).toHaveAttribute("aria-live", "polite");
+    await expect(live).toHaveText("");
     await resend.click();
     const wait = row.getByTestId("resend-wait");
     await expect(wait).toContainText(/You can resend this invitation again in \d+ seconds?\./);
     await expect(resend).toHaveAttribute("aria-disabled", "true");
+    // The held-off button points at the visible reason.
+    const reasonId = await resend.getAttribute("aria-describedby");
+    expect(reasonId).toBeTruthy();
+    await expect(wait).toHaveAttribute("id", reasonId!);
+    // Announced once, when the wait starts, and not again on each tick.
+    await expect(live).toHaveText(/^You can resend in \d+ seconds?\.$/);
+    const announced = await live.innerText();
     await resend.dispatchEvent("click"); // does nothing while the countdown runs
     await expect(wait).toBeVisible();
-    // The countdown ends by itself and Resend works again.
+    await page.waitForTimeout(2200);
+    expect(await live.innerText()).toBe(announced);
+    // The countdown ends by itself, is announced once, and Resend works again.
     await expect(wait).toHaveCount(0, { timeout: 25_000 });
+    await expect(live).toHaveText("You can resend now.");
     await expect(resend).not.toHaveAttribute("aria-disabled", "true");
+    await expect(resend).not.toHaveAttribute("aria-describedby", /.+/);
     await resend.click();
     await expect(row).toContainText("Invitation resent. The old link no longer works.");
+    await expect(live).toHaveText("Invitation resent. The old link no longer works.");
   });
 
   test("resend at the daily cap says so in words", async ({ page, context }, info) => {
@@ -203,6 +220,10 @@ test.describe("invitations: admin", () => {
     await row.getByRole("button", { name: /^Resend/ }).click();
     await expect(row).toContainText(/You can resend this invitation up to 3 times a day\. Try again in about \d+ hours?\./);
     await expect(row.getByTestId("resend-wait")).toHaveCount(0);
+    // The daily-cap text is announced in the row's live region, and the held-off Resend points at it.
+    await expect(row.getByTestId("row-live")).toHaveText(/up to 3 times a day/);
+    const id = await row.getByRole("button", { name: /^Resend/ }).getAttribute("aria-describedby");
+    await expect(row.getByTestId("row-message")).toHaveAttribute("id", id!);
   });
 
   test("revoke asks first, focuses Cancel, then shows Revoked with no actions", async ({ page, context }, info) => {
@@ -244,7 +265,7 @@ test.describe("invitations: admin", () => {
       await expect(row.getByRole("button")).toHaveCount(status === "pending" || status === "expired" ? 2 : 0);
     }
     // Newest first: the last one seeded is on top.
-    await expect(visible(page.getByTestId("invitation-email")).first()).toHaveText(emails[4]);
+    await expect(visible(page.getByTestId(/^invitation-email-(list|table)$/)).first()).toHaveText(emails[4]);
     await expectNoHorizontalScroll(page);
     await expectAllTapTargets(page.getByRole("main"));
   });
@@ -253,7 +274,7 @@ test.describe("invitations: admin", () => {
     const { spaceId } = await setupAdmin(context, info);
     for (let i = 0; i < 23; i++) await seedInvitation({ space_id: spaceId, email: `p${String(i).padStart(2, "0")}.${cast(info).admin.email}` });
     await page.goto(invitationsUrl(spaceId));
-    const emails = visible(page.getByTestId("invitation-email"));
+    const emails = visible(page.getByTestId(/^invitation-email-(list|table)$/));
     await expect(emails).toHaveCount(20);
     const more = page.getByTestId("show-more");
     await more.click();
@@ -322,6 +343,28 @@ test.describe("invitations: admin", () => {
   test("members table (moved onto DataTable) still renders as cards on phone and a table from md", async ({ page, context }, info) => {
     const { spaceId } = await setupAdmin(context, info, { members: [{ ...cast(info).sam, role: "member" }] });
     await page.goto(`/household/${spaceId}/members`);
+    // Once hydrated, the row actions are enabled (they are only dimmed before that) and their text is readable.
+    const change = page.getByRole("button", { name: /^Change role for/ }).filter({ visible: true }).first();
+    await expect(change).toBeEnabled();
+    const ratio = await change.evaluate((el) => {
+      // A canvas turns any CSS colour (including oklch) into sRGB pixels.
+      const lum = (css: string) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 1;
+        const ctx = canvas.getContext("2d")!;
+        ctx.fillStyle = css;
+        ctx.fillRect(0, 0, 1, 1);
+        const [r, g, b] = [...ctx.getImageData(0, 0, 1, 1).data].slice(0, 3).map((v) => {
+          const c = v / 255;
+          return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      };
+      const s = getComputedStyle(el);
+      const [a, b] = [lum(s.color), lum(s.backgroundColor)].sort((x, y) => y - x);
+      return (a + 0.05) / (b + 0.05);
+    });
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
     const phone = info.project.name === "phone";
     await expect(page.getByRole("table", { name: "Members" })).toBeVisible({ visible: !phone });
     await expect(page.getByRole("list", { name: "Members" })).toBeVisible({ visible: phone });
@@ -557,6 +600,16 @@ test.describe("accept page", () => {
     await expect(page.getByRole("heading", { level: 1, name: `Join ${LEE}` })).toBeVisible();
   });
 
+  test("signed out with no token: the conditional sentence matches the only action, Sign in", async ({ page, context }) => {
+    await context.clearCookies();
+    await page.goto("/invite");
+    await expect(page.getByRole("heading", { level: 1, name: GENERIC_TITLE })).toBeVisible();
+    await expect(page.getByTestId("invite-generic")).toContainText(GENERIC_PATH_SIGNED_OUT);
+    await expect(page.getByRole("main")).not.toContainText("sign out");
+    await expect(page.getByTestId("invite-sign-out")).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Sign in", exact: true })).toBeVisible();
+  });
+
   test("opening another invitation link in the same tab takes the new token", async ({ page, context }, info) => {
     const { invitee } = cast(info);
     const { spaceId } = await setupAdmin(context, info);
@@ -589,7 +642,11 @@ test.describe("accept page", () => {
 
     await page.getByTestId("invite-decline").click();
     await page.getByTestId("invite-confirm-decline").click();
-    await expect(page.getByRole("heading", { level: 1, name: "Invitation declined" })).toBeFocused();
+    const declined = page.getByRole("heading", { level: 1, name: "Invitation declined" });
+    await expect(declined).toBeFocused();
+    // The focused heading shows the focus ring (it is not outline: none).
+    expect(await declined.evaluate((h) => getComputedStyle(h).outlineStyle)).not.toBe("none");
+    expect(await declined.evaluate((h) => parseFloat(getComputedStyle(h).outlineWidth))).toBeGreaterThan(0);
     await expect(page.getByRole("main")).toContainText(`You did not join ${LEE}.`);
     expect((await storage(page))[TOKEN_KEY]).toBeUndefined();
     expect((await storedInvitations(spaceId))[0].status).toBe("declined");

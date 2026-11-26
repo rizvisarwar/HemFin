@@ -9,6 +9,9 @@ import { failLists, invitationMode, seed, seedHouseholds, seedInvitation, signIn
 const LEE = "The Lee family";
 
 async function snap(page: Page, info: TestInfo, name: string, opts: { view?: boolean } = {}) {
+  // Buttons are disabled until the page has hydrated, and look dimmed: wait for that to pass (a few
+  // buttons stay disabled on purpose, for example Decline while accepting, so the wait is bounded).
+  await page.waitForFunction(() => document.querySelectorAll("button:disabled").length === 0, null, { timeout: 3000 }).catch(() => {});
   for (const scheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme: scheme });
     if (scheme === "dark") await expect(page.locator("html")).toHaveClass(/dark/);
@@ -103,7 +106,7 @@ test.describe("invitations screens (admin)", () => {
     await page.locator("#invite-email").fill(sam);
     await page.getByTestId("send-invitation").click();
     await expect(page.locator("#invite-notice")).toContainText("We saved the invitation but couldn't send the email.");
-    await expect(page.getByTestId("invitation-email").filter({ visible: true })).toHaveText(sam);
+    await expect(page.getByTestId(/^invitation-email-(list|table)$/).filter({ visible: true })).toHaveText(sam);
     await snap(page, info, "invitations-503-email-not-sent");
 
     await invitationMode(admin, { email_mode: "unconfigured" });

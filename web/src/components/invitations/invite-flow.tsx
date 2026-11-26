@@ -454,7 +454,12 @@ export function InviteFlow() {
         This invitation can&apos;t be used.
       </p>
       <div className="space-y-4" data-testid="invite-generic">
-        <p className="text-body">If you were invited at another address, sign out, then sign in with that address.</p>
+        {/* Shown for every failure, so it says nothing about this one. */}
+        <p className="text-body">
+          {view.signedIn
+            ? "If you were invited at a different email address, sign out, then sign in with that address."
+            : "If you were invited at a different email address, sign in with that address."}
+        </p>
         {view.signedIn ? (
           <div className="flex flex-col gap-3">
             <form method="post" onSubmit={signOutHere}>

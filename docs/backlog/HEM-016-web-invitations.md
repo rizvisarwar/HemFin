@@ -39,3 +39,13 @@ CI follow-up: gitleaks flagged three made-up token-shaped test values; they were
 - The `Button render={<Link/>}` pattern gives role=button; the accept page uses real links with `buttonVariants` instead.
 
 ## Review
+
+### 2026-11-26, Engineer: design review round 1 (PR comment 7204725194)
+1. Per-row polite live region (`RowLive`, always in the DOM) announces the wait once at its start ("You can resend in N seconds."), once at its end ("You can resend now."), and each resend success or failure. The visible countdown is a plain paragraph, not a live region.
+2. Held-off Resend has `aria-describedby` pointing at the visible wait text (ids carry the list/table layout). Playwright asserts the live region, the once-only announcement, the describedby target, and the daily-cap case.
+3. State H: "If you were invited at a different email address, sign out, then sign in with that address." when signed in; "...sign in with that address." when signed out (no sign-out text, only "Sign in"). `households.md` 6.8 H and 8.2 updated. Tested.
+4. The countdown and daily-cap text use the warning tokens, not error red.
+5. Email cells have `invitation-email-list` and `invitation-email-table` test ids; tests updated.
+6. Members phone buttons were only dimmed because the screenshot was taken before hydration (disabled until hydrated). Screenshots now wait for that; Playwright asserts Change role is enabled and its text contrast is at least 4.5:1.
+7. The accept-page h1 shows a focus outline when focused programmatically (tested), instead of `outline-none`.
+Known limitation (unchanged): confirming email for a new account in another tab loses the token (sessionStorage is per tab); the user clicks the email link again.

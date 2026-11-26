@@ -55,6 +55,8 @@ interface Notice {
 interface RowState {
   busy?: "resend" | "revoke";
   message?: Notice;
+  /** What the row's polite live region says (see `RowLive`). */
+  announce?: string;
   /** Set by a 429: when it arrived and what the wait is. */
   limit?: { at: number; limit: ResendLimit };
 }
@@ -235,20 +237,24 @@ export function InvitationsView({ spaceId }: { spaceId: string }) {
       if (response.ok && data) {
         setItems((all) => all.map((i) => (i.id === data.id ? data : i)));
         setLoadedAt(nowMs());
-        setRow(inv.id, { message: { kind: "success", text: "Invitation resent. The old link no longer works." } });
+        const text = "Invitation resent. The old link no longer works.";
+        setRow(inv.id, { message: { kind: "success", text }, announce: text });
       } else if (response.status === 429) {
         const wait = resendLimit(parseRetryAfter(response.headers.get("Retry-After")));
         setRow(inv.id, {
           limit: { at: nowMs(), limit: wait },
           message: wait.kind === "text" ? { kind: "error", text: wait.text } : undefined,
+          // Once, when the wait starts; the end is announced by `onLimitEnd`.
+          announce: wait.kind === "text" ? wait.text : `You can resend in ${waitLabel(wait.seconds)}.`,
         });
       } else {
-        setRow(inv.id, { message: refusal(response.status, error) });
+        const notice = refusal(response.status, error);
+        setRow(inv.id, { message: notice, announce: notice.text });
         // Gone or not found: the list is out of date. email_not_sent: the row's dates changed.
         if (response.status === 409 || response.status === 404 || problemCode(error) === "email_not_sent") void reload();
       }
     } catch {
-      setRow(inv.id, { message: { kind: "error", text: NETWORK_MESSAGE } });
+      setRow(inv.id, { message: { kind: "error", text: NETWORK_MESSAGE }, announce: NETWORK_MESSAGE });
     }
   }
 
@@ -277,7 +283,10 @@ export function InvitationsView({ spaceId }: { spaceId: string }) {
 
   const statusOf = (inv: InvitationResponse) => displayStatus(inv, loadedAt);
 
-  function actions(inv: InvitationResponse) {
+  // The card list and the table are both in the DOM (CSS shows one), so ids carry the layout.
+  const messageId = (inv: InvitationResponse, layout: "list" | "table") => `row-message-${layout}-${inv.id}`;
+
+  function actions(inv: InvitationResponse, layout: "list" | "table") {
     const status = statusOf(inv);
     if (!isActionable(status)) return null;
     return (
@@ -285,16 +294,17 @@ export function InvitationsView({ spaceId }: { spaceId: string }) {
         inv={inv}
         state={rows[inv.id]}
         enabled={hydrated}
+        messageId={messageId(inv, layout)}
         onResend={() => resend(inv)}
         onRevoke={() => openRevoke(inv)}
-        onLimitEnd={() => setRow(inv.id, null)}
+        onLimitEnd={() => setRow(inv.id, { announce: "You can resend now." })}
       />
     );
   }
 
-  const message = (inv: InvitationResponse) => {
+  const message = (inv: InvitationResponse, layout: "list" | "table") => {
     const state = rows[inv.id];
-    return state?.message || state?.limit ? <RowMessage state={state} /> : null;
+    return state?.message || state?.limit ? <RowMessage state={state} id={messageId(inv, layout)} /> : null;
   };
 
   return (
@@ -430,11 +440,12 @@ export function InvitationsView({ spaceId }: { spaceId: string }) {
               cardTestId="invitation-card"
               renderCard={(inv) => {
                 const status = statusOf(inv);
-                const acts = actions(inv);
-                const note = message(inv);
+                const acts = actions(inv, "list");
+                const note = message(inv, "list");
                 return (
                   <>
-                    <p className="text-body-strong [overflow-wrap:anywhere]" data-testid="invitation-email">
+                    <RowLive text={rows[inv.id]?.announce} />
+                    <p className="text-body-strong [overflow-wrap:anywhere]" data-testid="invitation-email-list">
                       {inv.email}
                     </p>
                     <p className="mt-0.5 text-small text-muted-foreground">
@@ -455,14 +466,15 @@ export function InvitationsView({ spaceId }: { spaceId: string }) {
               rows={items}
               getRowKey={(inv) => inv.id}
               rowTestId="invitation-row"
-              rowFooter={(inv) => message(inv)}
+              rowFooter={(inv) => message(inv, "table")}
               columns={[
                 {
                   id: "email",
                   header: "Email",
                   cell: (inv) => (
                     <div className="min-w-0">
-                      <p className="text-body-strong [overflow-wrap:anywhere]" data-testid="invitation-email">
+                      <RowLive text={rows[inv.id]?.announce} />
+                      <p className="text-body-strong [overflow-wrap:anywhere]" data-testid="invitation-email-table">
                         {inv.email}
                       </p>
                       {/* Role and date sit under the address at every width: beside the form at 1280 px the
@@ -480,7 +492,7 @@ export function InvitationsView({ spaceId }: { spaceId: string }) {
                   header: "Actions",
                   srOnlyHeader: true,
                   align: "right",
-                  cell: (inv) => <div className="flex justify-end gap-2">{actions(inv)}</div>,
+                  cell: (inv) => <div className="flex justify-end gap-2">{actions(inv, "table")}</div>,
                 },
               ]}
             />
@@ -529,6 +541,7 @@ function RowActions({
   inv,
   state,
   enabled,
+  messageId,
   onResend,
   onRevoke,
   onLimitEnd,
@@ -536,6 +549,8 @@ function RowActions({
   inv: InvitationResponse;
   state?: RowState;
   enabled: boolean;
+  /** The id of the row's visible message, which says why Resend is held off. */
+  messageId: string;
   onResend: () => void;
   onRevoke: () => void;
   onLimitEnd: () => void;
@@ -551,6 +566,7 @@ function RowActions({
         disabled={!enabled || busy === "revoke"}
         // aria-disabled (not disabled) keeps focus on the button while it is busy or waiting.
         aria-disabled={busy === "resend" || waiting || undefined}
+        aria-describedby={waiting || state?.limit ? messageId : undefined}
         aria-busy={busy === "resend" || undefined}
         aria-label={`Resend invitation to ${inv.email}`}
         onClick={() => {
@@ -596,18 +612,46 @@ function useWait(state: RowState | undefined, onEnd?: () => void): number {
   return countdown ? remaining : 0;
 }
 
-/** The row's own message: a success, an error, or the live resend countdown. */
-function RowMessage({ state }: { state: RowState }) {
+const TONE: Record<Kind, string> = {
+  success: "bg-success-subtle text-success",
+  error: "bg-destructive-subtle text-destructive",
+  info: "bg-accent text-accent-foreground",
+};
+
+/**
+ * The row's visible message: a success, an error, or the resend countdown. It is not a live region
+ * itself (the countdown would be read out every second); `RowLive` announces each outcome once.
+ */
+function RowMessage({ state, id }: { state: RowState; id: string }) {
   const remaining = useWait(state);
   if (state.limit?.limit.kind === "countdown" && remaining > 0) {
+    // A wait is advice, not a failure: warning colours, not error red.
     return (
-      <p className="rounded-md bg-destructive-subtle px-3 py-2 text-small text-destructive" data-testid="resend-wait">
+      <p id={id} className="rounded-md bg-warning-subtle px-3 py-2 text-small text-warning" data-testid="resend-wait">
         You can resend this invitation again in {waitLabel(remaining)}.
       </p>
     );
   }
   if (!state.message) return null;
-  return <FormMessage kind={state.message.kind}>{state.message.text}</FormMessage>;
+  const tone = state.limit ? "bg-warning-subtle text-warning" : TONE[state.message.kind];
+  return (
+    <p id={id} className={`rounded-md px-3 py-2 text-small ${tone}`} data-testid="row-message">
+      {state.message.text}
+    </p>
+  );
+}
+
+/**
+ * The row's polite live region. It is in the DOM from the first render (a region added together with
+ * its text is often not announced) and its text changes once per outcome: a resend result, the start
+ * of a wait, and the end of it. Never on every tick of the countdown.
+ */
+function RowLive({ text }: { text?: string }) {
+  return (
+    <p className="sr-only" role="status" aria-live="polite" data-testid="row-live">
+      {text}
+    </p>
+  );
 }
 
 /** Revoke a pending invitation (alert dialog: focus starts on Cancel). */

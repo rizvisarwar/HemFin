@@ -845,8 +845,9 @@ Settings has no empty state: a household always has a name and an owner.
 | This invitation link is no longer valid.  |  text-lead
 | Ask the person who invited you to send    |
 | a new one.                                |
-| If you were invited at another address,   |
-| sign out, then sign in with that address. |  path forward (text-body)
+| If you were invited at a different email  |
+| address, sign out, then sign in with that |  path forward (text-body), signed in
+| address.                                  |  (signed out: "...address, sign in with that address.")
 | [ Sign out                            ]   |  outline (only when signed in)
 | [ Go to dashboard                     ]   |  primary (only when signed in)
 +-------------------------------------------+
@@ -1039,7 +1040,7 @@ Used for any `/household/[spaceId]/*` route where the API returns 404, whether t
 | Accept, signed in | "{Inviter} invited you. Once you join, you see what the household shares. Your personal records stay private." |
 | Accept, reassurance | "Only you can see personal records. Household members see only what the household shares." |
 | Accept, signed in as | "Signed in as {email}. Not you? Sign out." |
-| Accept, generic (D7) | Title "This invitation can't be used". "This invitation link is no longer valid. Ask the person who invited you to send a new one. If you were invited at another address, sign out, then sign in with that address." |
+| Accept, generic (D7) | Title "This invitation can't be used". "This invitation link is no longer valid. Ask the person who invited you to send a new one. " Then, signed in: "If you were invited at a different email address, sign out, then sign in with that address." Signed out (no sign-out step, the only button is "Sign in"): "If you were invited at a different email address, sign in with that address." The sentence is conditional and shown for every failure, so it says nothing about this one (PM decision, HEM-016 review). |
 | Accept, reach error | "We could not reach HemFin. Check your connection and try again." |
 | Joined | "You joined {household}." / "{household} is now your selected space." |
 | Declined | "Invitation declined." / "You did not join {household}." |

@@ -56,7 +56,7 @@ export function AuthLayout({
             <h1
               ref={titleRef}
               tabIndex={titleRef ? -1 : undefined}
-              className={`text-h1 text-balance [overflow-wrap:anywhere]${titleRef ? " outline-none" : ""}${titleIcon ? " flex items-start gap-2" : ""}`}
+              className={`text-h1 text-balance [overflow-wrap:anywhere]${titleRef ? " rounded-sm focus:outline-2 focus:outline-offset-4 focus:outline-ring" : ""}${titleIcon ? " flex items-start gap-2" : ""}`}
             >
               {titleIcon}
               <span>{title}</span>
