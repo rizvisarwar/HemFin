@@ -66,8 +66,8 @@ test.describe("before JavaScript is ready", () => {
   // reach the URL (history, logs, referrers). Forms post, and the submit button is disabled until
   // hydration. requestSubmit() bypasses the disabled button, which is the worst case.
   const PAGES = ["/sign-in", "/sign-up", "/forgot-password", "/reset-password", "/check-email"];
-  const SECRET_PASSWORD = "Leak-Passw0rd-9";
-  const SECRET_EMAIL = "leak-check@example.test";
+  const TYPED_PASSWORD = "typed-value-for-leak-check";
+  const TYPED_EMAIL = "leak-check@example.test";
 
   for (const path of PAGES) {
     test(`${path}: a submit without JavaScript puts no form value in the URL`, async ({ page, context }) => {
@@ -85,16 +85,16 @@ test.describe("before JavaScript is ready", () => {
       await expect(form.locator('button[type="submit"]')).toBeDisabled();
       for (const input of await form.locator("input").all()) {
         const type = await input.getAttribute("type");
-        await input.fill(type === "password" ? SECRET_PASSWORD : SECRET_EMAIL);
+        await input.fill(type === "password" ? TYPED_PASSWORD : TYPED_EMAIL);
       }
       await form.evaluate((f) => (f as HTMLFormElement).requestSubmit());
       await page.waitForLoadState("load");
       await page.waitForTimeout(500);
       const url = page.url();
       expect(new URL(url).search, `${path} ended at ${url}`).toBe("");
-      expect(url).not.toContain(SECRET_PASSWORD);
+      expect(url).not.toContain(TYPED_PASSWORD);
       expect(url).not.toContain("leak-check");
-      expect(decodeURIComponent(url)).not.toContain(SECRET_EMAIL);
+      expect(decodeURIComponent(url)).not.toContain(TYPED_EMAIL);
     });
   }
 
