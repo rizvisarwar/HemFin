@@ -187,10 +187,9 @@ test.describe("household screens", () => {
     await page.goto(`/household/${ids[3]}/members`);
     await expect(page.getByTestId("only-owner")).toBeVisible();
     await snap(page, info, "members-only-owner");
-    // Invitations placeholder (HEM-016 builds the real section).
+    // The invitations section is built by HEM-016 (see invitations-screens.spec.ts); here it only has to open.
     await page.goto(`/household/${ids[3]}/invitations`);
-    await expect(page.getByTestId("invitations-placeholder")).toBeVisible();
-    await snap(page, info, "invitations-placeholder");
+    await expect(page.getByRole("heading", { level: 2, name: "Invite someone" })).toBeVisible();
   });
 
   test("members: error", async ({ page, context }, info) => {

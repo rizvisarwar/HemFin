@@ -81,6 +81,49 @@ export function storedSpace(spaceId: string) {
   return post<StoredSpace>("/__test/space", { space_id: spaceId });
 }
 
+export interface SeedInvitation {
+  space_id: string;
+  email: string;
+  role?: "admin" | "member";
+  status?: "pending" | "expired" | "accepted" | "declined" | "revoked";
+  /** The household member who sent it (default: the owner). */
+  inviter_email?: string;
+  /** Resends already used in the last 24 hours (3 means the daily cap is reached). */
+  resend_count?: number;
+  /** How long ago the last email went out (default an hour, so Resend works at once). */
+  last_sent_seconds_ago?: number;
+}
+
+/** Creates an invitation in the mock API. Returns its id and the raw token the email link carries. */
+export function seedInvitation(data: SeedInvitation) {
+  return post<{ id: string; token: string }>("/__test/invitation", data);
+}
+
+export interface StoredInvitation {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+}
+
+/** A household's invitations as the mock API stores them (no tokens), newest first. */
+export function storedInvitations(spaceId: string) {
+  return post<StoredInvitation[]>("/__test/invitations", { space_id: spaceId });
+}
+
+/** How the next invitation calls behave for a user (see the mock's /__test/invitation-mode). */
+export function invitationMode(
+  who: { email: string },
+  mode: { email_mode?: "ok" | "not_sent" | "unconfigured"; fail_invitee?: 401 | 500 | null; fail_invitations_list?: boolean },
+) {
+  return post<void>("/__test/invitation-mode", { email: who.email, ...mode });
+}
+
+/** Requests the mock saw with this token in the URL or a header (it must be none: the body only). */
+export function tokenLeaks(token: string) {
+  return post<{ method: string; path: string }[]>("/__test/leaks", { token });
+}
+
 /** The mock's user id for an email (the same id the token and the members list use). */
 export async function userIdFor(who: { email: string }): Promise<string> {
   const res = await post<{ sub: string }>("/__test/token", { email: who.email });

@@ -20,4 +20,21 @@ Admins send and manage invitations; invitees accept or decline through the web a
 
 ## Handoff log
 
+### 2026-11-26, Engineer (Sonnet 5.5)
+**Done.** Branch `hem-016-web-invitations`. PR: see the PR for the URL.
+- Shared `DataTable` and `ResponsiveList` in `web/src/components/ui/`; the invitations list and the HEM-015 members table both use them.
+- Admin side: `components/invitations/invitations-view.tsx` (invite form, list with status chips, resend with a live `Retry-After` countdown, revoke dialog, Show more). 409 `already_member` / `already_invited`, 429, 503 `email_not_sent` (row appears, Resend available) and 503 unconfigured are mapped to spec copy. The `email_not_sent` copy is now in `households.md` 6.4.
+- `/invite`: `components/invitations/invite-flow.tsx`. Token from the fragment only, moved to sessionStorage, fragment stripped with `history.replaceState`; `Referrer-Policy: no-referrer` and `Cache-Control: no-store` for `/invite` in `next.config.ts`. States A to K. Joined marker is keyed by user id; sign-out clears it.
+- Small API change: CORS now exposes `Retry-After` (browsers hide it otherwise, so the countdown could not work against the real API). Test added in `api/tests/test_api.py`.
+- Mock backend has the invitation endpoints and test helpers; Playwright specs `invitations.spec.ts` and `invitations-screens.spec.ts`; dev regression extended.
+
+**Verify.** `cd web && npm run lint && npm test && npm run build && npx playwright test` (twice), `npx playwright test -c playwright.dev.config.ts`. Screenshots: `web/test-results/screenshots/hem016/<phone|tablet|desktop>/`.
+
+**Limitations and follow-ups.**
+- Email confirmation for a brand-new user usually opens in another tab, where sessionStorage is empty, so the invitee lands on the generic state and has to click the email link again (it still works until accepted). Keeping the token across tabs would need localStorage, which the spec rules out; PM decision if wanted.
+- "Sign out" on `/invite` keeps the invitation token (and stays on the page) so a wrong-account user can sign in with the right address; every other sign-out clears everything. The token is useless to anyone except the invited address.
+- Deviations from the spec: the md+ table has Email (role and date under it), Status and Actions at all widths (no separate Role/Date columns at 1280 px, the table is too narrow beside the form); the checking state shows a real h1 "Checking your invitation" instead of a skeleton title.
+- API tests (`uv`) could not be run in this environment; CI covers them.
+- The `Button render={<Link/>}` pattern gives role=button; the accept page uses real links with `buttonVariants` instead.
+
 ## Review
