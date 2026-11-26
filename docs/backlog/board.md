@@ -6,8 +6,8 @@ Full scope of each phase: `docs/PROJECT_PLAN.md`, section 4.
 | # | Phase | Status |
 |---|---|---|
 | 0 | Foundations & team setup | **Done** (HEM-001 to HEM-007). The first real deploy is waiting for the user's Supabase, Render and Vercel accounts (`docs/deploy.md`). |
-| 1 | Auth & Profile | **In progress**: the Engineer (Sonnet 5.5) is implementing HEM-008 to HEM-011 (API auth and spaces, API profile, web auth, web profile) |
-| 2 | Households & Invitations | Not started |
+| 1 | Auth & Profile | **Done** (HEM-008 to HEM-011; PRs #15, #17, #18, #19). Waiting for the user's demo and approval of Phase 2. |
+| 2 | Households & Invitations | Waiting for user approval |
 | 3 | Core Finance | Not started |
 | 4 | Documents | Not started |
 | 5 | Notifications | Not started |
@@ -51,3 +51,6 @@ Deferred (not planned yet): native mobile app, WhatsApp notifications, push noti
 - Test gap (from the HEM-009 review): `_is_default_conflict` in the profile service has no test for the path where a different IntegrityError is re-raised, and its string fallback could be stricter.
 - Auth polish (from the HEM-010 design and code reviews): the cooldown label on the aria-disabled button is shown at 60% opacity (low contrast); the recovery email repeats "you can ignore this email"; `email_change` template exists with no email-change flow yet; the phone wrong-credentials banner sits far above the Sign in button; add `/sign-up` to the type-before-hydration test; consider `data-testid` instead of `data-space-sync`.
 - Not yet verified for real (needs Docker or vendor accounts): email delivery and links, PKCE across browsers, Google sign-in, how the emails render in real mail clients, the Supabase dashboard steps.
+- Flaky local Playwright run (HEM-011): once, 150 tests failed with `TypeError: fetch failed` to the mock backend, then passed on rerun. Cause not found; watch for it in CI.
+- Profile follow-ups (HEM-011): email-change flow; short curated locale list; on-screen keyboard behaviour of the combobox (visual viewport) not tested on a real device.
+- Dependencies: #14 (react and react-dom 19.3.1) and #13 (openapi-fetch 0.17) merged with user approval. #8 (TypeScript 7) and #11 (ESLint 10) still on hold.
