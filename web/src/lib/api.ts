@@ -2,6 +2,8 @@ import { createApiClient, type components } from "@hemfin/api-client";
 import { API_URL } from "@/lib/env";
 
 export type MeResponse = components["schemas"]["MeOut"];
+export type ProfileResponse = components["schemas"]["ProfileOut"];
+export type AddressResponse = components["schemas"]["AddressOut"];
 
 /**
  * Browser API client: sends the current Supabase access token with every request. Import from

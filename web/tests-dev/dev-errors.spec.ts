@@ -7,8 +7,8 @@ import { signInAs } from "../tests/support/auth";
 // that only look at the final HTML, so this test loads real pages in dev mode and checks both.
 // The session comes from the mock backend (tests/support/mock-backend.mjs), so the signed-in (app)
 // routes render the real shell: proxy, /api/v1/me call and the Suspense boundaries.
-const ROUTES = ["/", "/dashboard", "/contracts"];
-const APP_ROUTES = new Set(["/dashboard", "/contracts"]);
+const ROUTES = ["/", "/dashboard", "/contracts", "/profile"];
+const APP_ROUTES = new Set(["/dashboard", "/contracts", "/profile"]);
 
 const SERVER_ERROR = /Error:|unstable value|while prerendering|blocking-prerender|Blocking Route|Uncached data was accessed/i;
 

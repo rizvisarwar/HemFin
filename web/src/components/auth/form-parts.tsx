@@ -61,14 +61,21 @@ export function Field({ id, label, error, hint, invalid, describedBy, className,
           {hint}
         </p>
       ) : null}
-      <div aria-live="polite" id={errorId}>
-        {error ? (
-          <p className="flex items-start gap-1.5 text-small text-destructive">
-            <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-            <span>{error}</span>
-          </p>
-        ) : null}
-      </div>
+      <FieldError id={errorId} error={error} />
+    </div>
+  );
+}
+
+/** Inline field error. The live region exists from first render so a new message is announced politely. */
+export function FieldError({ id, error }: { id: string; error?: string }) {
+  return (
+    <div aria-live="polite" id={id}>
+      {error ? (
+        <p className="flex items-start gap-1.5 text-small text-destructive">
+          <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          <span>{error}</span>
+        </p>
+      ) : null}
     </div>
   );
 }
