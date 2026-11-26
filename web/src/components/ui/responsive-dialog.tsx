@@ -22,6 +22,8 @@ export interface ResponsiveDialogProps {
   className?: string;
   /** Moves focus here when the dialog opens (default: the first focusable element). */
   initialFocus?: React.RefObject<HTMLElement | null> | (() => HTMLElement | null);
+  /** Moves focus here when the dialog closes (default: the element that opened it). */
+  finalFocus?: React.RefObject<HTMLElement | null> | (() => HTMLElement | null);
 }
 
 /**
@@ -40,6 +42,7 @@ export function ResponsiveDialog({
   busy,
   className,
   initialFocus,
+  finalFocus,
 }: ResponsiveDialogProps) {
   const Root = alert ? AlertDialogPrimitive.Root : DialogPrimitive.Root;
   const Portal = alert ? AlertDialogPrimitive.Portal : DialogPrimitive.Portal;
@@ -61,6 +64,7 @@ export function ResponsiveDialog({
         <Popup
           data-slot="responsive-dialog"
           initialFocus={initialFocus}
+          finalFocus={finalFocus}
           className={cn(
             "fixed z-50 flex max-h-[90dvh] flex-col bg-popover text-popover-foreground shadow-lg outline-none transition duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0",
             // Phone: bottom sheet.

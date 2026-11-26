@@ -62,8 +62,9 @@ export function PageHeader({
 
       <div className="md:flex md:items-start md:justify-between md:gap-4">
         <div className="min-w-0">
-          <div className="flex flex-col items-start gap-2 md:flex-row md:items-center md:gap-3">
-            <h1 className="text-h1">{title}</h1>
+          {/* Wraps from md up, so a long household name and its badge sit on two lines instead of squeezing the title. */}
+          <div className="flex flex-col items-start gap-2 md:flex-row md:flex-wrap md:items-center md:gap-x-3 md:gap-y-2">
+            <h1 className="max-w-full min-w-0 break-words text-h1">{title}</h1>
             {badge}
           </div>
           {description ? (

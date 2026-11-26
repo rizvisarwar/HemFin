@@ -7,7 +7,8 @@ import { createClient } from "@/lib/supabase/client";
 import { GENERIC_ERROR, mapAuthError, RESET_REQUESTED_MESSAGE } from "@/lib/auth/errors";
 import { isEmailValid } from "@/lib/auth/password";
 import { CooldownNote, useCooldown } from "./cooldown";
-import { Field, FormMessage, useFocusFirstInvalid, useHydrated } from "./form-parts";
+import { Field, useFocusFirstInvalid, useHydrated } from "./form-parts";
+import { FormMessage } from "@/components/ui/form-message";
 
 export function ForgotPasswordForm() {
   const form = React.useRef<HTMLFormElement>(null);

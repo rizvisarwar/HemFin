@@ -9,7 +9,8 @@ import { GENERIC_ERROR, mapAuthError } from "@/lib/auth/errors";
 import { isEmailValid, isPasswordValid } from "@/lib/auth/password";
 import { sanitizeNext } from "@/lib/auth/next-path";
 import { rememberPending } from "@/lib/auth/pending";
-import { Field, FormMessage, PasswordRules, useFocusFirstInvalid, useHydrated } from "./form-parts";
+import { Field, PasswordRules, useFocusFirstInvalid, useHydrated } from "./form-parts";
+import { FormMessage } from "@/components/ui/form-message";
 import { GoogleButton, OrDivider } from "./google-button";
 
 const LINK = "inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline";
