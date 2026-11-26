@@ -17,6 +17,18 @@ async function shot(page: Page, info: TestInfo, name: string) {
   });
 }
 
+/**
+ * Opens a form page and waits for React to attach to it. Typing before hydration into a controlled
+ * input is reset to its initial value when React takes over, so tests must not fill earlier.
+ */
+async function gotoHydrated(page: Page, path: string) {
+  await page.goto(path);
+  await page.waitForFunction(() => {
+    const input = document.querySelector("form input");
+    return !!input && Object.keys(input).some((k) => k.startsWith("__reactProps$"));
+  });
+}
+
 const GOOD_PASSWORD = "Passw0rd-valid";
 
 test.describe("route protection", () => {
@@ -61,7 +73,7 @@ test.describe("route protection", () => {
 
 test.describe("sign in", () => {
   test("validation: inline errors, focus on the first invalid field, announced politely", async ({ page }, info) => {
-    await page.goto("/sign-in");
+    await gotoHydrated(page, "/sign-in");
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     const email = page.getByLabel("Email");
     await expect(email).toBeFocused();
@@ -78,7 +90,7 @@ test.describe("sign in", () => {
   });
 
   test("form controls and links are at least 44 px tall", async ({ page }) => {
-    await page.goto("/sign-in");
+    await gotoHydrated(page, "/sign-in");
     const targets = [
       page.getByLabel("Email"),
       page.getByLabel("Password", { exact: true }),
@@ -94,7 +106,7 @@ test.describe("sign in", () => {
   });
 
   test("wrong credentials show one generic message that does not reveal the account state", async ({ page }) => {
-    await page.goto("/sign-in");
+    await gotoHydrated(page, "/sign-in");
     await page.getByLabel("Email").fill("someone@example.test");
     await page.getByLabel("Password", { exact: true }).fill("wrong-Passw0rd");
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -120,7 +132,7 @@ test.describe("sign in", () => {
   });
 
   test("Google button follows the branding (label, mark, light surface)", async ({ page }, info) => {
-    await page.goto("/sign-in");
+    await gotoHydrated(page, "/sign-in");
     const btn = page.getByTestId("google-button");
     await expect(btn).toHaveText("Continue with Google");
     await expect(btn.locator("svg path")).toHaveCount(4);
@@ -131,7 +143,7 @@ test.describe("sign in", () => {
 
 test.describe("sign up", () => {
   test("shows the password rules live and blocks a weak password", async ({ page }, info) => {
-    await page.goto("/sign-up");
+    await gotoHydrated(page, "/sign-up");
     const rules = page.getByRole("list", { name: "Password rules" });
     await expect(rules).toContainText("At least 8 characters (not done yet)");
     await page.getByLabel("Email").fill("new@example.test");
@@ -146,7 +158,7 @@ test.describe("sign up", () => {
   });
 
   test("a valid sign-up goes to check your email, with resend on a cooldown", async ({ page }, info) => {
-    await page.goto("/sign-up");
+    await gotoHydrated(page, "/sign-up");
     await page.getByLabel("Email").fill("new@example.test");
     await page.getByLabel("Password", { exact: true }).fill(GOOD_PASSWORD);
     await page.getByRole("button", { name: "Create account" }).click();
@@ -162,7 +174,7 @@ test.describe("sign up", () => {
 
 test.describe("forgot password", () => {
   test("validates the email, then always shows the same confirmation", async ({ page }, info) => {
-    await page.goto("/forgot-password");
+    await gotoHydrated(page, "/forgot-password");
     await page.getByRole("button", { name: "Send reset link" }).click();
     await expect(page.getByLabel("Email")).toBeFocused();
     await expect(page.getByText("Enter your email address, for example name@example.com.")).toBeVisible();
@@ -177,7 +189,7 @@ test.describe("forgot password", () => {
 
   test("reset password page checks both passwords", async ({ page, context }, info) => {
     await signInAs(context); // the callback would have created this session from the email link
-    await page.goto("/reset-password");
+    await gotoHydrated(page, "/reset-password");
     await page.getByLabel("New password", { exact: true }).fill(GOOD_PASSWORD);
     await page.getByLabel("Confirm new password").fill("Different1-pass");
     await page.getByRole("button", { name: "Change password" }).click();

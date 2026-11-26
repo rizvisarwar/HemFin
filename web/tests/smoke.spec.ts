@@ -188,6 +188,9 @@ test.describe("app shell", () => {
       /^[0-9a-f-]{36}$/,
     );
 
+    // The switch ends with router.refresh() (an RSC fetch). Let it settle, otherwise the reload
+    // interrupts it ("Frame load interrupted" in WebKit).
+    await page.waitForLoadState("networkidle");
     // The server renders the stored space first time.
     await page.reload();
     await expect(page.locator("header[data-space]").first()).toHaveAttribute("data-space", "household");
