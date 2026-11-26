@@ -7,7 +7,7 @@ Full scope of each phase: `docs/PROJECT_PLAN.md`, section 4.
 |---|---|---|
 | 0 | Foundations & team setup | **Done** (HEM-001 to HEM-007). The first real deploy is waiting for the user's Supabase, Render and Vercel accounts (`docs/deploy.md`). |
 | 1 | Auth & Profile | **Done** (HEM-008 to HEM-011; PRs #15, #17, #18, #19). |
-| 2 | Households & Invitations | **In progress** (HEM-012 to HEM-016). Approved by the user 2026-11-26. |
+| 2 | Households & Invitations | **Built** (HEM-012 to HEM-016; PRs #20 to #24). Waiting for the user's live invitation test (demo) and approval of Phase 3. |
 | 3 | Core Finance | Not started |
 | 4 | Documents | Not started |
 | 5 | Notifications | Not started |
@@ -47,7 +47,7 @@ Deferred (not planned yet): native mobile app, WhatsApp notifications, push noti
 | HEM-013 | API: invitations (PM security review) | Engineer | Done | #22 |
 | HEM-014 | Design spec: households, invitations, switcher | Designer | Done | #21 |
 | HEM-015 | Web: households, members, switcher | Engineer | Done | #23 |
-| HEM-016 | Web: invitations and accept page (PM security review) | Engineer | In Progress | |
+| HEM-016 | Web: invitations and accept page (PM security review) | Engineer | Done | #24 |
 
 ## Follow-ups (not yet ticketed)
 - Phase 2 (space switcher with real households): the phone switcher sheet gets the SpaceBadge heading row from spec 4.2, and long household names stay readable (from the HEM-003 design review).
@@ -66,3 +66,4 @@ Deferred (not planned yet): native mobile app, WhatsApp notifications, push noti
 - Dependencies: #14 (react and react-dom 19.3.1) and #13 (openapi-fetch 0.17) merged with user approval. #8 (TypeScript 7) and #11 (ESLint 10) still on hold.
 - Invitations follow-ups (from HEM-013): no DB-backed test yet for a stale failed resend not clobbering a newer resend (the guard is only checked in compiled SQL); add `/internal/jobs/weekly` when a ticket needs it. Live check still needed: accept works with a real Supabase token (email confirmation now relies on the REQUIRED Supabase settings).
 - EmptyState renders link actions with role="button" (`web/src/components/ui/empty-state.tsx`); make them real links (from the HEM-015 reviews).
+- Invitations follow-ups (from the HEM-016 reviews): assert the link-button font size on accept state H; add the setActiveSpace-failure toast copy to `households.md` 6.8 K; register the `requestfailed` listener once in `recordRequests`; confirming email in another tab loses the invitation token (known limitation; the user clicks the email link again); a flaky "household list: empty" tablet test seen once in CI.
