@@ -86,4 +86,14 @@ Nits:
 - `cd web && npm run lint && npm run build` pass after the merge.
 - Pushed to PR #21. `gh pr checks 21` shows `api`, `web`, `docker` and `gitleaks` pending (started after the push); PR is MERGEABLE.
 
+### 2026-11-26 Designer, PR #21 review round 2 fixes (Designer session 3)
+- **1 (blocking).** Switcher focus model stated once in 6.9 ("Focus model"): no focus trap for the switcher (phone sheet or desktop dropdown). Tab closes the menu and focus moves to the next control after the trigger, and does not return to the trigger. Escape and selection return focus to the trigger. Arrow keys, Home and End move between rows. Section 10 now refers to 6.9 and keeps the trap for dialogs and bottom sheets only.
+- **2.** Jordan Kim phone card (6.3) checked: every line is 45 characters, the same as the card border. No change needed at this head.
+- **3.** 5.4 now says the phone heading row shows the household name (D13), not "Household" from `app-shell.md` 4.2. `app-shell.md` 4.2 already matches D13 (checked).
+- **4.** HEM-016 already has both checkboxes (accept marker and sign-out clears the marker). Checked, no change.
+- **5.** Not done here (PM-owned board).
+- **6.** `design-system.md` section 7 EmptyState row already records the role-based exception (pointing to `households.md` 6.3). Checked, no change.
+**Verify:** docs only, so no code changed. `npm run lint && npm run build` in `web/` run on this head.
+**Not touched:** `docs/backlog/HEM-013-api-invitations.md` (engineer, PR #22), `docs/backlog/board.md` (PM).
+
 ## Review
