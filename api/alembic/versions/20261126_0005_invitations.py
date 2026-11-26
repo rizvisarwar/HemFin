@@ -31,7 +31,10 @@ def upgrade() -> None:
         sa.Column("responded_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("resend_count", sa.Integer(), server_default="0", nullable=False),
         sa.Column("resend_window_start", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("last_sent_at", sa.DateTime(timezone=True), nullable=True),
         sa.UniqueConstraint("token_hash", name="invitations_token_hash_key"),
+        sa.CheckConstraint("email = lower(email)", name="ck_invitations_email_lower"),
+        sa.CheckConstraint("resend_count >= 0", name="ck_invitations_resend_count"),
         sa.CheckConstraint("role IN ('admin', 'member')", name="ck_invitations_role"),
         sa.CheckConstraint(
             "status IN ('pending', 'accepted', 'declined', 'revoked', 'expired')",
@@ -48,6 +51,13 @@ def upgrade() -> None:
         postgresql_where=sa.text("status = 'pending'"),
     )
     op.create_index("ix_invitations_space_id_created_at", "invitations", ["space_id", "created_at"], schema=S)
+    op.create_index(
+        "ix_invitations_pending_expires_at",
+        "invitations",
+        ["expires_at"],
+        schema=S,
+        postgresql_where=sa.text("status = 'pending'"),
+    )
 
 
 def downgrade() -> None:

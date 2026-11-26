@@ -1967,7 +1967,7 @@
             "content": {
               "application/problem+json": {}
             },
-            "description": "Rule conflict"
+            "description": "Rule conflict; `code` may be already_invited or already_member"
           },
           "422": {
             "content": {
@@ -2048,7 +2048,7 @@
             "content": {
               "application/problem+json": {}
             },
-            "description": "Rule conflict"
+            "description": "Rule conflict; `code` may be already_invited or already_member"
           },
           "422": {
             "content": {
@@ -2130,7 +2130,7 @@
             "content": {
               "application/problem+json": {}
             },
-            "description": "Rule conflict"
+            "description": "Rule conflict; `code` may be already_invited or already_member"
           },
           "422": {
             "content": {
@@ -2146,7 +2146,7 @@
             "content": {
               "application/problem+json": {}
             },
-            "description": "Too many resends for this invitation",
+            "description": "Resend cooldown (60 s) or daily cap (3) reached",
             "headers": {
               "Retry-After": {
                 "description": "Seconds until another resend is allowed",
@@ -2168,7 +2168,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Rotate the token, reset the expiry and resend (max 3 per day)",
+        "summary": "Rotate the token, reset the expiry and resend (1 per 60 s, max 3 per day)",
         "tags": [
           "invitations"
         ]

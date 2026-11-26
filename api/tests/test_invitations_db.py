@@ -95,6 +95,17 @@ async def _setup(c: httpx.AsyncClient, key: TestKey) -> tuple[str, UUID, UUID, U
     return sid, owner, admin, member, stranger
 
 
+async def _skip_cooldown(invitation_id: str) -> None:
+    """Pretend the last email went out two minutes ago (the resend cooldown is 60 s)."""
+    async with db.get_session_ctx() as s:
+        await s.execute(
+            update(Invitation)
+            .where(Invitation.id == UUID(invitation_id))
+            .values(last_sent_at=datetime.now(UTC) - timedelta(minutes=2))
+        )
+        await s.commit()
+
+
 def _new_email() -> str:
     return f"Invitee.{uuid4().hex[:10]}@Example.test"
 
@@ -173,11 +184,15 @@ async def test_create_rules(aclient: httpx.AsyncClient, key: TestKey, outbox: Fa
     r_member = await _invite(aclient, key, sid, owner, f"{member}@EXAMPLE.test")
     assert r_member.status_code == 409
     assert "already a member" in r_member.json()["detail"]
+    assert r_member.json()["code"] == "already_member"
+    assert r_member.json()["type"] == "urn:hemfin:problem:already_member"
     # Pending invitation for the same email: a different message.
     assert (await _invite(aclient, key, sid, admin, email)).status_code == 201
     r_pending = await _invite(aclient, key, sid, owner, email.upper())
     assert r_pending.status_code == 409
     assert "already pending" in r_pending.json()["detail"]
+    assert r_pending.json()["code"] == "already_invited"
+    assert r_pending.json()["type"] == "urn:hemfin:problem:already_invited"
     assert r_pending.json()["detail"] != r_member.json()["detail"]
     assert r_pending.headers["content-type"].startswith("application/problem+json")
 
@@ -259,6 +274,7 @@ async def test_resend_rotates_token_and_old_one_is_dead(
     url = f"{API}/{sid}/invitations/{created['id']}/resend"
     assert (await aclient.post(url, headers=_auth(key, member))).status_code == 403
     assert (await aclient.post(url, headers=_auth(key, stranger))).status_code == 404
+    await _skip_cooldown(created["id"])
     r = await aclient.post(url, headers=_auth(key, admin))
     assert r.status_code == 200, r.text
     new = outbox.last_token()
@@ -274,13 +290,22 @@ async def test_resend_is_rate_limited_with_retry_after(
     sid, owner, *_ = await _setup(aclient, key)
     created = (await _invite(aclient, key, sid, owner, _new_email())).json()
     url = f"{API}/{sid}/invitations/{created['id']}/resend"
+    # Cooldown: the invitation was just emailed, so an immediate resend is refused.
+    r = await aclient.post(url, headers=_auth(key, owner))
+    assert r.status_code == 429
+    assert r.headers["content-type"].startswith("application/problem+json")
+    assert r.json()["code"] == "resend_limited"
+    assert 0 < int(r.headers["retry-after"]) <= 60
     for _ in range(3):
+        await _skip_cooldown(created["id"])
         assert (await aclient.post(url, headers=_auth(key, owner))).status_code == 200
+    # Daily cap: refused even after the cooldown, and Retry-After points to the window end.
+    await _skip_cooldown(created["id"])
     sent = len(outbox.sent)
     r = await aclient.post(url, headers=_auth(key, owner))
     assert r.status_code == 429
     assert r.headers["content-type"].startswith("application/problem+json")
-    assert 0 < int(r.headers["retry-after"]) <= 86400
+    assert 60 < int(r.headers["retry-after"]) <= 86400
     assert len(outbox.sent) == sent
     # A new window opens after a day.
     async with db.get_session_ctx() as s:
@@ -300,6 +325,7 @@ async def test_resend_delivery_failure_keeps_old_token(
     email = _new_email()
     created = (await _invite(aclient, key, sid, owner, email)).json()
     old = outbox.last_token()
+    await _skip_cooldown(created["id"])
     outbox.fail = True
     r = await aclient.post(
         f"{API}/{sid}/invitations/{created['id']}/resend", headers=_auth(key, owner)

@@ -38,13 +38,18 @@ _403: dict[int | str, dict[str, Any]] = {403: {"description": "Insufficient role
 _404: dict[int | str, dict[str, Any]] = {
     404: {"description": "Unknown space, not a member, or unknown invitation", **_PROBLEM}
 }
-_409: dict[int | str, dict[str, Any]] = {409: {"description": "Rule conflict", **_PROBLEM}}
+_409: dict[int | str, dict[str, Any]] = {
+    409: {
+        "description": "Rule conflict; `code` may be already_invited or already_member",
+        **_PROBLEM,
+    }
+}
 _503: dict[int | str, dict[str, Any]] = {
     503: {"description": "Email sending unavailable or not configured", **_PROBLEM}
 }
 _429: dict[int | str, dict[str, Any]] = {
     429: {
-        "description": "Too many resends for this invitation",
+        "description": "Resend cooldown (60 s) or daily cap (3) reached",
         "headers": {
             "Retry-After": {
                 "description": "Seconds until another resend is allowed",
@@ -104,7 +109,7 @@ async def list_invitations(
 
 @space_router.post(
     "/{invitation_id}/resend",
-    summary="Rotate the token, reset the expiry and resend (max 3 per day)",
+    summary="Rotate the token, reset the expiry and resend (1 per 60 s, max 3 per day)",
     responses={**_401, **_403, **_404, **_409, **_429, **_503},
 )
 async def resend_invitation(

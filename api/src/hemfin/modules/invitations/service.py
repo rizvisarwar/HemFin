@@ -2,6 +2,7 @@
 logs, responses or a URL path/query. Only its SHA-256 is stored."""
 
 import hashlib
+import hmac
 import logging
 import secrets
 from datetime import UTC, datetime, timedelta
@@ -14,6 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hemfin.core.email import EmailDeliveryError, EmailSender
+from hemfin.core.errors import CodedHTTPException
 from hemfin.core.pagination import decode_cursor, encode_cursor
 from hemfin.modules.invitations.models import Invitation, InvitationStatus
 from hemfin.modules.invitations.schemas import (
@@ -35,11 +37,41 @@ log = logging.getLogger("hemfin.invitations")
 INVITATION_TTL = timedelta(days=7)
 MAX_RESENDS_PER_DAY = 3
 RESEND_WINDOW = timedelta(days=1)
+RESEND_COOLDOWN = timedelta(seconds=60)
+
+
+def resend_retry_after(
+    *,
+    resend_count: int,
+    window_start: datetime | None,
+    last_sent_at: datetime | None,
+    now: datetime,
+) -> int | None:
+    """Seconds to wait before another resend, or None if a resend is allowed now.
+
+    Two limits: a per-invitation cooldown (1 per 60 s, counted from the last email) and a
+    daily cap (MAX_RESENDS_PER_DAY per rolling window). The longer wait wins.
+    """
+    waits: list[float] = []
+    if last_sent_at is not None:
+        waits.append((last_sent_at + RESEND_COOLDOWN - now).total_seconds())
+    window_open = window_start is not None and now - window_start < RESEND_WINDOW
+    if window_open and resend_count >= MAX_RESENDS_PER_DAY:
+        assert window_start is not None
+        waits.append((window_start + RESEND_WINDOW - now).total_seconds())
+    wait = max(waits, default=0.0)
+    return max(1, int(wait + 0.999)) if wait > 0 else None
 
 
 def _generic_404() -> HTTPException:
     """The single answer for every invalid, expired, revoked, used or mismatched token."""
     return HTTPException(404, detail="Invitation not found.")
+
+
+def _already_invited() -> CodedHTTPException:
+    return CodedHTTPException(
+        409, "already_invited", "An invitation is already pending for that email."
+    )
 
 
 def _now() -> datetime:
@@ -124,8 +156,22 @@ async def create_invitation(
         )
     ).first()
     if already_member is not None:
-        raise HTTPException(409, detail="That person is already a member of this household.")
+        raise CodedHTTPException(
+            409, "already_member", "That person is already a member of this household."
+        )
     await expire_due(session, space_id)
+    pending = (
+        await session.execute(
+            select(Invitation.id).where(
+                Invitation.space_id == space_id,
+                Invitation.email == email,
+                Invitation.status == InvitationStatus.pending,
+            )
+        )
+    ).first()
+    if pending is not None:
+        await session.rollback()
+        raise _already_invited()
     token = new_token()
     inv = Invitation(
         id=uuid4(),
@@ -136,15 +182,14 @@ async def create_invitation(
         status=InvitationStatus.pending,
         invited_by=actor,
         expires_at=_now() + INVITATION_TTL,
+        last_sent_at=_now(),
     )
     session.add(inv)
     try:
         await session.flush()
     except IntegrityError:
         await session.rollback()
-        raise HTTPException(
-            409, detail="An invitation is already pending for that email."
-        ) from None
+        raise _already_invited() from None
     # Send before committing: if delivery fails nothing is stored.
     inviter = await _inviter_name(session, actor)
     try:
@@ -217,17 +262,24 @@ async def resend_invitation(
     _require_rank(await _actor_role(session, space_id, actor), Role.admin)
     inv = await _own_pending(session, space_id, invitation_id)
     now = _now()
+    retry_after = resend_retry_after(
+        resend_count=inv.resend_count,
+        window_start=inv.resend_window_start,
+        last_sent_at=inv.last_sent_at,
+        now=now,
+    )
+    if retry_after is not None:
+        await session.rollback()
+        raise CodedHTTPException(
+            429,
+            "resend_limited",
+            "Too many resends for this invitation. Try again later.",
+            headers={"Retry-After": str(retry_after)},
+        )
     if inv.resend_window_start is None or now - inv.resend_window_start >= RESEND_WINDOW:
         inv.resend_window_start = now
         inv.resend_count = 0
-    if inv.resend_count >= MAX_RESENDS_PER_DAY:
-        retry_after = max(1, int((inv.resend_window_start + RESEND_WINDOW - now).total_seconds()))
-        await session.rollback()
-        raise HTTPException(
-            429,
-            detail="Too many resends for this invitation. Try again later.",
-            headers={"Retry-After": str(retry_after)},
-        )
+    inv.last_sent_at = now
     token = new_token()  # rotating the hash kills the previous token
     inv.token_hash = hash_token(token)
     inv.expires_at = now + INVITATION_TTL
@@ -287,7 +339,9 @@ async def _load_for_invitee(
         inv.responded_at = _now()
         await session.commit()
         raise _generic_404()
-    if not email_verified or email.strip().lower() != inv.email:
+    if not email_verified or not hmac.compare_digest(
+        email.strip().lower().encode(), inv.email.encode()
+    ):
         await session.rollback()
         raise _generic_404()
     return inv
@@ -299,10 +353,14 @@ async def preview(
     inv = await _load_for_invitee(session, token, email, email_verified)
     space = await session.get(Space, inv.space_id)
     name = await _inviter_name(session, inv.invited_by)
+    # Read everything before rolling back: rollback expires loaded ORM objects, and touching
+    # an expired attribute afterwards triggers a lazy load, which fails under asyncio
+    # (MissingGreenlet).
+    household_name = space.name if space is not None else None
     await session.rollback()
-    if space is None:
+    if household_name is None:
         raise _generic_404()
-    return InvitationPreview(household_name=space.name, inviter_name=name)
+    return InvitationPreview(household_name=household_name, inviter_name=name)
 
 
 async def accept(

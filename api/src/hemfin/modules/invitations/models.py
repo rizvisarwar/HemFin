@@ -43,7 +43,15 @@ class Invitation(Base):
             unique=True,
             postgresql_where=text("status = 'pending'"),
         ),
+        CheckConstraint("email = lower(email)", name="ck_invitations_email_lower"),
+        CheckConstraint("resend_count >= 0", name="ck_invitations_resend_count"),
         Index("ix_invitations_space_id_created_at", "space_id", "created_at"),
+        # Serves the daily expiry job.
+        Index(
+            "ix_invitations_pending_expires_at",
+            "expires_at",
+            postgresql_where=text("status = 'pending'"),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -61,3 +69,5 @@ class Invitation(Base):
     # Resend rate limit: at most MAX_RESENDS_PER_DAY within a rolling window.
     resend_count: Mapped[int] = mapped_column(Integer, server_default="0", default=0)
     resend_window_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # When the link was last emailed (creation or resend); drives the resend cooldown.
+    last_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

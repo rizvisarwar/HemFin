@@ -16,6 +16,9 @@ Admins invite people to a household by email. The invitee accepts only with the 
 - [ ] Email sending sits behind an `EmailSender` interface. Resend implementation reads `RESEND_API_KEY` (`SecretStr`, optional) and `EMAIL_FROM` from `Settings`; with no key configured, the app starts and invitation creation returns a clear 503 problem. A fake sender is used in tests. Both variables go in `api/.env.example` with placeholders and a comment, and in `render.yaml` as `sync: false`. No secret values anywhere.
 - [ ] (Added by PM after the HEM-014 design review) Creating an invitation returns distinct 409 problem messages for "that person is already a member" and "an invitation is already pending for that email" (the caller is an admin of the household, so this is acceptable).
 - [ ] (Added by PM after the HEM-014 design review) Resend over the limit (3 per invitation per day) returns 429 problem+json with a `Retry-After` header, declared in the route responses, and both cases are covered by tests.
+- [ ] (Added by PM, round 2) The 409s carry a stable machine-readable `code` and `type` in the problem+json: `already_invited` (pending invitation for the same household and email) and `already_member`. The database enforces one pending invitation per (household, email).
+- [ ] (Added by PM, round 2) Resend has a per-invitation cooldown of 60 s (counted from the last email, including the creation email) on top of the daily cap of 3. Exceeding either returns 429 problem+json (`code` `resend_limited`) with `Retry-After` (seconds until allowed, the longer wait wins).
+- [ ] (Added by PM, round 2) Security checklist verified: 32-byte `token_urlsafe`, SHA-256 only stored, single-use, 7-day expiry, constant-time email compare, token only in the request body and the email URL fragment, never in logs, problem bodies, 422 echoes or spans; preview and accept need auth and a verified matching email, else the generic 404.
 - [ ] Tests: new user and existing user accept; email mismatch rejected; expiry; revoke; resend rotates the token (old one dead); double accept; non-admin gets 403 and non-member 404; the token never appears in logs, responses or the OpenAPI spec examples. Regenerate the TS client.
 
 ## Design notes
@@ -56,5 +59,14 @@ Branch `hem-013-api-invitations`. PR: https://github.com/rizvisarwar/HemFin/pull
 - Resend allows only pending invitations; an expired invitation is replaced by creating a new one.
 - Web accept page (`/invite`, reads the fragment, POSTs the token) belongs to a later web ticket. Consider `Referrer-Policy: no-referrer` and `history.replaceState` to strip the fragment there.
 - Add `/internal/jobs/weekly` when a ticket needs it; the cron workflow's header comment still says the endpoints are missing.
+
+### 2026-11-26 (round 2), Engineer (Sonnet 5.5)
+CI run 45881870870 failed `test_preview_and_decline` with a 500 on `/invitations/preview`.
+- **Root cause:** `service.preview` called `session.rollback()` and then read `space.name`. Rollback expires every loaded ORM object, so the attribute read triggered a synchronous lazy load inside the async request, which raises `sqlalchemy.exc.MissingGreenlet`. Fix: copy the values out first, then roll back. Regression test with a fake session that raises on any attribute read after rollback (`test_preview_reads_orm_values_before_rollback`, no DB needed). Checked accept, decline, resend and revoke for the same pattern: none read an ORM object after a rollback.
+- **Codes:** new `CodedHTTPException` in `core/errors.py` renders `type: urn:hemfin:problem:<code>` and `code`. `already_invited` and `already_member` (409), `resend_limited` (429). Pending-invitation pre-check added before insert; the DB unique-index race still maps to `already_invited`.
+- **Resend cooldown:** new `last_sent_at` column (set at creation and on resend), pure function `resend_retry_after` (unit tested) combining 60 s cooldown and the 3-per-day cap. DB tests now backdate `last_sent_at` between resends.
+- **Migration 0005 edited in place** (not merged to main yet): `last_sent_at`, check constraints `email = lower(email)` and `resend_count >= 0`, partial index on `expires_at` for pending rows. Downgrade drops the table (and its indexes).
+- Email compare in `_load_for_invitee` now uses `hmac.compare_digest`. Client regenerated.
+- Limitation: the DB tests could not run locally (no Postgres); they run in CI.
 
 ## Review

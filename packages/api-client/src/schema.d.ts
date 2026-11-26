@@ -224,7 +224,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Rotate the token, reset the expiry and resend (max 3 per day) */
+        /** Rotate the token, reset the expiry and resend (1 per 60 s, max 3 per day) */
         post: operations["resend_invitation_api_v1_spaces__space_id__invitations__invitation_id__resend_post"];
         delete?: never;
         options?: never;
@@ -1530,7 +1530,7 @@ export interface operations {
                     "application/problem+json": unknown;
                 };
             };
-            /** @description Rule conflict */
+            /** @description Rule conflict; `code` may be already_invited or already_member */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1605,7 +1605,7 @@ export interface operations {
                     "application/problem+json": unknown;
                 };
             };
-            /** @description Rule conflict */
+            /** @description Rule conflict; `code` may be already_invited or already_member */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1673,7 +1673,7 @@ export interface operations {
                     "application/problem+json": unknown;
                 };
             };
-            /** @description Rule conflict */
+            /** @description Rule conflict; `code` may be already_invited or already_member */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1691,7 +1691,7 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description Too many resends for this invitation */
+            /** @description Resend cooldown (60 s) or daily cap (3) reached */
             429: {
                 headers: {
                     /** @description Seconds until another resend is allowed */

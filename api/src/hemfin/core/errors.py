@@ -38,13 +38,38 @@ def problem_response(
     return JSONResponse(body, status_code=status, media_type=PROBLEM_JSON, headers=headers)
 
 
+class CodedHTTPException(StarletteHTTPException):
+    """An HTTP error with a stable machine-readable `code`.
+
+    Rendered as problem+json with `code` and `type` (`urn:hemfin:problem:<code>`) so clients
+    can branch on it without parsing `detail`.
+    """
+
+    def __init__(
+        self,
+        status_code: int,
+        code: str,
+        detail: str,
+        headers: dict[str, str] | None = None,
+    ) -> None:
+        super().__init__(status_code, detail=detail, headers=headers)
+        self.code = code
+
+
 async def _http_exc(request: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, StarletteHTTPException)
     detail: str | None = exc.detail if isinstance(exc.detail, str) else None
     if detail == HTTPStatus(exc.status_code).phrase:
         detail = None
+    extra: dict[str, Any] = {}
+    if isinstance(exc, CodedHTTPException):
+        extra = {"type": f"urn:hemfin:problem:{exc.code}", "code": exc.code}
     return problem_response(
-        exc.status_code, detail=detail, request=request, headers=dict(exc.headers or {})
+        exc.status_code,
+        detail=detail,
+        request=request,
+        headers=dict(exc.headers or {}),
+        **extra,
     )
 
 
