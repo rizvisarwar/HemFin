@@ -7,17 +7,6 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { passwordRuleResults } from "@/lib/auth/password";
 
-const noopSubscribe = () => () => {};
-
-/**
- * False in the server HTML and during hydration, true once the component has mounted in the
- * browser. Submit buttons stay disabled until then, so a form can never be submitted before its
- * JavaScript is attached (which would send it as a plain browser form post).
- */
-export function useHydrated(): boolean {
-  return React.useSyncExternalStore(noopSubscribe, () => true, () => false);
-}
-
 /** Moves focus to the first invalid field after a failed submit. Bump `attempt` on each submit. */
 export function useFocusFirstInvalid(form: React.RefObject<HTMLFormElement | null>, attempt: number) {
   React.useEffect(() => {

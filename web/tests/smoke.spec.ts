@@ -167,8 +167,8 @@ test.describe("app shell", () => {
     // A menu on every viewport (a bottom sheet on phone, a dropdown from md up), never a dialog.
     await expect(page.getByRole("menu", { name: "Spaces" })).toBeVisible();
     await expect(page.getByText("Sample household")).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Create a household" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Manage households" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Create a household" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Manage households" })).toBeVisible();
   });
 
   test("space switcher changes the active space and stores it in the cookie", async ({ page, context }, info) => {

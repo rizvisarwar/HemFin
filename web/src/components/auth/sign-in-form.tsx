@@ -8,7 +8,8 @@ import { createClient } from "@/lib/supabase/client";
 import { GENERIC_ERROR, LINK_EXPIRED_ERROR, mapAuthError } from "@/lib/auth/errors";
 import { isEmailValid } from "@/lib/auth/password";
 import { sanitizeNext } from "@/lib/auth/next-path";
-import { Field, useFocusFirstInvalid, useHydrated } from "./form-parts";
+import { Field, useFocusFirstInvalid } from "./form-parts";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { FormMessage } from "@/components/ui/form-message";
 import { GoogleButton, OrDivider } from "./google-button";
 

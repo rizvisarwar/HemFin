@@ -4,7 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { setActiveSpace } from "@/app/actions";
-import { Field, useFocusFirstInvalid, useHydrated } from "@/components/auth/form-parts";
+import { Field, useFocusFirstInvalid } from "@/components/auth/form-parts";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { Button } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/form-message";
 import { HemCard } from "@/components/ui/hem-card";
@@ -35,12 +36,14 @@ export function CreateHouseholdForm() {
   const [formError, setFormError] = React.useState<string>();
   const [busy, setBusy] = React.useState(false);
   const [attempt, setAttempt] = React.useState(0);
+  const [created, setCreated] = React.useState<{ id: string; name: string } | null>(null);
+  const pressing = React.useRef(false);
   useFocusFirstInvalid(form, attempt);
   const length = codePointLength(useInputValue("name").trim());
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || created) return;
     const name = String(new FormData(e.currentTarget).get("name") ?? "").trim();
     const invalid = validateHouseholdName(name);
     if (invalid) {
@@ -56,9 +59,16 @@ export function CreateHouseholdForm() {
       const api = await createBrowserApi();
       const { data, error: problem, response } = await api.POST("/api/v1/spaces", { body: { name } });
       if (response.ok && data) {
-        await setActiveSpace(data.id);
-        toast("Household created.");
-        router.push(`/household/${data.id}/members`);
+        // From here the household exists: never re-enable Create, or a retry would make a second one.
+        setCreated({ id: data.id, name: data.name });
+        try {
+          await setActiveSpace(data.id);
+          toast("Household created.");
+          router.push(`/household/${data.id}/members`);
+        } catch {
+          setFormError("Household created, but we could not open it. Use the link below.");
+          setBusy(false);
+        }
         return; // stays busy while the next page loads
       }
       if (response.status === 409) setFormError(LIMIT_MESSAGE);
@@ -90,7 +100,19 @@ export function CreateHouseholdForm() {
         <FormMessage kind="error" id="create-form-message">
           {formError}
         </FormMessage>
-        <div className="space-y-2">
+        {created ? (
+          // The household exists. Submit stays off so a second one cannot be created; this link goes to it.
+          <Link
+            href={`/household/${created.id}/members`}
+            className="inline-flex min-h-11 items-center text-body font-medium text-primary underline-offset-4 hover:underline"
+            data-testid="open-created"
+          >
+            Open {created.name}
+          </Link>
+        ) : null}
+        {/* The error line keeps its height (20 px) whether or not a message shows, so a blur
+            message never moves the Create button out from under a tap (Safari blurs on tap). */}
+        <div className="space-y-2 [&_#name-error]:min-h-5">
           <Field
             id="name"
             label="Household name"
@@ -98,9 +120,11 @@ export function CreateHouseholdForm() {
             enterKeyHint="done"
             hint={`For example, The Lee family. Up to ${HOUSEHOLD_NAME_MAX} characters.`}
             error={error}
-            // Not when focus moves to the submit button: a message appearing then would push the button away mid-tap.
+            // A press on Create blurs the field first (Safari does it without focusing the button, so
+            // relatedTarget is not usable). The press is recorded on pointerdown and the message waits for the submit.
+            onFocus={() => (pressing.current = false)}
             onBlur={(e) => {
-              if (e.relatedTarget instanceof HTMLButtonElement) return;
+              if (pressing.current) return;
               setError(validateHouseholdName(e.currentTarget.value) ?? undefined);
             }}
             // Once a message is showing, follow the typing, so it is already gone when the user taps
@@ -120,7 +144,9 @@ export function CreateHouseholdForm() {
           <Button
             type="submit"
             className="w-full sm:w-auto"
-            disabled={!hydrated}
+            disabled={!hydrated || created !== null}
+            onPointerDown={() => (pressing.current = true)}
+            onClick={() => (pressing.current = false)}
             aria-disabled={busy || undefined}
             aria-busy={busy || undefined}
             data-testid="create-household"

@@ -7,7 +7,7 @@ Users create and manage households in the web app and switch between spaces.
 
 ## Acceptance criteria
 - [ ] Household list, create, settings (rename, delete, leave), members (roles, remove, transfer ownership), per `docs/design/households.md`.
-- [ ] Real space switcher fed by `GET /api/v1/spaces`; selection persists in the `hemfin-space` cookie and falls back to the personal space if the saved space is no longer accessible.
+- [ ] Real space switcher fed by `/me.spaces` (PM decision: same data as `GET /api/v1/spaces`; the household list page uses `GET /spaces` for member counts); selection persists in the `hemfin-space` cookie and falls back to the personal space if the saved space is no longer accessible.
 - [ ] Actions are shown only when the role allows them; the API remains the authority.
 - [ ] Responsive at 375, 768, 1280 px, no horizontal scroll, 44 px tap targets, AA.
 - [ ] Playwright (phone and desktop projects) with screenshots; assert the `hemfin-space` cookie attributes (httpOnly, sameSite, path), a follow-up from HEM-003.
@@ -34,5 +34,14 @@ Users create and manage households in the web app and switch between spaces.
 - First tap on "Create household" with an invalid name can be lost in Safari when the error appears on blur and shifts the button (Chromium skips blur validation when focus moves to the button). Typing clears the error live.
 - Phone loading skeleton screenshots are taken in Chromium at 375 px (WebKit holds streamed fallbacks hidden); folder `loading-375`.
 - WebKit reports a Lax cookie as sameSite None through the cookie API, so the smoke test reads the raw Set-Cookie header.
+
+### 2026-11-26, Engineer, review round 1 fixes
+- PM: footer links are now `role="menuitem"` links after a separator, reached with arrows, Home and End; Enter follows; Tab closes (tests added; `households.md` 6.9 updated).
+- PM: first tap lost on Safari fixed two ways: the error line keeps its 20 px height, and a pointerdown flag on Create and Save suppresses blur validation (the submit validates). WebKit `tap()` tests for the create and rename forms.
+- Design 1 (toast copy): `households.md` 6.9 and 8.3 now give both texts; names live only in per-user `sessionStorage`.
+- Design 2: no close X on alert dialogs. 3: member emails use `overflow-wrap: anywhere`. 4: rename input label is "Name" (card heading stays "Household name"). 5: badge stays under the title at all widths (`PageHeader stackBadge`). 7: dark "Delete household" contrast measured 6.1:1 (hover about 5.1:1), recorded in `design-system.md`; no change needed.
+- Code 1 (privacy): sign-out deletes `hemfin-space` in the action and wipes all `hemfin-*` sessionStorage keys; names and flash are keyed by user id; Playwright test with two users and a leftover-store test.
+- Code 4: dev check has `test.setTimeout(180_000)`. Code 5: ticket criterion amended.
+- Nits: 7 created household never re-enables Create and offers an "Open" link if navigation fails; 8 sheet close button focusable; 9 `setActiveSpace` returns a boolean and a refusal resyncs and toasts; 10 toast timers cleared on unmount; 11 `useHydrated` now in `lib/hooks/use-hydrated.ts`.
 
 ## Review

@@ -916,7 +916,7 @@ The switcher is already in the shell (`app-shell.md` 4.2). This section adds the
   - Enter or Space selects the focused row, changes the space, and closes the menu. Focus returns to the trigger (for the sheet, after the sheet has closed).
   - Escape closes the menu without changing the space, and focus returns to the trigger.
   - Tab closes the menu and moves focus to the next focusable control after the trigger in page order. Focus does not return to the trigger on Tab.
-  - The footer links are after the rows in the reading order. Arrow keys skip them; they are reached with Tab.
+  - The footer links ("Manage households", "Create a household") are `role="menuitem"` links at the end of the menu, after a separator. They are reached with the arrow keys and Home and End like the other items (Down from the last space row, End, and wrapping included). Enter follows the link. Tab from any item, including a link, closes the menu and moves on.
 - **Focus model (stated once; section 10 refers here).** The switcher is a menu, not a dialog, so it has no focus trap, on phone or desktop. Focus is never held inside it. Dialogs and bottom sheets such as the member dialogs (6.5) keep the focus trap. Escape and selection return focus to the trigger. Tab moves focus forward out of the menu, as above.
 
 **Desktop dropdown (1280 px)**
@@ -953,7 +953,7 @@ The switcher is already in the shell (`app-shell.md` 4.2). This section adds the
 | Spaces error | Trigger shows "Spaces unavailable" (no guessed name, no badge). Opening the menu shows the error and a Retry button (44 px). | "Spaces unavailable" / "We could not load your spaces. Try again." Button: "Retry" |
 | Only personal | Sheet or menu lists Personal, then "Create a household" in the footer. | none |
 | Switching | Accent line, trigger fill and badges update at once. Page content shows skeletons until the new space's data is loaded. The previous space's numbers are never shown. | none |
-| Removed from the active household | Shell switches to personal and shows a toast. | "You no longer have access to The Lee family." |
+| Removed from the active household | Shell switches to personal and shows a toast. | "You no longer have access to The Lee family." when the name is known to this tab, otherwise "You no longer have access to that household." |
 | Saved space no longer accessible on load | Falls back to personal (HEM-015). Same toast. | as above |
 | Household page for a space that is not yours | Not-found state (6.10). | as 6.10 |
 
@@ -1064,7 +1064,7 @@ Used for any `/household/[spaceId]/*` route where the API returns 404, whether t
 | Invitation sent | "Invitation sent to {email}. The link works for 7 days." |
 | Invitation resent | "Invitation resent. The old link no longer works." |
 | Invitation revoked | "Invitation revoked." |
-| Removed from the active household | "You no longer have access to {name}." (toast) |
+| Removed from the active household | "You no longer have access to {name}." (toast) when this tab knows the name, otherwise "You no longer have access to that household." Names are remembered only in `sessionStorage`, never anywhere longer-lived. |
 
 ---
 

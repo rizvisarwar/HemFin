@@ -22,15 +22,29 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = React.useState<ToastItem[]>([]);
   const seq = React.useRef(0);
 
-  const dismiss = React.useCallback((id: number) => setItems((list) => list.filter((t) => t.id !== id)), []);
+  const timers = React.useRef(new Map<number, number>());
+
+  const dismiss = React.useCallback((id: number) => {
+    window.clearTimeout(timers.current.get(id));
+    timers.current.delete(id);
+    setItems((list) => list.filter((t) => t.id !== id));
+  }, []);
   const show = React.useCallback(
     (message: string) => {
       const id = ++seq.current;
       setItems((list) => [...list.slice(-2), { id, message }]);
-      window.setTimeout(() => dismiss(id), TOAST_MS);
+      timers.current.set(id, window.setTimeout(() => dismiss(id), TOAST_MS));
     },
     [dismiss],
   );
+  // No timer outlives the provider.
+  React.useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      for (const t of pending.values()) window.clearTimeout(t);
+      pending.clear();
+    };
+  }, []);
 
   return (
     <ToastContext.Provider value={show}>

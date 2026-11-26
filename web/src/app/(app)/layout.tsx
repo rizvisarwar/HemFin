@@ -32,7 +32,7 @@ async function ShellWithSpace({ children }: { children: React.ReactNode }) {
   };
   return (
     <FormatProvider prefs={prefs}>
-      <AppShellClient spaces={spaces} initialSpaceId={initialSpaceId} staleSpaceId={staleSpaceId}>
+      <AppShellClient userId={me.id} spaces={spaces} initialSpaceId={initialSpaceId} staleSpaceId={staleSpaceId}>
         {children}
       </AppShellClient>
     </FormatProvider>

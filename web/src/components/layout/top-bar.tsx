@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Bell, LogOut } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
+import { clearHemfinSession } from "@/lib/households/flash";
 import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
 import { SpaceSwitcher } from "./space-switcher";
@@ -63,7 +64,8 @@ export function TopBar({
             </span>
           ) : null}
         </Link>
-        <form action={signOut}>
+        {/* Household names and one-time messages kept for this tab are wiped as the account leaves. */}
+        <form action={signOut} onSubmit={clearHemfinSession}>
           <button
             type="submit"
             aria-label="Sign out"

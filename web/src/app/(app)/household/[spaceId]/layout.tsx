@@ -43,6 +43,7 @@ async function HouseholdFrame({ params, children }: { params: Promise<{ spaceId:
       <PageHeader
         title={space.name}
         space="household"
+        stackBadge
         spaceName={space.name}
         backLink={{ label: "Households", href: "/household" }}
       />

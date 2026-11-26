@@ -11,6 +11,7 @@ import type { SpaceSummary } from "./types";
 
 const ActiveSpaceContext = React.createContext<SpaceSummary | null>(null);
 const SpacesContext = React.createContext<SpaceSummary[] | null>(null);
+const UserIdContext = React.createContext<string | null>(null);
 
 /** The active space, for client components inside the (app) shell. */
 export function useActiveSpace(): SpaceSummary {
@@ -26,10 +27,25 @@ export function useSpaces(): SpaceSummary[] {
   return spaces;
 }
 
+/** The signed-in user's id, used to key per-user browser state. */
+export function useUserId(): string {
+  const id = React.useContext(UserIdContext);
+  if (!id) throw new Error("useUserId must be used inside the app shell");
+  return id;
+}
+
 /** The household id in `/household/<id>/...`, or null on other pages (and on `/household/new`). */
 function householdPageId(pathname: string): string | null {
   const m = /^\/household\/([^/]+)/.exec(pathname);
   return m && m[1] !== "new" ? m[1] : null;
+}
+
+interface ShellProps {
+  children: React.ReactNode;
+  userId: string;
+  spaces: SpaceSummary[];
+  initialSpaceId: string;
+  staleSpaceId?: string;
 }
 
 /**
@@ -39,37 +55,15 @@ function householdPageId(pathname: string): string | null {
  * longer open. The layout already fell back to the personal space; here the cookie is rewritten and
  * a toast says what happened.
  */
-export function AppShellClient({
-  children,
-  spaces,
-  initialSpaceId,
-  staleSpaceId,
-}: {
-  children: React.ReactNode;
-  spaces: SpaceSummary[];
-  initialSpaceId: string;
-  staleSpaceId?: string;
-}) {
+export function AppShellClient(props: ShellProps) {
   return (
     <ToastProvider>
-      <ShellInner spaces={spaces} initialSpaceId={initialSpaceId} staleSpaceId={staleSpaceId}>
-        {children}
-      </ShellInner>
+      <ShellInner {...props} />
     </ToastProvider>
   );
 }
 
-function ShellInner({
-  children,
-  spaces,
-  initialSpaceId,
-  staleSpaceId,
-}: {
-  children: React.ReactNode;
-  spaces: SpaceSummary[];
-  initialSpaceId: string;
-  staleSpaceId?: string;
-}) {
+function ShellInner({ children, userId, spaces, initialSpaceId, staleSpaceId }: ShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const toast = useToast();
@@ -83,28 +77,48 @@ function ShellInner({
   }
   const active = spaces.find((s) => s.id === activeId) ?? spaces.find((s) => s.id === initialSpaceId) ?? spaces[0];
 
-  // Names this tab has seen, so a later "no longer has access" message can say which household.
+  // Names this tab has seen (for this user only), so a later "no longer has access" message can say which household.
   React.useEffect(() => {
-    rememberSpaceNames(spaces);
-  }, [spaces]);
+    rememberSpaceNames(userId, spaces);
+  }, [userId, spaces]);
+
+  const lostAccess = React.useCallback(
+    (spaceId: string) => {
+      const name = recallSpaceName(userId, spaceId);
+      toast(name ? `You no longer have access to ${name}.` : "You no longer have access to that household.");
+    },
+    [userId, toast],
+  );
 
   const handled = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (!staleSpaceId || handled.current === staleSpaceId) return;
     handled.current = staleSpaceId;
-    const name = recallSpaceName(staleSpaceId);
-    toast(name ? `You no longer have access to ${name}.` : "You no longer have access to that household.");
+    lostAccess(staleSpaceId);
     // Rewrite the cookie so the next page load does not report it again.
     startTransition(async () => {
-      await setActiveSpace(initialSpaceId);
+      await setActiveSpace(initialSpaceId).catch(() => false);
     });
-  }, [staleSpaceId, initialSpaceId, toast]);
+  }, [staleSpaceId, initialSpaceId, lostAccess]);
 
   function onSpaceChange(id: string) {
     setActiveId(id);
     const pageId = householdPageId(pathname);
     startTransition(async () => {
-      await setActiveSpace(id);
+      let accepted = false;
+      try {
+        accepted = await setActiveSpace(id);
+      } catch {
+        accepted = false;
+      }
+      if (!accepted) {
+        // The server refused (the user lost access meanwhile, or the call failed): go back to what the
+        // server says is active, say so, and re-read the spaces.
+        setActiveId(initialSpaceId);
+        lostAccess(id);
+        router.refresh();
+        return;
+      }
       // A household page belongs to the household in its URL, so another space opens its dashboard (D12).
       if (pageId && pageId !== id) router.push("/dashboard");
       else router.refresh();
@@ -112,22 +126,24 @@ function ShellInner({
   }
 
   return (
-    <SpacesContext.Provider value={spaces}>
-      <ActiveSpaceContext.Provider value={active}>
-        {/* display: contents keeps the layout unchanged. data-space-sync lets tests wait until the
-            space cookie is written and router.refresh() has finished. */}
-        <div className="contents" data-space-sync={syncing ? "pending" : "idle"}>
-          <AppShell
-            spaces={spaces}
-            activeSpaceId={active.id}
-            onSpaceChange={onSpaceChange}
-            navItems={NAV_ITEMS}
-            currentPath={pathname}
-          >
-            {children}
-          </AppShell>
-        </div>
-      </ActiveSpaceContext.Provider>
-    </SpacesContext.Provider>
+    <UserIdContext.Provider value={userId}>
+      <SpacesContext.Provider value={spaces}>
+        <ActiveSpaceContext.Provider value={active}>
+          {/* display: contents keeps the layout unchanged. data-space-sync lets tests wait until the
+              space cookie is written and router.refresh() has finished. */}
+          <div className="contents" data-space-sync={syncing ? "pending" : "idle"}>
+            <AppShell
+              spaces={spaces}
+              activeSpaceId={active.id}
+              onSpaceChange={onSpaceChange}
+              navItems={NAV_ITEMS}
+              currentPath={pathname}
+            >
+              {children}
+            </AppShell>
+          </div>
+        </ActiveSpaceContext.Provider>
+      </SpacesContext.Provider>
+    </UserIdContext.Provider>
   );
 }

@@ -6,7 +6,7 @@ import { Mail } from "lucide-react";
 import { useFormat } from "@/components/format-provider";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { useHydrated } from "@/components/auth/form-parts";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { FormMessage } from "@/components/ui/form-message";
 import { HemCard } from "@/components/ui/hem-card";
 import { RoleBadge } from "@/components/ui/status-chip";
@@ -139,7 +139,7 @@ export function MembersView({
                       <span className="min-w-0 break-words text-body-strong">{name}</span>
                       <RoleBadge role={m.role} />
                     </div>
-                    {name !== m.email ? <p className="break-all text-small text-muted-foreground">{m.email}</p> : null}
+                    {name !== m.email ? <p className="text-small text-muted-foreground [overflow-wrap:anywhere]">{m.email}</p> : null}
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-small text-muted-foreground">
                       <span>Joined {date(m.joined_at)}</span>
                       {m.user_id === viewerId ? <YouTag /> : null}
@@ -185,7 +185,7 @@ export function MembersView({
                           <span className="break-words">{name}</span>
                           {m.user_id === viewerId ? <YouTag /> : null}
                         </p>
-                        {name !== m.email ? <p className="break-all text-small text-muted-foreground">{m.email}</p> : null}
+                        {name !== m.email ? <p className="text-small text-muted-foreground [overflow-wrap:anywhere]">{m.email}</p> : null}
                       </div>
                     </div>
                   </td>

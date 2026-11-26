@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Check, ChevronDown, Lock, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useHydrated } from "@/components/auth/form-parts";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { SpaceBadge } from "@/components/ui/space-badge";
 import { compareNames, ROLE_LABEL, truncateCodePoints } from "@/lib/households/households";
 import type { SpaceSummary, SpaceType } from "./types";
@@ -62,7 +62,7 @@ export function SpaceSwitcher({
   const [open, setOpen] = React.useState(false);
   const trigger = React.useRef<HTMLButtonElement>(null);
   const popup = React.useRef<HTMLDivElement>(null);
-  const rows = React.useRef<(HTMLButtonElement | null)[]>([]);
+  const rows = React.useRef<(HTMLElement | null)[]>([]); // the space rows, then the two footer links
 
   const active = spaces.find((s) => s.id === activeSpaceId) ?? spaces[0];
   // Personal first, then households by name.
@@ -87,7 +87,7 @@ export function SpaceSwitcher({
   }
 
   function focusRow(index: number) {
-    const n = ordered.length;
+    const n = ordered.length + 2; // rows plus the two footer links
     rows.current[((index % n) + n) % n]?.focus();
   }
 
@@ -113,7 +113,7 @@ export function SpaceSwitcher({
         break;
       case "ArrowUp":
         e.preventDefault();
-        focusRow(current < 0 ? ordered.length - 1 : current - 1);
+        focusRow(current < 0 ? ordered.length + 1 : current - 1);
         break;
       case "Home":
         e.preventDefault();
@@ -121,7 +121,7 @@ export function SpaceSwitcher({
         break;
       case "End":
         e.preventDefault();
-        focusRow(ordered.length - 1);
+        focusRow(ordered.length + 1);
         break;
     }
   }
@@ -176,7 +176,6 @@ export function SpaceSwitcher({
               <p className="text-h3">Switch space</p>
               <button
                 type="button"
-                tabIndex={-1}
                 aria-label="Close"
                 onClick={() => close(true)}
                 className="inline-flex size-11 items-center justify-center rounded-md hover:bg-accent"
@@ -217,23 +216,26 @@ export function SpaceSwitcher({
                   </button>
                 );
               })}
-            </div>
-            <div className="border-t border-border p-2">
-              {/* After the rows in reading order. Arrow keys skip them. */}
-              <Link
-                href={manageHref}
-                onClick={() => setOpen(false)}
-                className="flex min-h-11 items-center rounded-md px-3 text-body font-medium text-primary hover:bg-accent"
-              >
-                Manage households
-              </Link>
-              <Link
-                href={createHouseholdHref}
-                onClick={() => setOpen(false)}
-                className="flex min-h-11 items-center rounded-md px-3 text-body font-medium text-primary hover:bg-accent"
-              >
-                Create a household
-              </Link>
+              {/* After a separator, still inside the menu: arrows, Home and End reach them, Enter follows the link. */}
+              <div role="separator" className="-mx-2 my-2 border-t border-border" />
+              {[
+                { href: manageHref, label: "Manage households" },
+                { href: createHouseholdHref, label: "Create a household" },
+              ].map((link, j) => (
+                <Link
+                  key={link.href}
+                  ref={(el) => {
+                    rows.current[ordered.length + j] = el;
+                  }}
+                  href={link.href}
+                  role="menuitem"
+                  tabIndex={-1}
+                  onClick={() => setOpen(false)}
+                  className="flex min-h-11 items-center rounded-md px-3 text-body font-medium text-primary hover:bg-accent"
+                >
+                  {link.label}
+                </Link>
+              ))}
             </div>
           </div>
         </>

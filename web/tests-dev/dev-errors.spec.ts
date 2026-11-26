@@ -13,6 +13,8 @@ const APP_ROUTES = ["/dashboard", "/contracts", "/profile", "/household", "/hous
 const SERVER_ERROR = /Error:|unstable value|while prerendering|blocking-prerender|Blocking Route|Uncached data was accessed/i;
 
 test("dev server renders pages without prerender errors or the error overlay", async ({ page, context }) => {
+  // Nine routes, each compiled on first request by `next dev`: a cold run needs more than the default 30 s.
+  test.setTimeout(180_000);
   await signInAs(context);
   // Households for the signed-in user, so the dynamic /household/[spaceId]/* routes render real data.
   const { ids } = await seedHouseholds(USER, [

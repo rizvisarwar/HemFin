@@ -4,8 +4,9 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { setActiveSpace } from "@/app/actions";
-import { useActiveSpace, useSpaces } from "@/components/layout/app-shell-client";
-import { Field, FieldError, useFocusFirstInvalid, useHydrated } from "@/components/auth/form-parts";
+import { useActiveSpace, useSpaces, useUserId } from "@/components/layout/app-shell-client";
+import { Field, FieldError, useFocusFirstInvalid } from "@/components/auth/form-parts";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { Button } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/form-message";
 import { HemCard } from "@/components/ui/hem-card";
@@ -55,6 +56,7 @@ function RenameCard({ spaceId, name, viewerRole }: { spaceId: string; name: stri
   const [message, setMessage] = React.useState<{ kind: "error" | "success"; text: string } | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [attempt, setAttempt] = React.useState(0);
+  const pressing = React.useRef(false);
   useFocusFirstInvalid(form, attempt);
   const typed = useInputValue("household-name");
   // The name changes elsewhere (another admin, or after router.refresh()): follow the server.
@@ -126,15 +128,20 @@ function RenameCard({ spaceId, name, viewerRole }: { spaceId: string; name: stri
               className="mt-4 space-y-4"
               data-testid="rename-form"
             >
-              <div key={version}>
+              {/* Reserved error line: a blur message must not shift the Save button under a tap. */}
+              <div key={version} className="[&_#household-name-error]:min-h-5">
                 <Field
                   id="household-name"
-                  label="Household name"
+                  label="Name"
                   autoComplete="off"
                   defaultValue={saved}
                   hint="Shown to everyone in the household."
                   error={error}
-                  onBlur={(e) => setError(validateHouseholdName(e.currentTarget.value) ?? undefined)}
+                  onFocus={() => (pressing.current = false)}
+                  onBlur={(e) => {
+                    if (pressing.current) return; // a press on Save blurs first (Safari does not focus the button); the submit validates
+                    setError(validateHouseholdName(e.currentTarget.value) ?? undefined);
+                  }}
                   onInput={(e) => error && setError(validateHouseholdName(e.currentTarget.value) ?? undefined)}
                 />
               </div>
@@ -142,6 +149,8 @@ function RenameCard({ spaceId, name, viewerRole }: { spaceId: string; name: stri
                 type="submit"
                 className="w-full sm:w-auto"
                 disabled={!hydrated || !changed}
+                onPointerDown={() => (pressing.current = true)}
+                onClick={() => (pressing.current = false)}
                 aria-disabled={busy || undefined}
                 aria-busy={busy || undefined}
                 data-testid="save-name"
@@ -177,6 +186,7 @@ function useAfterGone(spaceId: string) {
 function LeaveCard({ spaceId, name, viewerId, viewerRole }: { spaceId: string; name: string; viewerId: string; viewerRole: Role }) {
   const router = useRouter();
   const afterGone = useAfterGone(spaceId);
+  const userId = useUserId();
   const isOwner = viewerRole === "owner";
   const hydrated = useHydrated();
   const [open, setOpen] = React.useState(false);
@@ -193,7 +203,7 @@ function LeaveCard({ spaceId, name, viewerId, viewerRole }: { spaceId: string; n
         params: { path: { space_id: spaceId, user_id: viewerId } },
       });
       if (response.ok) {
-        setFlash(`You left ${name}.`);
+        setFlash(userId, `You left ${name}.`);
         await afterGone();
         router.push("/household");
         return; // stays busy while the list loads
@@ -273,6 +283,7 @@ function LeaveCard({ spaceId, name, viewerId, viewerRole }: { spaceId: string; n
 function DeleteCard({ spaceId, name }: { spaceId: string; name: string }) {
   const router = useRouter();
   const afterGone = useAfterGone(spaceId);
+  const userId = useUserId();
   const hydrated = useHydrated();
   const [open, setOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
@@ -292,7 +303,7 @@ function DeleteCard({ spaceId, name }: { spaceId: string; name: string }) {
         params: { path: { space_id: spaceId } },
       });
       if (response.ok) {
-        setFlash(`${name} was deleted.`);
+        setFlash(userId, `${name} was deleted.`);
         await afterGone();
         router.push("/household");
         return;

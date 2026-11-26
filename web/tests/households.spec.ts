@@ -167,6 +167,47 @@ test.describe("create a household", () => {
     await expect(page).toHaveURL(/\/household\/new$/);
   });
 
+  test("one tap on Create: an invalid name shows the error and focuses the field, a valid name submits (Safari blurs on tap)", async ({ page, context }, info) => {
+    test.skip(!info.project.use.hasTouch, "taps need a touch project (the phone project runs WebKit)");
+    await setup(context, info, []);
+    await page.goto("/household/new");
+    const submit = page.getByTestId("create-household");
+    await expect(submit).toBeEnabled();
+    const input = page.locator("#name");
+
+    // Invalid name, field focused (so the tap blurs it): one tap is enough.
+    await input.tap();
+    await input.fill("x".repeat(81));
+    const before = await submit.boundingBox(); // after the character counter has appeared
+    await submit.tap();
+    await expect(page.getByText("Use at most 80 characters.")).toBeVisible();
+    await expect(input).toBeFocused();
+    await expect(page).toHaveURL(/\/household\/new$/);
+    // The button did not move because a message appeared.
+    expect((await submit.boundingBox())!.y).toBe(before!.y);
+
+    // A valid name: the same single tap submits.
+    await input.fill(LEE);
+    await expect(page.getByText("Use at most 80 characters.")).toBeHidden();
+    await input.tap();
+    await submit.tap();
+    await expect(page).toHaveURL(/\/household\/[0-9a-f-]{36}\/members$/);
+    await expect(page.getByRole("heading", { level: 1, name: LEE })).toBeVisible();
+  });
+
+  test("a blur message does not move the Create button", async ({ page, context }, info) => {
+    await setup(context, info, []);
+    await page.goto("/household/new");
+    const submit = page.getByTestId("create-household");
+    await expect(submit).toBeEnabled();
+    const before = (await submit.boundingBox())!.y;
+    const input = page.locator("#name");
+    await input.fill("   ");
+    await input.blur();
+    await expect(page.getByText("Enter a name for the household.")).toBeVisible();
+    expect((await submit.boundingBox())!.y).toBe(before);
+  });
+
   test("shows the household limit and keeps what was typed", async ({ page, context }, info) => {
     await setup(
       context,
@@ -413,6 +454,27 @@ test.describe("settings", () => {
     expect((await storedSpace(ids[0])).name).toBe(LEE);
   });
 
+  test("one tap on Save changes: an invalid name shows the error without moving the button, a valid name saves", async ({ page, context }, info) => {
+    test.skip(!info.project.use.hasTouch, "taps need a touch project (the phone project runs WebKit)");
+    const { ids } = await setup(context, info, [{ name: LEE, role: "owner" }]);
+    await page.goto(`/household/${ids[0]}/settings`);
+    const input = page.locator("#household-name");
+    const save = page.getByTestId("save-name");
+    await expect(input).toBeVisible();
+    await input.tap();
+    await input.fill("x".repeat(81));
+    await expect(save).toBeEnabled();
+    const before = (await save.boundingBox())!.y;
+    await save.tap();
+    await expect(page.getByText("Use at most 80 characters.")).toBeVisible();
+    await expect(input).toBeFocused();
+    expect((await save.boundingBox())!.y).toBe(before);
+    await input.fill("Lee-Kim household");
+    await input.tap();
+    await save.tap();
+    await expect(page.locator("#rename-message")).toHaveText("Household name saved.");
+  });
+
   test("an admin can rename and leave, and sees no Delete card", async ({ page, context }, info) => {
     const { ids } = await setup(context, info, [{ name: LEE, role: "admin", members: [{ email: `owner.${cast(info).me.email}`, role: "owner" }] }]);
     await page.goto(`/household/${ids[0]}/settings`);
@@ -551,9 +613,9 @@ test.describe("space switcher", () => {
     await expect(rows.nth(1)).toHaveAttribute("aria-checked", "false");
     // Heading row: the active space's badge. Two footer links.
     await expect(page.getByTestId("space-switcher-popup").locator("[data-space=personal]")).toContainText("Personal");
-    await expect(page.getByRole("link", { name: "Manage households" })).toHaveAttribute("href", "/household");
-    await expect(page.getByRole("link", { name: "Create a household" })).toHaveAttribute("href", "/household/new");
-    for (const link of await page.getByTestId("space-switcher-popup").getByRole("link").all()) await expectTapTarget(link, "footer link");
+    await expect(page.getByRole("menuitem", { name: "Manage households" })).toHaveAttribute("href", "/household");
+    await expect(page.getByRole("menuitem", { name: "Create a household" })).toHaveAttribute("href", "/household/new");
+    for (const link of await page.getByTestId("space-switcher-popup").getByRole("menuitem").all()) await expectTapTarget(link, "footer link");
     for (const row of await rows.all()) expect((await row.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     await expectNoHorizontalScroll(page);
   });
@@ -568,14 +630,20 @@ test.describe("space switcher", () => {
     await expect(rows.nth(1)).toBeFocused();
     await page.keyboard.press("ArrowDown");
     await expect(rows.nth(2)).toBeFocused();
+    const manage = menu.getByRole("menuitem", { name: "Manage households" });
+    const create = menu.getByRole("menuitem", { name: "Create a household" });
+    await page.keyboard.press("ArrowDown");
+    await expect(manage).toBeFocused(); // the footer links follow the rows
+    await page.keyboard.press("ArrowDown");
+    await expect(create).toBeFocused();
     await page.keyboard.press("ArrowDown");
     await expect(rows.nth(0)).toBeFocused(); // wraps
     await page.keyboard.press("ArrowUp");
-    await expect(rows.nth(2)).toBeFocused(); // wraps back
+    await expect(create).toBeFocused(); // wraps back
     await page.keyboard.press("Home");
     await expect(rows.nth(0)).toBeFocused();
     await page.keyboard.press("End");
-    await expect(rows.nth(2)).toBeFocused();
+    await expect(create).toBeFocused();
     await page.keyboard.press("Home");
     await page.keyboard.press("ArrowDown"); // "Lee cousins"
     await page.keyboard.press("Enter");
@@ -618,6 +686,40 @@ test.describe("space switcher", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.mouse.click(5, 300);
     await expect(menu).toHaveCount(0);
+  });
+
+  test("keyboard: the footer links are menu items reached with the arrows; Enter follows them; Tab from one closes the menu", async ({ page, context }, info) => {
+    await setup(context, info, [{ name: LEE, role: "owner" }]);
+    await page.goto("/dashboard");
+    const { trigger, menu } = await openSwitcher(page);
+    const items = menu.getByRole("menuitem");
+    await expect(items).toHaveText(["Manage households", "Create a household"]);
+    await expect(menu.getByRole("separator")).toHaveCount(1);
+    // End reaches the last link; Enter follows it.
+    await page.keyboard.press("End");
+    await expect(items.nth(1)).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/household\/new$/);
+    await expect(menu).toHaveCount(0);
+    // Tab from a footer link closes the menu and moves on, like from any item.
+    await page.goto("/dashboard");
+    await expect(trigger).toBeEnabled();
+    await trigger.focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(menu).toBeVisible();
+    await page.keyboard.press("ArrowUp"); // wraps to the last link
+    await expect(items.nth(1)).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(menu).toHaveCount(0);
+    await expect(trigger).not.toBeFocused();
+    // Manage households, by arrows from the last row.
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("End");
+    await page.keyboard.press("ArrowUp");
+    await expect(items.first()).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/household$/);
   });
 
   test("the arrow key opens the menu from the trigger", async ({ page, context }, info) => {
@@ -702,6 +804,46 @@ test.describe("space switcher", () => {
     await page.goto("/dashboard");
     await expect(page.locator("header[data-space]").first()).toHaveAttribute("data-space", "personal");
     await expect(page.getByTestId("toast")).toContainText(`You no longer have access to ${LEE}.`);
+  });
+
+  test("signing out clears the saved space and this tab's household names; the next account sees nothing of the first", async ({ page, context }, info) => {
+    const { ids } = await setup(context, info, [{ name: "Secret Hideaway", role: "owner" }]);
+    const cookie = async () => (await context.cookies()).find((c) => c.name === "hemfin-space")?.value;
+    await page.goto("/dashboard");
+    const { menu } = await openSwitcher(page);
+    await menu.getByRole("menuitemradio", { name: /Secret Hideaway/ }).click();
+    await expect.poll(cookie).toBe(ids[0]);
+    await expect(page.locator("[data-space-sync]")).toHaveAttribute("data-space-sync", "idle");
+    // The tab has remembered the household's name, keyed by user.
+    const keys = () => page.evaluate(() => Object.keys(sessionStorage).filter((k) => k.startsWith("hemfin-")));
+    expect((await keys()).length).toBeGreaterThan(0);
+
+    await page.getByRole("button", { name: "Sign out" }).click();
+    await expect(page).toHaveURL(/\/sign-in/);
+    await expect.poll(cookie).toBeUndefined();
+    expect(await keys()).toEqual([]);
+
+    // User B signs in in the same browser context and tab.
+    const b = { email: `b-${uniqueUser(info).email}` };
+    await seed(b, { display_name: "Blake Other" });
+    await signInAs(context, b);
+    await page.goto("/dashboard");
+    await expect(page.locator("header[data-space]").first()).toHaveAttribute("data-space", "personal");
+    await expect(page.getByTestId("toast")).toHaveCount(0);
+    expect(await page.content()).not.toContain("Secret Hideaway");
+    expect(await page.evaluate(() => JSON.stringify({ ...sessionStorage }))).not.toContain("Secret Hideaway");
+    expect(await cookie()).toBeUndefined();
+  });
+
+  test("a store left behind by an abandoned session is never read by another user", async ({ page, context }, info) => {
+    await setup(context, info, [{ name: LEE, role: "owner" }]);
+    await page.goto("/dashboard");
+    // A leftover from some other user's abandoned session, under that user's key.
+    await page.evaluate(() => sessionStorage.setItem("hemfin-space-names:someone-else", JSON.stringify({ "22222222-2222-4222-8222-222222222222": "Someone Elses House" })));
+    await context.addCookies([{ name: "hemfin-space", value: "22222222-2222-4222-8222-222222222222", url: "http://127.0.0.1:3100", httpOnly: true, sameSite: "Lax" }]);
+    await page.goto("/dashboard");
+    await expect(page.getByTestId("toast")).toContainText("You no longer have access to that household.");
+    await expect(page.getByTestId("toast")).not.toContainText("Someone Elses");
   });
 
   test("the cookie keeps the real household id across a reload", async ({ page, context }, info) => {

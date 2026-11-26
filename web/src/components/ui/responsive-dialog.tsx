@@ -82,13 +82,16 @@ export function ResponsiveDialog({
                 <Description className="mt-1 text-body text-muted-foreground">{description}</Description>
               ) : null}
             </div>
-            <DialogPrimitive.Close
-              disabled={busy}
-              render={<Button variant="ghost" size="icon" className="-mr-2 -mt-1 shrink-0" />}
-            >
-              <XIcon aria-hidden="true" />
-              <span className="sr-only">Close</span>
-            </DialogPrimitive.Close>
+            {/* A confirmation has a Cancel button, so it has no close X. */}
+            {alert ? null : (
+              <DialogPrimitive.Close
+                disabled={busy}
+                render={<Button variant="ghost" size="icon" className="-mr-2 -mt-1 shrink-0" />}
+              >
+                <XIcon aria-hidden="true" />
+                <span className="sr-only">Close</span>
+              </DialogPrimitive.Close>
+            )}
           </div>
           {children ? <div data-dialog-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-6">{children}</div> : null}
           {footer ? (

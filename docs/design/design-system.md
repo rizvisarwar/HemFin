@@ -256,7 +256,7 @@ Text needs 4.5:1, large text (24 px or 18.66 px bold and up) needs 3:1, and non-
 | `--primary-foreground` #121B2B | `--primary` #A0BCEE | 9.0:1 | 4.5 | Pass |
 | `--accent-foreground` #9FDFD7 | `--accent` #203C39 | 7.9:1 | 4.5 | Pass |
 | `--destructive` #E77474 | `--background` | 6.3:1 | 4.5 | Pass |
-| `--destructive-foreground` (dark navy) on `--destructive` #E77474 | `--destructive` | about 5.9:1 | 4.5 | Pass |
+| `--destructive-foreground` (dark navy) on `--destructive` #E77474 | `--destructive` | 6.1:1 (measured in HEM-015; hover, at 90% opacity, about 5.1:1) | 4.5 | Pass |
 | `--success` #5EC997 | `--background` | 9.1:1 | 4.5 | Pass |
 | `--warning` #F5B547 | `--background` | 10.3:1 | 4.5 | Pass |
 | `--warning` | `--warning-subtle` | 7.2:1 | 4.5 | Pass |
