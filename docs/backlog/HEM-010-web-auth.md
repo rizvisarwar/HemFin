@@ -93,6 +93,7 @@ Users can sign up, confirm their email, sign in (password or Google), reset a pa
 - **D11:** expiry line 16 px in normal text colour; light-only noted in a comment in the templates and the design doc.
 - **D12:** new screenshots: dark (sign-in, sign-up, forgot-password), reduced motion (sign-in; note the whole suite already runs with reduced motion on), sign-up success, sign-in wrong credentials.
 - Also: the space-switcher smoke test still flaked on WebKit with `networkidle`, so `AppShellClient` now exposes `data-space-sync` (pending/idle, `display: contents` wrapper) and the test waits for `idle`. 12 repeats and 3 full runs pass.
+- CI: the first round-1 push failed gitleaks on a dummy value typed by a new Playwright test (`generic-api-key` false positive). Renamed and changed the value; the one historic fingerprint is in `.gitleaksignore` (exact fingerprint, same approach as HEM-008). Run 45789405843: api, docker, gitleaks, web all pass.
 - Checks: lint pass, unit 24/24, build pass, Playwright 3 full runs x 103 passed, dev config 1 passed.
 
 ## Review
