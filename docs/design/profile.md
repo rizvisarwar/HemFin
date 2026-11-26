@@ -206,7 +206,7 @@ Rules:
 | Delete | Delete {name} |
 
 ### 5.3 Phone compact row (decision for nit 9)
-- Address summary is clamped to two lines, so each card stays under about 120 px tall when the card has no region.
+- The address summary (street, postcode and city, region) is clamped to two lines, and the country sits on its own line below it, so the country is never cut off. Each card stays under about 140 px tall when the card has no region.
 - The three actions sit in one row, all at 44 px, with 8 px gaps.
 - Cards keep their order from the API; the default is not moved to the top.
 

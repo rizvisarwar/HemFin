@@ -93,7 +93,18 @@ def test_display_name_is_trimmed_bounded_and_clearable() -> None:
             ProfilePatch(display_name=bad)
 
 
-@pytest.mark.parametrize("bad", ["Sam\nExample", "Sam\tE", "Sam\x00", "a\x85b", "line\r\nbreak"])
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "Sam\nExample",
+        "Sam\tE",
+        "Sam\x00",
+        "a\x85b",
+        "line\r\nbreak",
+        "a" + chr(0x2028) + "b",  # line separator (Zl)
+        "a" + chr(0x2029) + "b",  # paragraph separator (Zp)
+    ],
+)
 def test_display_name_rejects_control_characters(bad: str) -> None:
     with pytest.raises(ValidationError) as exc:
         ProfilePatch(display_name=bad)

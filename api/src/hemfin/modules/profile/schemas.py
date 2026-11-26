@@ -68,7 +68,8 @@ Phone = Annotated[str, StringConstraints(max_length=32), AfterValidator(_phone)]
 
 
 def _no_control_chars(v: str) -> str:
-    if any(unicodedata.category(ch) == "Cc" for ch in v):
+    # Cc: control characters and line breaks; Zl and Zp: U+2028 and U+2029 separators.
+    if any(unicodedata.category(ch) in ("Cc", "Zl", "Zp") for ch in v):
         raise ValueError("Must not contain control characters or line breaks.")
     return v
 

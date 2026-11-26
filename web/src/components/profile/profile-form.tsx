@@ -221,7 +221,9 @@ export function ProfileForm({ email, displayName, profile }: { email: string; di
               listLabel="Currencies"
               onTextChange={(t) => {
                 const match = resolveOption(currencies, t, currencyText);
-                if (match) setPickedCurrency(match.value);
+                // Follows whatever the text resolves to (typed, picked or tidied on blur); text that
+                // names no currency falls back to the saved one.
+                setPickedCurrency(match?.value);
               }}
               placeholder="Search, for example EUR or Euro"
             />

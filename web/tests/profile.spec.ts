@@ -560,10 +560,11 @@ test.describe("review round 1", () => {
     await list.evaluate((el) => (el.scrollTop = el.scrollHeight));
     const last = list.getByRole("option").last();
     await expect(last).toBeInViewport();
+    // The list is open and scrolled to its last option, inside the sheet (for the Designer).
+    await viewShot(page, info, "country-list-open-last-option");
     await last.click();
     await expect(country).not.toHaveValue("a");
     await expect(dialog).toBeVisible();
-    await viewShot(page, info, "country-list-in-sheet");
 
     // The currency list on the page, with the same checks against the viewport.
     await dialog.getByRole("button", { name: "Cancel" }).click();
@@ -575,6 +576,7 @@ test.describe("review round 1", () => {
     expect(cbox.x + cbox.width).toBeLessThanOrEqual(view.width);
     await currencies.evaluate((el) => (el.scrollTop = el.scrollHeight));
     await expect(currencies.getByRole("option").last()).toBeInViewport();
+    await viewShot(page, info, "currency-list-open-last-option");
   });
 
   test("the phone country comes from the locale's region, the same on server and client", async ({ page, context }, info) => {
@@ -623,6 +625,16 @@ test.describe("review round 1", () => {
     await pickCurrency(page, "swiss", /^Swiss Franc/);
     await expect(example).toContainText("CHF"); // before saving
     await expect(example).toContainText("1,240.50");
+    // Typed (not picked) and tidied on blur: the example follows the resolved currency.
+    const currency = page.getByLabel("Base currency");
+    await currency.fill("usd");
+    await expect(example).toHaveText("$1,240.50");
+    await page.getByLabel("Display name").click();
+    await expect(currency).toHaveValue("USD");
+    await expect(example).toHaveText("$1,240.50");
+    // Text that names no currency falls back to the saved one.
+    await currency.fill("nonsense");
+    await expect(example).toHaveText("€1,240.50");
   });
 
   test("a display name is counted in characters, not UTF-16 units", async ({ page, context }, info) => {
@@ -662,7 +674,9 @@ test.describe("review round 1", () => {
     await openProfile(page, info, context, { addresses: [WORK] });
     const summary = page.getByTestId("address-card").locator("address .line-clamp-2");
     await expect(summary).toBeVisible();
-    await expect(summary).toHaveText("Station Road 12, Floor 3, EC1A 1BB London, Greater London, United Kingdom");
+    await expect(summary).toHaveText("Station Road 12, Floor 3, EC1A 1BB London, Greater London");
+    await expect(page.getByTestId("address-card").getByTestId("address-country")).toBeVisible();
+    await expect(page.getByTestId("address-card").getByTestId("address-country")).toHaveText("United Kingdom");
     await expect(summary).toHaveCSS("-webkit-line-clamp", "2");
   });
 

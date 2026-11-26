@@ -154,7 +154,13 @@ export function AddressesSection({ initial }: { initial: AddressResponse[] }) {
                 </div>
                 <address className="mt-2 flex-1 text-body not-italic text-muted-foreground">
                   {/* Phone: one summary clamped to two lines, so cards stay compact. md and up: every line. */}
-                  <span className="line-clamp-2 break-words md:hidden">{addressLines(a).join(", ")}</span>
+                  <span className="md:hidden">
+                    <span className="line-clamp-2 block break-words">{addressLines(a).slice(0, -1).join(", ")}</span>
+                    {/* The country is the last line and always stays visible. */}
+                    <span className="block break-words" data-testid="address-country">
+                      {addressLines(a).at(-1)}
+                    </span>
+                  </span>
                   <span className="hidden md:block">
                     {addressLines(a).map((line, i) => (
                       <span key={i} className="block break-words">
