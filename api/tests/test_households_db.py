@@ -79,8 +79,14 @@ async def test_create_rejects_bad_names(
 
 
 async def test_household_cap_is_409_and_concurrency_safe(
-    aclient: httpx.AsyncClient, key: TestKey
+    aclient: httpx.AsyncClient, key: TestKey, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # Headroom: 14 simultaneous requests must never be limited by the default pool (5 + 10).
+    real = db.create_async_engine
+    monkeypatch.setattr(
+        db, "create_async_engine", lambda *a, **kw: real(*a, **{**kw, "pool_size": 20})
+    )
+    await db.dispose_engine()
     u = await _user(aclient, key)
     results = await asyncio.gather(
         *[aclient.post(API, json={"name": f"H{i}"}, headers=_auth(key, u)) for i in range(14)]
@@ -289,6 +295,12 @@ async def test_remove_member_matrix(aclient: httpx.AsyncClient, key: TestKey) ->
     assert (
         await aclient.delete(f"{url}/{other_admin}", headers=_auth(key, admin))
     ).status_code == 403
+    # A member cannot remove another member either.
+    other_member = await _user(aclient, key)
+    await _add(sid, other_member, Role.member)
+    assert (
+        await aclient.delete(f"{url}/{other_member}", headers=_auth(key, member))
+    ).status_code == 403
     # Admin removes a member; owner removes an admin.
     assert (await aclient.delete(f"{url}/{member}", headers=_auth(key, admin))).status_code == 204
     assert (
@@ -350,6 +362,7 @@ async def test_transfer_respects_target_household_cap(
         headers=_auth(key, owner),
     )
     assert r.status_code == 409
+    assert "10" not in r.json()["detail"]  # does not reveal the target's household count
     assert await _role(sid, owner) == "owner"
 
 
@@ -393,22 +406,29 @@ async def test_concurrent_leave_and_transfer_never_orphans_household(
             headers=_auth(key, owner),
         ),
     )
-    assert [r.status_code for r in results].count(204) >= 1
+    leave, transfer = (r.status_code for r in results)
+    # The transfer always succeeds. The leave either ran first (owner: 409) or after the
+    # transfer, when the caller was already an admin (204). Never two 409s, never an orphan.
+    assert transfer == 204
+    assert leave in (204, 409)
     assert await _owner_count(sid) == 1
+    assert await _role(sid, member) == "owner"
 
 
-async def test_concurrent_demote_and_remove_keep_owner(
+async def test_concurrent_attacks_on_the_owner_keep_owner(
     aclient: httpx.AsyncClient, key: TestKey
 ) -> None:
-    sid, owner, admin, member, _ = await _setup(aclient, key)
-    await asyncio.gather(
+    sid, owner, admin, _member, _ = await _setup(aclient, key)
+    results = await asyncio.gather(
         aclient.patch(
-            f"{API}/{sid}/members/{admin}", json={"role": "member"}, headers=_auth(key, owner)
+            f"{API}/{sid}/members/{owner}", json={"role": "member"}, headers=_auth(key, owner)
         ),
-        aclient.delete(f"{API}/{sid}/members/{admin}", headers=_auth(key, admin)),
-        aclient.delete(f"{API}/{sid}/members/{member}", headers=_auth(key, admin)),
+        aclient.delete(f"{API}/{sid}/members/{owner}", headers=_auth(key, admin)),
+        aclient.delete(f"{API}/{sid}/members/{owner}", headers=_auth(key, owner)),
     )
+    assert [r.status_code for r in results] == [409, 403, 409]
     assert await _owner_count(sid) == 1
+    assert await _role(sid, owner) == "owner"
 
 
 async def test_db_rejects_second_owner(aclient: httpx.AsyncClient, key: TestKey) -> None:

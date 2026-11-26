@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, StringConstraints
@@ -38,7 +38,8 @@ class MemberOut(BaseModel):
 
 
 class MemberRoleChange(BaseModel):
-    role: Role  # `owner` is rejected by the service; use transfer-ownership
+    # `owner` is not accepted: use transfer-ownership
+    role: Literal[Role.admin, Role.member]
 
 
 class TransferOwnership(BaseModel):
