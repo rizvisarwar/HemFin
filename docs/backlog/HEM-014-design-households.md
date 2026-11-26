@@ -1,6 +1,6 @@
 # HEM-014: Design spec, households, invitations and switcher
 
-**Phase:** 2 · **Status:** Todo · **Owner:** Designer · **Depends on:** none
+**Phase:** 2 · **Status:** In Review · **Owner:** Designer · **Depends on:** none
 
 ## Goal
 A written spec in `docs/design/households.md` (and any needed presentational components) so HEM-015 and HEM-016 can be built without a design round trip.
@@ -41,5 +41,31 @@ A written spec in `docs/design/households.md` (and any needed presentational com
 5. Household-page switch exception approved and applied to `docs/design/app-shell.md` section 4.2 (D21).
 6. `FormMessage` move to `components/ui/` is for HEM-015 (D22). Not done in this ticket.
 **Verify:** docs only in this update, so no code changed. `npm run lint && npm run build` from the first handoff still apply.
+
+### 2026-11-26 Designer, PR #21 review round 1 (CHANGES_REQUESTED, comment 7201127289)
+Blocking:
+- **B1.** Owner "Leave household" cell in 6.7 is now "disabled, with the text below" (matches the owner text and the button).
+- **B2.** Switcher rows are `role="menuitemradio"` in a `role="menu"`, as `app-shell.md` 4.2 says. Keyboard model added in 6.9: focus to the active row on open, Up and Down (wrap), Home and End, Enter or Space selects and closes, Escape closes without change, Tab closes, focus returns to the trigger. Section 10 covers the switcher focus rules.
+- **B3.** Not changed in the spec, per PM. The engineer adds the two distinct 409 codes and the 429 to HEM-013.
+- **B4.** Create household (6.2) and Not found (6.10) have 768 and 1280 rules, and a table in section 11 covers them, with the accept page.
+
+Nits:
+- **N1.** D16 says "Share your finances with family" has five words, so the household list uses "Share finances with family" (four). Cites `app-shell.md` 6 (the four-word rule is not in `design-system.md` section 7).
+- **N2.** Empty-state icon circle is `--muted` (no space tint on the household list).
+- **N3.** Only-owner empty state: owners and admins get one primary action, members get none (a deliberate exception, written in 6.3).
+- **N4.** `DataTable`, `ResponsiveList` and `Toast` are listed as "to build in HEM-015" (5.1), not as existing.
+- **N5.** 5.4 no longer repeats the heading row (app-shell 4.2 already requires it). D13 names the 4.2/4.3 wording difference.
+- **N6.** Header "Related" no longer says auth-flows covers the banner. The banner example is in `app-shell.md` 7.
+- **N7.** Wireframes redrawn with aligned borders: members (phone and desktop), invitations (desktop), delete dialog (phone and desktop), change role (phone and desktop, with the transfer block).
+- **N8.** Invitations desktop and tablet text now match the wireframe (Email, Role, Status, Expires or accepted, Actions; no Sent column).
+- **N9.** The "accept or decline" row is out of the role table and is a note under it.
+- **N10.** Desktop change-role wireframe includes the transfer block.
+- **N11.** Personal space id on household routes shows the not-found state (6.10), with a responsive note.
+- **N12.** Not applied, per PM: the generic H message keeps "If you were invited at another address". The invitee holds the token, so the hint is acceptable.
+- **N13.** Sign-out clears the joined marker in that tab (6.8 K, point 5).
+- **N14.** Section 10 covers focus for the switcher sheet and dropdown.
+- **N15.** `status-chip.tsx`: one shared `CHIP_BASE` class string and one `ChipShell` renderer for `StatusChip` and `RoleBadge`. Lint and build pass.
+- **N16.** This ticket's status is In Review. The board is not edited (PM owns it).
+**Verify:** `npm run lint && npm run build` in `web/` pass after the `status-chip.tsx` refactor.
 
 ## Review

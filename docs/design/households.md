@@ -1,7 +1,7 @@
 # Households and invitations (HEM-014)
 
 Status: v1 (HEM-014). Owner: Designer. Built by: HEM-015 (household list, create, members, settings, switcher) and HEM-016 (invitations and the `/invite` accept page).
-Related: `design-system.md` (tokens, type, focus, dialogs, empty states), `app-shell.md` (shell, nav, space switcher, page header), `auth-flows.md` (sign-in, banner, Google button), `profile.md` (form and dialog patterns).
+Related: `design-system.md` (tokens, type, focus, dialogs, empty states), `app-shell.md` (shell, nav, space switcher, page header, and the invitation banner example in section 7), `auth-flows.md` (sign-in and sign-up forms, Google button), `profile.md` (form and dialog patterns).
 
 Example data in this spec is fictional. Household names are "The Lee family" and "Lee cousins", people are Alex, Jordan and Sam, and addresses use `example.com`.
 
@@ -38,10 +38,10 @@ These decisions are made here so that HEM-015 and HEM-016 can start. Items that 
 | D10 | Declining an invitation asks for confirmation. | Declining is final for that link, and the inviter has to send a new one. |
 | D11 | Destructive actions use an alert dialog with the action's name on the button. Delete household also needs the household name typed. | `design-system.md` 7.1, and the ticket's typed-name rule. |
 | D12 | Selecting another space while on a household page opens that space's dashboard. | A household page is bound to the household in its URL. Staying on it would show another space's name on a page of this household. This is an exception to `app-shell.md` 4.2, approved by the PM (D21). |
-| D13 | The switcher's phone sheet has a heading row with the active space's `SpaceBadge` (label: the household name, per `app-shell.md` 4.3). | Ticket HEM-014 asks for it. Using the name keeps it matching the top bar. |
+| D13 | The switcher's phone sheet has a heading row with the active space's `SpaceBadge`, labelled with the household name. | `app-shell.md` 4.2 already asks for the heading row, and its text there says "Household". `app-shell.md` 4.3 says the household name, which is what the top bar shows. This spec follows 4.3. The 4.2 wording should be aligned in a later change to `app-shell.md`. |
 | D14 | The switcher footer has two links: "Manage households" (`/household`) and "Create a household" (`/household/new`). | The current single footer link cannot reach the list. |
 | D15 | The Households list has no space badge. It shows the personal space as a reference card that is not a link. | The page spans spaces. The personal card explains why personal records are not listed. |
-| D16 | Empty-state titles have at most four words. The `app-shell.md` section 6 example "Share your finances with family" is kept as it is (four words). | `design-system.md` section 7 (EmptyState) and `app-shell.md` section 6. |
+| D16 | Empty-state titles have at most four words (`app-shell.md` section 6). The `app-shell.md` example "Share your finances with family" has five words, so this spec uses "Share finances with family" (four words) for the household list. | `app-shell.md` section 6. |
 | D17 | Role badges and invitation status chips are new presentational components (`RoleBadge`, `StatusChip`) in `web/src/components/ui/status-chip.tsx`. | No existing component covers them, and the colours must come from the `-subtle` tokens. |
 | D18 | Record permissions (PM decision): every member, of any role, can read and write shared records. Admins and the owner also manage members, invitations and the name. Only the owner deletes the household or transfers ownership. Role copy says only this. | Section 4 is the table. |
 | D19 | Repeat accept (PM decision): the API returns the generic 404 for a used token. After a successful accept the page clears the token, shows the joined state once, and navigates to the household (section 6.8). A reload of `/invite` in that tab shows the joined state from a marker, not the generic message. | Avoids a failure message after a successful join. |
@@ -65,7 +65,7 @@ These decisions are made here so that HEM-015 and HEM-016 can start. Items that 
 
 The active route rule from `app-shell.md` 3.5 applies. `/household/new` is a child of `/household`, so "Household" is active on all of these routes.
 
-A non-member gets the not-found state (section 6.10) on every `/household/[spaceId]` route. It is the same screen whether the household exists or not.
+A non-member gets the not-found state (section 6.10) on every `/household/[spaceId]` route. It is the same screen whether the household exists or not. A personal space's id on these routes also shows it (6.10).
 
 ### 3.1 Section navigation inside a household
 
@@ -112,9 +112,9 @@ The API is the authority. The UI hides an action when the viewer's role cannot u
 | Transfer ownership | yes | no | no |
 | Leave the household | no. Transfer ownership first. | yes | yes |
 | Delete the household | yes | no | no |
-| Accept or decline an invitation | any signed-in invitee with the matching email | | |
-
 Admins cannot remove other admins or the owner. Owners can remove admins and members.
+
+Accepting or declining an invitation is not a role action. Any signed-in user whose verified email matches the invitation can do it (section 6.8).
 
 The owner's own row never shows "Leave". The leave rule is in the settings section.
 
@@ -127,10 +127,22 @@ The owner's own row never shows "Leave". The leave rule is in the settings secti
 | Area | Components |
 |---|---|
 | Page | `PageHeader` (title, description, back link, primary action), `SpaceBadge` (md), `HemCard`, `EmptyState` (`page` and `inline`), `Skeleton`, `Button`, `Input`, `Label` or `Field`, `FormMessage` (`kind` error, success, info), `ResponsiveDialog` (dialog from md, bottom sheet on phone; `alert` for confirmations), `SpaceSwitcher`, `Badge` |
-| Lists | `HemCard` (interactive for household cards), table markup from `DataTable` (md and up), card list (phone) |
+| Lists | `HemCard` (interactive for household cards) |
 | Accept page | `AuthLayout` (no brand panel), `Button`, `HemCard` |
 
-`FormMessage` currently lives in `web/src/components/auth/form-parts.tsx`. HEM-015 may move it to `web/src/components/ui/` and update the imports (section 13). The spec calls it `FormMessage` in both cases. The design system lists an "Alert" component, but none exists in `ui/` yet. Use `FormMessage` for every inline error and success message.
+Existing in `web/src/components/layout/`: `PageHeader`, `SpaceSwitcher`, `AuthLayout`. Existing in `ui/`: `HemCard`, `SpaceBadge`, `EmptyState`, `Skeleton`, `Button`, `Input`, `Badge`, `ResponsiveDialog`, `MoneyText` (not used here).
+
+**Not in the codebase yet, to build in HEM-015** (design-system section 7 names them, nothing in `web/src/components` yet):
+
+| Component | Used for | Spec |
+|---|---|---|
+| `DataTable` | Members and invitations tables from md up (6.3, 6.4) | design-system section 7 (Table) |
+| `ResponsiveList` | Card list on phone, one card per row (6.3, 6.4) | design-system section 7 (Table) |
+| `Toast` | Success toasts (6.1, 6.2, 6.7, 6.8 K, 6.9) | design-system section 7 (Toast), 16 px above the bottom nav on phone |
+
+Until they exist, HEM-015 may build the tables and card lists inline in the screen, with the same layout. Shared versions should go in `ui/`.
+
+`FormMessage` currently lives in `web/src/components/auth/form-parts.tsx`. HEM-015 moves it to `web/src/components/ui/` (D22). The spec calls it `FormMessage` in both places. The design system lists an "Alert" component, but none exists in `ui/` yet. Use `FormMessage` for every inline error and success message.
 
 ### 5.2 New presentational components
 
@@ -176,12 +188,14 @@ The input border (`--input`, 3.7:1 on the background) is the non-text contrast f
 
 ### 5.4 Changes to the existing switcher (HEM-015)
 
-`web/src/components/layout/space-switcher.tsx` needs these changes. Nothing else in `app-shell.md` changes.
+`web/src/components/layout/space-switcher.tsx` needs these changes, on top of the behaviour already in `app-shell.md` 4.2. This list is the only place these changes are written down.
 
-1. Phone sheet: add the heading row, a `SpaceBadge` md for the active space (D13), above the list of spaces.
-2. Footer: two links, "Manage households" and "Create a household" (D14). Each is 44 px tall.
-3. Names are truncated by code point, not by UTF-16 unit, so an emoji or a surrogate pair is never split. The full name stays in the accessible name and `title`.
-4. The sheet rows clamp household names to two lines (`line-clamp-2`), so long names stay readable.
+1. Footer: two links, "Manage households" (`/household`) and "Create a household" (`/household/new`), each 44 px tall (D14). The current code has one link.
+2. Names are truncated by code point, not by UTF-16 unit, so an emoji or a surrogate pair is never split. The full name stays in the accessible name and `title`.
+3. The sheet rows clamp household names to two lines (`line-clamp-2`), so long names stay readable.
+4. Rows use `role="menuitemradio"` and the keyboard model in 6.9.
+
+The phone heading row (D13) is already required by `app-shell.md` 4.2. It is not a change here, so the code should already be doing it.
 
 ---
 
@@ -251,7 +265,7 @@ Breakpoints: 375 (phone), 768 (tablet, icon rail, 2-column cards, centred dialog
 | State | What the user sees | Copy |
 |---|---|---|
 | Loading | Personal card (static), then 2 skeleton cards with the same height as household cards. `aria-busy` on the list. Screen-reader text. | (sr) "Loading your households" |
-| Empty (no households) | `EmptyState` page, icon `Users` in a 56 px `--household-subtle` circle. Personal card still shown above it. Primary button "Create a household". | Title: "Share finances with family". Body: "Create a household, then invite a partner or family member by email. They see only what the household shares." |
+| Empty (no households) | `EmptyState` page, icon `Users` in a 56 px `--muted` circle (no space is active on this list, so no space tint; `design-system.md` section 6). Personal card still shown above it. Primary button "Create a household". | Title: "Share finances with family". Body: "Create a household, then invite a partner or family member by email. They see only what the household shares." |
 | Error | `FormMessage` kind error above the list, with a Retry button (44 px). | "We could not load your households just now." Button: "Retry". If the API gives a `detail`, it follows the line. |
 | Populated | Cards as above. | none |
 | Success (after create or leave) | `FormMessage` kind success, `role="status"`, above the list. | "Household created." or "You left The Lee family." |
@@ -296,7 +310,9 @@ Breakpoints: 375 (phone), 768 (tablet, icon rail, 2-column cards, centred dialog
 +-------------------------------------------+
 ```
 
-**Desktop 1280 px.** Same card, max 560 px wide, left-aligned under the title. "Create household" auto width.
+**Tablet 768 px.** The card is max 560 px wide, in the content area next to the icon rail, left-aligned under the title. "Create household" is auto width. The reassurance text and the counter sit above the buttons.
+
+**Desktop 1280 px.** The card is max 560 px wide, left-aligned under the title, in the content area next to the sidebar. "Create household" is auto width. No second column.
 
 **Components.** `PageHeader` (back link, description), `HemCard`, `Field` (label, hint, error), `Button`, `FormMessage`.
 
@@ -349,7 +365,7 @@ After a failed submit, focus moves to the name field. Errors are announced polit
 | |      Joined 3 Nov 2026 · You          | |
 | +---------------------------------------+ |
 | +---------------------------------------+ |
-| | (JK) Jordan Kim     [ShieldCheck Admin]|
+| | (JK) Jordan Kim     [ShieldCheck Admin] | |
 | |      jordan@example.com               | |
 | |      Joined 12 Nov 2026               | |
 | |  [ Change role ]    [ Remove ]        | |  44 px each, 8 px gap
@@ -363,18 +379,17 @@ After a failed submit, focus moves to the name field. Errors are announced polit
 +-------------------------------------------+
 ```
 
-**Desktop 1280 px.** Table in a card. Columns: Member (avatar, name, email, "You" tag), Role, Joined, Actions (right-aligned). Money columns do not exist here.
+**Desktop 1280 px.** Table in a card. Columns: Member (avatar, name, email, "You" tag), Role, Joined, Actions (right-aligned). The Joined column appears from `xl` only.
 
 ```
-+-----------------------------------------------------------------------------+
-| Member                          | Role          | Joined        | Actions   |
-|---------------------------------+---------------+---------------+-----------|
-| (AL) Alex Lee  You              | [Crown Owner] | 3 Nov 2026    |           |
-|      alex@example.com           |               |               |           |
-|---------------------------------+---------------+---------------+-----------|
-| (JK) Jordan Kim                 | [ShieldCheck  | 12 Nov 2026   | Change    |
-|      jordan@example.com         |  Admin]       |               | role  Remove|
-+-----------------------------------------------------------------------------+
++---------------------------------+----------------------+-------------+-------------+
+| Member                          | Role                 | Joined      | Actions     |
++---------------------------------+----------------------+-------------+-------------+
+| (AL) Alex Lee  You              | [Crown Owner]        | 3 Nov 2026  |             |
+|      alex@example.com           |                      |             |             |
+| (JK) Jordan Kim                 | [ShieldCheck Admin]  | 12 Nov 2026 | Change role |
+|      jordan@example.com         |                      |             | Remove      |
++---------------------------------+----------------------+-------------+-------------+
 ```
 
 **Tablet 768 px.** The same table without the "Joined" column (it appears from `xl`). Member, Role and Actions only.
@@ -387,7 +402,7 @@ After a failed submit, focus moves to the name field. Errors are announced polit
 - Admin rows: an owner sees "Change role" and "Remove". An admin sees no actions.
 - Member rows: an owner sees "Change role" and "Remove". An admin sees "Remove" only. A member sees no actions.
 
-**Only-owner empty state.** When the household has one member (the owner), a `EmptyState` `inline` card sits below the owner row.
+**Only-owner empty state.** When the household has one member (the owner), an `EmptyState` `inline` card sits below the owner row. For owners and admins it has one primary action. For members it has no action, because a member cannot invite. That is a deliberate exception to the one-primary-action rule in `app-shell.md` 6.
 
 - Title: "Invite your family" (three words).
 - Body: "Invite a partner or family member by email. They see only what the household shares."
@@ -468,24 +483,19 @@ After a failed submit, focus moves to the name field. Errors are announced polit
 +-------------------------------------------+
 ```
 
-**Desktop 1280 px.** The form is a card above the list, max 560 px wide, or to the side of the list at `xl` (form left at 360 px, list right). The list is a table: Invitee (email, role under it), Status, Sent, Expires or Accepted, Actions.
+**Desktop 1280 px.** Form in a card on the left (30 characters wide), list as a table on the right. Columns: Email (role under it on md, its own column from xl), Status, Expires or accepted, Actions.
 
 ```
-+-------------------------------------------------------------------------------+
-| Invitations                                                                    |
-| +------------------------+  +---------------------------------------------+ |
-| | Invite someone         |  | Email         Role      Status     Expires   | |
-| | [ name@example.com ]   |  |-----------------------------------------------| |
-| | (o) Member  ( ) Admin  |  | sam@example   Member    [Pending]  3 Dec 2026 | |
-| | [ Send invitation ]    |  |               [Resend] [Revoke]               | |
-| +------------------------+  |-----------------------------------------------| |
-|                             | taylor@ex     Admin     [Expired]  19 Nov 2026| |
-|                             |               [Resend] [Revoke]               | |
-|                             +---------------------------------------------+ |
-+-------------------------------------------------------------------------------+
++-----------------------------+  +------------------------+---------+-----------+--------------------+---------------+
+| Invite someone              |  | Email                  | Role    | Status    | Expires / accepted | Actions       |
+| Email address               |  +------------------------+---------+-----------+--------------------+---------------+
+| [ name@example.com        ] |  | sam@example.com        | Member  | Pending   | 3 Dec 2026         | Resend Revoke |
+| (o) Member  ( ) Admin       |  | taylor@example.com     | Admin   | Expired   | Expired 19 Nov     | Resend Revoke |
+| [ Send invitation        ]  |  | jordan@example.com     | Member  | Accepted  | 14 Nov 2026        | none          |
++-----------------------------+  +------------------------+---------+-----------+--------------------+---------------+
 ```
 
-**Tablet 768 px.** Form above the list, both full width of the content area (max 640 px). The table drops the "Sent" column. Role moves under the email (as on phone).
+**Tablet 768 px.** Form above the list, both full width of the content area (max 640 px). The table has three columns: Email (role under it), Status, Actions. There is no "Sent" column at any width.
 
 **Form rules**
 
@@ -536,32 +546,42 @@ After a failed submit, focus moves to the name field. Errors are announced polit
 
 All three use `ResponsiveDialog`: a centred dialog from md, a bottom sheet on phone with the footer pinned. The body scrolls inside the sheet.
 
-**Change role** (`role="dialog"`, opened from "Change role").
+**Change role** (`role="dialog"`, opened from "Change role"). The transfer block appears only for an owner viewing a non-owner row.
 
 ```
-Phone 375                              Desktop 1280
-+-------------------------------+      +--------------------------------+
-|        ---                    |      | Change role for Jordan Kim  x  |
-| Change role for Jordan Kim    |      | Invite, remove members and     |
-| Invite, remove members and    |      | rename. Read and write shared  |
-| rename. Read and write shared |      | records.                       |
-| remove members.               |      |                                |
-| (o) Admin                     |      | (o) Admin                      |
-|     Invite, remove members,   |      |     Invite, remove members,    |
-|     rename. Read and write   |      |     rename. Read and write    |
-|     shared records.           |      |     shared records.            |
-| ( ) Member                    |      | ( ) Member                     |
-|     Reads and writes shared   |      |     Reads and writes shared    |
-|     records.                  |      |     records.                   |
-|                               |      |                                |
-| Only one owner. To hand over  |      | Only one owner. To hand over   |
-| the household, transfer       |      | the household, transfer        |
-| ownership.                    |      | ownership.                     |
-| [ Transfer ownership      ]   |      |   [Cancel] [Save role]         |
-+-------------------------------+      +--------------------------------+
-| [        Save role        ]   |  pinned footer
-| [        Cancel           ]   |
-+-------------------------------+
+Phone 375
++---------------------------------------+
+|        ---                            |
+| Change role for Jordan Kim            |
+| (o) Admin                             |
+|     Invite, remove members,           |
+|     rename. Reads and writes          |
+|     shared records.                   |
+| ( ) Member                            |
+|     Reads and writes shared           |
+|     records.                          |
+| Only one owner. To hand over          |
+| the household, transfer               |
+| ownership.                            |
+| [ Transfer ownership        ]         |
+| [ Save role                 ]  pinned |
+| [ Cancel                    ]         |
++---------------------------------------+
+
+Desktop 1280
++-------------------------------------------------------------------------+
+| Change role for Jordan Kim                                            x |
+|                                                                         |
+| (o) Admin                                                               |
+|     Invite, remove members, rename. Reads and writes shared records.    |
+| ( ) Member                                                              |
+|     Reads and writes shared records.                                    |
+|                                                                         |
+| Only one owner. To hand over the household, transfer ownership.         |
+| [ Transfer ownership ]                                                  |
+|                                                                         |
+|                                         [Cancel] [Save role]            |
++-------------------------------------------------------------------------+
 ```
 
 - Title: "Change role for {name}". Description: the text for the currently selected role (section 8.2, "Role: Admin" or "Role: Member").
@@ -660,7 +680,7 @@ Resend has no confirmation. It is not destructive, and the old link stops workin
 | Card | Owner | Admin | Member |
 |---|---|---|---|
 | Household name (form) | editable | editable | read-only text, note: "Only owners and admins can rename the household." |
-| Leave household | enabled button | enabled | enabled |
+| Leave household | disabled, with the text below | enabled | enabled |
 | Owner leave text | see below | n/a | n/a |
 | Delete household | shown | hidden | hidden |
 
@@ -683,22 +703,33 @@ Resend has no confirmation. It is not destructive, and the old link stops workin
 **Delete dialog** (`alertdialog`, typed name, D11)
 
 ```
-Phone 375                              Desktop 1280
-+-------------------------------+      +--------------------------------+
-|        ---                    |      | Delete The Lee family?      x  |
-| Delete The Lee family?        |      | This permanently deletes the   |
-| This permanently deletes the  |      | household and all shared data, |
-| household and all shared data,|      | for everyone. It cannot be     |
-| for everyone. It cannot be    |      | undone.                        |
-| undone.                       |      |                                |
-| Type The Lee family to confirm|      | Type The Lee family to confirm |
-| [                          ]  |      | [                          ]   |
-| Type the name exactly as it   |      | Type the name exactly as it    |
-| appears above.                |      | appears above.                 |
-|-------------------------------|      |        [Cancel] [Delete house..] |
-| [ Delete household  ] red     |      +--------------------------------+
-| [ Cancel           ]          |
-+-------------------------------+
+Phone 375
++------------------------------------+
+|        ---                         |
+| Delete The Lee family?             |
+| This permanently deletes the       |
+| household and all shared data,     |
+| for everyone. It cannot be undone. |
+| Type The Lee family to confirm     |
+| [                             ]    |
+| Type the name exactly as it        |
+| appears above.                     |
+| [ Delete household           ] red |
+| [ Cancel                     ]     |
++------------------------------------+
+
+Desktop 1280
++---------------------------------------------------------------------------+
+| Delete The Lee family?                                                  x |
+| This permanently deletes the household and all shared data, for everyone. |
+| It cannot be undone.                                                      |
+|                                                                           |
+| Type The Lee family to confirm                                            |
+| [                                                                ]        |
+| Type the name exactly as it appears above.                                |
+|                                                                           |
+|                                               [Cancel] [Delete household] |
++---------------------------------------------------------------------------+
 ```
 
 - Initial focus: the typed-name input.
@@ -831,6 +862,7 @@ Settings has no empty state: a household always has a name and an owner.
 2. The page stores a marker in `sessionStorage` for this tab only: the household's id and name, and no token. Its only use is state F below.
 3. The page navigates (replace, not push) to `/household/[spaceId]/members`, which is now the selected space. A toast says "You joined {household}."
 4. If `/invite` is reopened in the same tab with no token, and the marker is present, the page shows state F from the marker without calling the API. The marker is removed when the user leaves the accept flow with "Go to dashboard" or "View members".
+5. **Sign-out clears the marker.** Signing out (from any screen, including "Sign out" on this page) removes the marker from `sessionStorage` in that tab, so the next user of the browser never sees "You joined {household}" from someone else's session. The marker is not shared between tabs.
 
 If there is no marker and no token, the page shows state H. The page never shows state H for a reload after a success.
 
@@ -873,9 +905,16 @@ The switcher is already in the shell (`app-shell.md` 4.2). This section adds the
 +-------------------------------------------+
 ```
 
-- Rows are `role="radio"` in a `radiogroup` named "Spaces", with `aria-checked`. The check mark is visible on the active row and is not the only signal (the row also has the text "Owner" or "Only you").
+- Rows are `role="menuitemradio"` inside a `role="menu"` named "Spaces", with `aria-checked` (as `app-shell.md` 4.2). The check mark is visible on the active row and is not the only signal (the row also has the text "Owner" or "Only you"). The same role is used on the desktop dropdown.
 - Personal is always the first row. Households follow, sorted by name (`Intl.Collator`).
-- Selecting a row changes the space, closes the sheet, and keeps the current page, except on household pages (D12).
+- Selecting a row changes the space, closes the menu or sheet, and keeps the current page, except on household pages (D12).
+- **Keyboard model (both the sheet and the dropdown):**
+  - When the menu opens, focus goes to the active row.
+  - Down and Up arrows move focus to the next and previous row. Focus wraps at the ends. Home and End go to the first and last row.
+  - Enter or Space selects the focused row, changes the space, and closes the menu. Focus returns to the trigger (for the sheet, after the sheet has closed).
+  - Escape closes the menu without changing the space, and focus returns to the trigger.
+  - Tab closes the menu and moves focus to the next control in the page, as the platform menu does. Focus still returns to the trigger on close, so the next Tab continues from there.
+  - The footer links are after the rows in the reading order. Arrow keys skip them; they are reached with Tab.
 
 **Desktop dropdown (1280 px)**
 
@@ -936,6 +975,13 @@ Used for any `/household/[spaceId]/*` route where the API returns 404, whether t
 - The copy never says whether the household exists.
 - The page uses the normal shell (bottom nav or sidebar).
 - No space badge.
+- **Personal space id.** A `/household/[spaceId]/*` URL whose id is the user's personal space (or any space the user is not a household member of) shows this state. The API does not return members for a personal space, so the page never shows a personal space as a household.
+
+**Responsive.**
+
+- 375 px: the phone layout above. Single column, button full width.
+- 768 px: the same content in the content area next to the icon rail, max 640 px wide, left-aligned. Button auto width.
+- 1280 px: the same content next to the sidebar, max 640 px wide, left-aligned. Button auto width.
 
 ---
 
@@ -1031,6 +1077,7 @@ This flow has no money. Dates appear on invitations, members and the accept page
 - **Contrast.** Section 5.3. Input borders use `--input` (3.7:1). Focus rings use `--ring`.
 - **Focus.** The global 2 px `--ring` outline with a 2 px offset, on `:focus-visible` only (`design-system.md` 4.5). Shown in both themes.
 - **Dialogs.** Focus is trapped and returned to the trigger on close. Escape closes, except while busy. The first focus target is named in each section above. Destructive alert dialogs focus "Cancel" first.
+- **Switcher sheet and dropdown.** Focus moves to the active row on open, is trapped while open, and returns to the trigger on close (Escape, selection or Tab out). The keyboard model is in 6.9. Escape closes without changing the space. Both use the same rules on phone and desktop.
 - **Labels.** Every input has a visible label. Hints and errors are linked with `aria-describedby`. Invalid fields have `aria-invalid`. The email field has `autocomplete="off"`.
 - **Live regions.** Success messages use `role="status"` (polite). Errors use `role="alert"` (or `aria-live` through `FormMessage`). Field errors are polite. The accept page announces each state change once.
 - **Status is not colour alone.** Roles have icons and words. Invitation statuses have icons and words. Expired and pending both show a date.
@@ -1049,6 +1096,14 @@ This flow has no money. Dates appear on invitations, members and the accept page
 | 375 | Bottom nav, 16 px gutter | 1 card per row, create button full width | Cards, buttons in a row (44 px) | Form above cards, buttons full width | Stacked cards | Bottom sheets, footer pinned |
 | 768 | Icon rail (72 px), 24 px gutter | 2 cards per row, create button in heading row | Table: Member, Role, Actions | Form above list (max 640 px), table without "Sent" | Cards, max 640 px wide | Centred dialogs (`max-w-md`) |
 | 1280 | Sidebar (256 px), 32 px gutter | 2 cards per row | Table with "Joined" | Form beside list (`xl`), table with all columns | Cards, max 640 px wide | Centred dialogs |
+
+Screens that are not in the table above:
+
+| Screen | 375 | 768 | 1280 |
+|---|---|---|---|
+| Create household (6.2) | One column. Card and button full width. | Card max 560 px in the content area. Button auto width. | Card max 560 px in the content area. Button auto width. |
+| Not found (6.10) | One column. Button full width. | Content max 640 px. Button auto width. | Content max 640 px. Button auto width. |
+| Accept page (6.8) | One column, card max 440 px, centred. | Same as 375. | Same as 375. No brand panel at any width (D6). |
 
 Rules:
 
