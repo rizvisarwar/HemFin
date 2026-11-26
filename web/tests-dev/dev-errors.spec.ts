@@ -1,25 +1,38 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
-import { signInAs } from "../tests/support/auth";
+import { seedHouseholds, signInAs, USER } from "../tests/support/auth";
 
 // `next dev` reports prerender problems (for example "unstable value Date.now() while prerendering")
 // in the server log and in the in-browser error overlay. Neither shows up in `next build` checks
 // that only look at the final HTML, so this test loads real pages in dev mode and checks both.
 // The session comes from the mock backend (tests/support/mock-backend.mjs), so the signed-in (app)
 // routes render the real shell: proxy, /api/v1/me call and the Suspense boundaries.
-const ROUTES = ["/", "/dashboard", "/contracts", "/profile"];
-const APP_ROUTES = new Set(["/dashboard", "/contracts", "/profile"]);
+const PUBLIC_ROUTES = ["/"];
+const APP_ROUTES = ["/dashboard", "/contracts", "/profile", "/household", "/household/new"];
 
 const SERVER_ERROR = /Error:|unstable value|while prerendering|blocking-prerender|Blocking Route|Uncached data was accessed/i;
 
 test("dev server renders pages without prerender errors or the error overlay", async ({ page, context }) => {
   await signInAs(context);
+  // Households for the signed-in user, so the dynamic /household/[spaceId]/* routes render real data.
+  const { ids } = await seedHouseholds(USER, [
+    { name: "The Lee family", role: "owner", members: [{ email: "jordan@example.test", display_name: "Jordan Kim", role: "admin" }] },
+  ]);
+  const household = (section: string) => `/household/${ids[0]}/${section}`;
+  const ROUTES = [
+    ...PUBLIC_ROUTES,
+    ...APP_ROUTES,
+    household("members"),
+    household("invitations"),
+    household("settings"),
+    "/household/00000000-0000-4000-8000-000000000000/members", // not found
+  ];
 
   for (const path of ROUTES) {
     const response = await page.goto(path);
     expect(response?.status(), `${path} status`).toBe(200);
     await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
-    if (APP_ROUTES.has(path)) {
+    if (path !== "/") {
       // Signed in: the proxy let us through and the shell shows the user's real personal space.
       await expect(page).toHaveURL(new RegExp(`${path}$`));
       await expect(page.locator("header[data-space]").first()).toHaveAttribute("data-space", "personal");
@@ -32,6 +45,13 @@ test("dev server renders pages without prerender errors or the error overlay", a
     const overlay = page.locator("nextjs-portal").getByRole("dialog");
     await expect(overlay, `${path} shows the Next.js error overlay`).toHaveCount(0);
   }
+
+  // The household pages are the real ones, not an error state.
+  await page.goto(household("members"));
+  await expect(page.getByRole("heading", { level: 1, name: "The Lee family" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Members (2)" })).toBeVisible();
+  await page.goto(household("settings"));
+  await expect(page.getByRole("heading", { level: 2, name: "Household name" })).toBeVisible();
 
   // The landing page badge is the streamed ApiStatus result (the mock's /health is unhealthy on purpose).
   await page.goto("/");
