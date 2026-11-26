@@ -473,7 +473,7 @@ Built on shadcn/ui primitives in `web/src/components/ui/`, styled with the token
 | **Alert** | `info`, `success`, `warning`, `destructive` | default | Icon + title + one sentence. Uses the `-subtle` token for its background. |
 | **Toast** | `success`, `error`, `info` | entering, visible, leaving | Bottom on phone, above the bottom nav with 16 px spacing. Auto-dismisses after 5 s, except errors, which stay until dismissed. |
 | **Skeleton** | | pulsing (disabled under reduced motion) | Same dimensions as the final content. Used for every list and card while loading. |
-| **EmptyState** | `page`, `inline` | default | See `app-shell.md`, section 6. Always has one primary next action. |
+| **EmptyState** | `page`, `inline` | default | See `app-shell.md`, section 6. Always has one primary next action, except where the viewer's role cannot take the action. Exception recorded in `households.md` 6.3: a member's only-owner card has no action, because a member cannot invite. |
 | **Avatar / Initials** | | default | Initials on `--muted`. Not used as a space indicator. |
 | **Progress** | | determinate, indeterminate | Used for document upload and analysis. Always has a text label with the percentage. |
 | **SpaceBadge** | `personal`, `household` | default | See `app-shell.md`. |

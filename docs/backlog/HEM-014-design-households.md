@@ -68,4 +68,15 @@ Nits:
 - **N16.** This ticket's status is In Review. The board is not edited (PM owns it).
 **Verify:** `npm run lint && npm run build` in `web/` pass after the `status-chip.tsx` refactor.
 
+### 2026-11-26 Designer, PR #21 review round 2 (CHANGES_REQUESTED, comment 7201250284)
+Blocking:
+- **1.** Switcher focus has one model now, stated the same way in 6.9 and section 10. No focus trap for the switcher sheet or dropdown. Tab closes the menu and focus moves to the next focusable control after the trigger. Escape closes and returns focus to the trigger. Selecting a row closes and returns focus to the trigger. Dialogs are the only focus-trapped surfaces (section 10).
+Nits:
+- **2.** Jordan Kim's phone card row (members, phone) is aligned to the same width as the other rows in that card.
+- **3.** 5.4 has a paragraph: the engineer labels the heading row with the household name (D13) until `app-shell.md` 4.2 is aligned. `app-shell.md` 4.2 is aligned to D13 in this PR.
+- **4.** HEM-016 has two acceptance checkboxes: the round-trip of the joined marker after accept, and sign-out clearing the marker.
+- **5.** Not done here. The board (`docs/backlog/board.md`) is PM-owned, and the PM updates it at review.
+- **6.** `design-system.md` section 7 EmptyState row records the role-based exception (`households.md` 6.3).
+**Verify:** docs only in this round, so no code changed. `npm run lint && npm run build` from round 1 still apply.
+
 ## Review

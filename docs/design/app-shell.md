@@ -229,7 +229,7 @@ The space switcher is the most important control in the shell. It is always visi
 **Menu**
 - Desktop and tablet: a dropdown menu, 280 px wide, aligned to the trigger's right edge.
 - Phone: a bottom sheet titled "Switch space".
-- Heading row (not clickable): space badge with the text "Personal" or "Household".
+- Heading row (not clickable): space badge with the text "Personal" or, for a household, the household name (as in 4.3). Aligned to `households.md` D13 in HEM-014.
 - One row per space, at least 44 px tall: space icon, name, role in meta text (for example "Owner", "Member"), and a check mark on the active space. Use `role="menuitemradio"` and `aria-checked`.
 - Footer: "Create a household" (or "Manage household" when the user has one) as a link to `createHouseholdHref`.
 

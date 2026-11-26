@@ -190,12 +190,14 @@ The input border (`--input`, 3.7:1 on the background) is the non-text contrast f
 
 `web/src/components/layout/space-switcher.tsx` needs these changes, on top of the behaviour already in `app-shell.md` 4.2. This list is the only place these changes are written down.
 
+**Heading row label (D13).** The engineer follows D13 and labels the phone heading row with the household name, not the word "Household", until `app-shell.md` 4.2 is aligned to D13. Do not change it back to "Household" to match the old 4.2 text.
+
 1. Footer: two links, "Manage households" (`/household`) and "Create a household" (`/household/new`), each 44 px tall (D14). The current code has one link.
 2. Names are truncated by code point, not by UTF-16 unit, so an emoji or a surrogate pair is never split. The full name stays in the accessible name and `title`.
 3. The sheet rows clamp household names to two lines (`line-clamp-2`), so long names stay readable.
 4. Rows use `role="menuitemradio"` and the keyboard model in 6.9.
 
-The phone heading row (D13) is already required by `app-shell.md` 4.2. It is not a change here, so the code should already be doing it.
+The phone heading row (D13) is required by `app-shell.md` 4.2 already, so it is not listed as a change above. Only the label follows D13 (see the paragraph above).
 
 ---
 
@@ -365,7 +367,7 @@ After a failed submit, focus moves to the name field. Errors are announced polit
 | |      Joined 3 Nov 2026 · You          | |
 | +---------------------------------------+ |
 | +---------------------------------------+ |
-| | (JK) Jordan Kim     [ShieldCheck Admin] | |
+| | (JK) Jordan Kim   [ShieldCheck Admin] | |
 | |      jordan@example.com               | |
 | |      Joined 12 Nov 2026               | |
 | |  [ Change role ]    [ Remove ]        | |  44 px each, 8 px gap
@@ -913,7 +915,7 @@ The switcher is already in the shell (`app-shell.md` 4.2). This section adds the
   - Down and Up arrows move focus to the next and previous row. Focus wraps at the ends. Home and End go to the first and last row.
   - Enter or Space selects the focused row, changes the space, and closes the menu. Focus returns to the trigger (for the sheet, after the sheet has closed).
   - Escape closes the menu without changing the space, and focus returns to the trigger.
-  - Tab closes the menu and moves focus to the next control in the page, as the platform menu does. Focus still returns to the trigger on close, so the next Tab continues from there.
+  - Tab closes the menu. The menu is not a focus trap. Focus moves to the next focusable control after the trigger in page order.
   - The footer links are after the rows in the reading order. Arrow keys skip them; they are reached with Tab.
 
 **Desktop dropdown (1280 px)**
@@ -1076,8 +1078,8 @@ This flow has no money. Dates appear on invitations, members and the accept page
 - **Tap targets.** Every link, button, radio row and card action is at least 44 × 44 px. Radio rows are at least 44 px tall including the label. Household cards are one link at least 56 px tall.
 - **Contrast.** Section 5.3. Input borders use `--input` (3.7:1). Focus rings use `--ring`.
 - **Focus.** The global 2 px `--ring` outline with a 2 px offset, on `:focus-visible` only (`design-system.md` 4.5). Shown in both themes.
-- **Dialogs.** Focus is trapped and returned to the trigger on close. Escape closes, except while busy. The first focus target is named in each section above. Destructive alert dialogs focus "Cancel" first.
-- **Switcher sheet and dropdown.** Focus moves to the active row on open, is trapped while open, and returns to the trigger on close (Escape, selection or Tab out). The keyboard model is in 6.9. Escape closes without changing the space. Both use the same rules on phone and desktop.
+- **Dialogs.** Focus is trapped and returned to the trigger on close. Escape closes, except while busy. The first focus target is named in each section above. Destructive alert dialogs focus "Cancel" first. Dialogs are the only focus-trapped surfaces in this spec.
+- **Switcher sheet and dropdown (no focus trap).** Focus moves to the active row on open. Tab closes the menu, and focus moves to the next focusable control after the trigger. Escape closes the menu and returns focus to the trigger. Selecting a row closes the menu and returns focus to the trigger. The full keyboard model is in 6.9. Escape closes without changing the space. Both use the same rules on phone and desktop.
 - **Labels.** Every input has a visible label. Hints and errors are linked with `aria-describedby`. Invalid fields have `aria-invalid`. The email field has `autocomplete="off"`.
 - **Live regions.** Success messages use `role="status"` (polite). Errors use `role="alert"` (or `aria-live` through `FormMessage`). Field errors are polite. The accept page announces each state change once.
 - **Status is not colour alone.** Roles have icons and words. Invitation statuses have icons and words. Expired and pending both show a date.
