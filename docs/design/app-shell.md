@@ -229,13 +229,14 @@ The space switcher is the most important control in the shell. It is always visi
 **Menu**
 - Desktop and tablet: a dropdown menu, 280 px wide, aligned to the trigger's right edge.
 - Phone: a bottom sheet titled "Switch space".
-- Heading row (not clickable): space badge with the text "Personal" or "Household".
+- Heading row (not clickable): space badge with the text "Personal" or, for a household, the household name (as in 4.3). Aligned to `households.md` D13 in HEM-014.
 - One row per space, at least 44 px tall: space icon, name, role in meta text (for example "Owner", "Member"), and a check mark on the active space. Use `role="menuitemradio"` and `aria-checked`.
 - Footer: "Create a household" (or "Manage household" when the user has one) as a link to `createHouseholdHref`.
 
 **Behaviour**
 - Selecting a space changes the accent line, the trigger fill and the badges immediately.
 - The current page stays the same. The user is not sent back to the dashboard.
+- **Exception (HEM-014, PM decision):** on a household page (`/household/[spaceId]/...`), the page is bound to the household in its URL. Choosing a different space opens that space's dashboard (`/`), so a household's pages never show another space's name in the badge. Choosing the same space keeps the page. See `households.md` D21.
 - While the new space's data loads, page content shows skeletons. It never shows the previous space's numbers under the new space's badge.
 - The active space is kept in a cookie (for example `hemfin-space`) so server components render the right space first time. PM decision: the active space is stored in the `hemfin-space` cookie.
 
