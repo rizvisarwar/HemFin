@@ -49,6 +49,13 @@ class SpaceMembership(Base):
         CheckConstraint("role IN ('owner', 'admin', 'member')", name="ck_space_memberships_role"),
         UniqueConstraint("space_id", "user_id", name="uq_space_memberships_space_user"),
         Index("ix_space_memberships_user_id", "user_id"),
+        # Exactly one owner per space.
+        Index(
+            "uq_space_memberships_one_owner",
+            "space_id",
+            unique=True,
+            postgresql_where="role = 'owner'",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)

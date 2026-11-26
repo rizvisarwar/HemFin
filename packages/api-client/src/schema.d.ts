@@ -92,6 +92,24 @@ export interface paths {
         patch: operations["patch_profile_api_v1_me_profile_patch"];
         trace?: never;
     };
+    "/api/v1/spaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the caller's spaces */
+        get: operations["list_spaces_api_v1_spaces_get"];
+        put?: never;
+        /** Create a household (the caller becomes owner) */
+        post: operations["create_space_api_v1_spaces_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/spaces/{space_id}": {
         parameters: {
             query?: never;
@@ -103,6 +121,60 @@ export interface paths {
         get: operations["get_space_api_v1_spaces__space_id__get"];
         put?: never;
         post?: never;
+        /** Delete a household (owner only) */
+        delete: operations["delete_space_api_v1_spaces__space_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename a household (admin or owner) */
+        patch: operations["rename_space_api_v1_spaces__space_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/spaces/{space_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the members of a space */
+        get: operations["list_members_api_v1_spaces__space_id__members_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/spaces/{space_id}/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a member, or leave the space */
+        delete: operations["remove_member_api_v1_spaces__space_id__members__user_id__delete"];
+        options?: never;
+        head?: never;
+        /** Change a member's role (owner only) */
+        patch: operations["change_member_role_api_v1_spaces__space_id__members__user_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/spaces/{space_id}/transfer-ownership": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transfer ownership to another member (owner only) */
+        post: operations["transfer_ownership_api_v1_spaces__space_id__transfer_ownership_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -239,6 +311,42 @@ export interface components {
             /** Spaces */
             spaces: components["schemas"]["SpaceOut"][];
         };
+        /** MemberOut */
+        MemberOut: {
+            /** Display Name */
+            display_name: string | null;
+            /** Email */
+            email: string;
+            /**
+             * Joined At
+             * Format: date-time
+             */
+            joined_at: string;
+            role: components["schemas"]["Role"];
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+        };
+        /** MemberRoleChange */
+        MemberRoleChange: {
+            role: components["schemas"]["Role"];
+        };
+        /** Page[MemberOut] */
+        Page_MemberOut_: {
+            /** Items */
+            items: components["schemas"]["MemberOut"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** Page[SpaceListItem] */
+        Page_SpaceListItem_: {
+            /** Items */
+            items: components["schemas"]["SpaceListItem"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
         /** ProfileOut */
         ProfileOut: {
             /** Base Currency */
@@ -268,6 +376,30 @@ export interface components {
          * @enum {string}
          */
         Role: "owner" | "admin" | "member";
+        /** SpaceCreate */
+        SpaceCreate: {
+            /** Name */
+            name: string;
+        };
+        /** SpaceListItem */
+        SpaceListItem: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Member Count */
+            member_count: number;
+            /** Name */
+            name: string;
+            role: components["schemas"]["Role"];
+            type: components["schemas"]["SpaceType"];
+        };
         /** SpaceOut */
         SpaceOut: {
             /**
@@ -285,11 +417,24 @@ export interface components {
             role: components["schemas"]["Role"];
             type: components["schemas"]["SpaceType"];
         };
+        /** SpaceRename */
+        SpaceRename: {
+            /** Name */
+            name: string;
+        };
         /**
          * SpaceType
          * @enum {string}
          */
         SpaceType: "personal" | "household";
+        /** TransferOwnership */
+        TransferOwnership: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -650,6 +795,100 @@ export interface operations {
             };
         };
     };
+    list_spaces_api_v1_spaces_get: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: number;
+                /** @description Opaque cursor from `next_cursor`. */
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_SpaceListItem_"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_space_api_v1_spaces_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpaceCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpaceOut"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Rule conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_space_api_v1_spaces__space_id__get: {
         parameters: {
             query?: never;
@@ -681,6 +920,403 @@ export interface operations {
             };
             /** @description Unknown space or not a member */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_space_api_v1_spaces__space_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Insufficient role */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Unknown space or not a member */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Rule conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_space_api_v1_spaces__space_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpaceRename"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpaceOut"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Insufficient role */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Unknown space or not a member */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Rule conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_members_api_v1_spaces__space_id__members_get: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: number;
+                /** @description Opaque cursor from `next_cursor`. */
+                cursor?: string | null;
+            };
+            header?: never;
+            path: {
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_MemberOut_"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Unknown space or not a member */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_member_api_v1_spaces__space_id__members__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Insufficient role */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Unknown space or not a member */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Rule conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_member_role_api_v1_spaces__space_id__members__user_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberRoleChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Insufficient role */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Unknown space or not a member */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Rule conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transfer_ownership_api_v1_spaces__space_id__transfer_ownership_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferOwnership"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Insufficient role */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Unknown space or not a member */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Rule conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

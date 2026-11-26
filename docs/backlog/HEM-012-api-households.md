@@ -24,4 +24,11 @@ A user can create household spaces, list the spaces they belong to, rename a hou
 
 ## Handoff log
 
+### 2026-11-26 Engineer (Sonnet)
+**Done:** all endpoints in the acceptance criteria (`POST/GET /spaces`, `PATCH/DELETE /spaces/{id}`, `GET /members`, `PATCH/DELETE /members/{user_id}`, `POST /transfer-ownership`). Rules live in `modules/spaces/service.py`; routes use `require_space_member(min_role)`. Every mutation row-locks the `spaces` row (`FOR UPDATE`) and re-reads the caller's role under the lock, so concurrent transfers/leaves cannot orphan or double-own a household. The household cap (10 owned) locks the creator's user row; transfer also checks the target's cap. New migration `0004` adds a partial unique index (one owner per space) as a DB backstop. Added shared keyset cursor helper `core/pagination.py` (opaque base64 cursor over created_at, id; `limit` 1..100, default 50), used for spaces and members lists. `GET /spaces/{id}` is unchanged. TS client regenerated.
+**Tests:** `api/tests/test_households_db.py` (stranger 404 on every route, role matrix, leave/last-owner, cascade delete, cap, cursor paging, concurrency). These are `db`-marked and were NOT run locally (no Postgres available in my environment); CI must run them. Please look at CI results for that file first.
+**Verify:** `cd api && uv run pytest` (with `DATABASE_URL` set to a migrated Postgres), `npm run check:api-drift`.
+**Decisions / limitations:** role change and member removal return 204 (no body); `PATCH /spaces/{id}` returns the updated space. Role `owner` in the role PATCH is 422. Ownership transfer demotes the former owner to admin. The list sorts by creation time (not personal first).
+**Follow-ups:** Web UI for household management; invitations (separate ticket).
+
 ## Review
