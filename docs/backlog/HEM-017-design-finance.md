@@ -119,8 +119,12 @@ A written spec in `docs/design/finance.md`, plus any presentational components, 
 - Not changed, for the PM: `ConvertedAmount` (`web/src/components/ui/converted-amount.tsx`) renders a "No SEK to EUR rate" line when `converted` is null. Spec 3.3 and F3 say a null `base_amount` shows nothing under the amount. Either the component or the spec needs to change. I did not pick one.
 - Not changed, for the PM: the contract list filter "Applies to" needs three options (All, Whole household, each member) (4.1). `AppliesToSelect` uses `""` for the whole household, so "All" needs a separate value. This is a spec and API-query question for HEM-021.
 
+**PM answers (2026-11-27, coordinator)**
+- Q13: `ConvertedAmount` renders nothing when there is no rate (the "No … rate" text is removed, `dateLabel` prop dropped). The dashboard `unconverted_count` hint is the only place that reports missing rates (3.3, 7.1, 12.2).
+- The 4.1 "Applies to" filter uses its own values (`all`, `household`, member id), separate from `AppliesToSelect`'s `""`. HEM-021 wires it (4.1, also 5.1 and 6.1).
+
 **How to verify**
-- `docs/design/finance.md` sections 3.1, 4.3, 6.3, 7.1, 11 and 12.2.
+- `docs/design/finance.md` sections 3.1, 3.3, 4.1, 4.3, 6.3, 7.1, 11, 12.2 and 13.
 - `npm --prefix web run lint` and `npm --prefix web run build` (both pass).
 
 ## Review

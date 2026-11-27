@@ -146,7 +146,7 @@ Shown under the original amount in list rows, detail views and the dashboard hin
 | State | What the user sees | Copy |
 |---|---|---|
 | Converted | `≈` (hidden from screen readers, which hear "About") and the base amount with its code. | "About EUR 48.11" |
-| Null (`base_amount` is null) | Nothing under the original amount. The record stays in the list. This covers a missing rate and FX not yet built (Q1). | none |
+| Null (`base_amount` is null) | Nothing under the original amount. The record stays in the list. This covers a missing rate and FX not yet built (Q1). `ConvertedAmount` returns nothing here (Q13). | none |
 | Same currency | Nothing is rendered. | none |
 | Loading | No placeholder. The base line appears with the record, because the API returns it with the record. | none |
 
@@ -381,6 +381,7 @@ A contract is a recurring obligation: insurance, a utility, a subscription, a me
 | Category | All categories, then the groups in 3.4 | All | `category` |
 | Applies to (household only) | All, Whole household, each member | All | `member_user_id` |
 
+- **Applies to filter values.** A filter has its own values: `all` (no filter), `household` (`member_user_id` is null) and a member id. These are separate from `AppliesToSelect`'s `""`, which means "whole household" on a form (3.7). HEM-021 wires the filter and maps these values to the API query. The same rule applies to the expense and income filters (5.1, 6.1).
 - Phone: a "Filters" button (44 px) opens a sheet with the three controls and two buttons: "Show contracts" (primary) and "Clear filters" (text). The button label shows the count of active filters beyond the default ("Filters: Active, 1 more").
 - Desktop: the controls sit in a row above the table with labels above them. Changing a filter updates the list at once (no submit button).
 
@@ -1398,7 +1399,7 @@ Each takes props only, has no data fetching, and contains no business logic. Eac
 | File | Component | Purpose | Key props |
 |---|---|---|---|
 | `amount-input.tsx` | `AmountInput` | Amount text field with a currency select, full row (3.1) | `id`, `name`, `label`, `value`, `onValueChange`, `currency`, `currencyOptions` (code as `label`), `onCurrencyChange`, `decimalSeparator`, `fractionDigits`, `placeholder`, `hint`, `error` (amount), `currencyError`, `required` (amount, `aria-required`), `disabled`, `autoFocus` |
-| `converted-amount.tsx` | `ConvertedAmount` | Base-currency equivalent in muted text, or nothing (3.3) | `originalCurrency`, `baseCurrency`, `dateLabel`, `converted` (Money or null; null renders nothing), `locale` |
+| `converted-amount.tsx` | `ConvertedAmount` | Base-currency equivalent in muted text, or nothing (3.3) | `originalCurrency`, `baseCurrency`, `converted` (Money or null; null renders nothing, Q13), `locale` |
 | `category-select.tsx` | `CategorySelect` | Grouped native select (3.4) | `id`, `name`, `label`, `groups`, `value`, `onValueChange`, `emptyLabel`, `emptyDisabled`, `required` (`aria-required`), `hint`, `error` |
 | `frequency-select.tsx` | `FrequencySelect` (plus `FREQUENCY_LABEL` and `FREQUENCY_PHRASE`) | Frequency picker and amount phrases (3.5). `FREQUENCY_PHRASE.irregular` is empty. | `id`, `name` (default `frequency`), `label`, `value`, `onValueChange`, `includeIrregular`, `required` (`aria-required`), `hint`, `error` |
 | `applies-to-select.tsx` | `AppliesToSelect` | "Applies to" picker (3.7) | `id`, `name` (default `member_user_id`), `label`, `options`, `value` (`""` is the whole household), `onValueChange`, `wholeLabel`, `hint`, `error` |
@@ -1433,6 +1434,7 @@ The PM answered the questions raised while writing this spec. The decisions are 
 | Q10 | Expense future dates. | **Accepted.** Expense and income dates may be at most one day in the future. The API validates this in HEM-019. A later date shows "The date cannot be more than a day in the future." | 3.6, 5.2, 6.2, 11.4, 11.6 |
 | Q11 | Playwright screenshots for the new components. | **Yes.** HEM-021 to HEM-023 attach Playwright screenshots at 375, 768 and 1280 px for the states in sections 4 to 7. The reviewer checks them against those sections. | 14 |
 | Q12 | Record amounts or Money objects (review round 1, N13). | **Records keep flat `amount` and `currency`** (contracts, expenses, income sources and entries). **Computed values use Money**: the upcoming event `amount` (with `contract_name`), the dashboard totals, and `base_amount`. Section 11 states the shape per endpoint. | 3.2, 11 |
+| Q13 | Converted amount with no rate: what does `ConvertedAmount` show? (review round 1, the open question on `converted-amount.tsx`). | **The spec wins.** When `converted` is null, `ConvertedAmount` renders nothing. The text "No SEK to EUR rate…" is removed. The dashboard's `unconverted_count` hint is the only place that reports missing rates (7.1). | 3.3, 7.1, 12.2 |
 
 **Board follow-ups from these decisions**
 - HEM-018: `name` on categories (Q5), and the upcoming event fields (Q2).
