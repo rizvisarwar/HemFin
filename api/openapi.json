@@ -891,6 +891,10 @@
             "title": "Base Currency",
             "type": "string"
           },
+          "has_records": {
+            "title": "Has Records",
+            "type": "boolean"
+          },
           "income_this_month": {
             "$ref": "#/components/schemas/MoneyBase"
           },
@@ -923,6 +927,7 @@
           "recurring_monthly",
           "income_this_month",
           "upcoming",
+          "has_records",
           "unconverted_count"
         ],
         "title": "DashboardOut",
@@ -4340,6 +4345,7 @@
     },
     "/api/v1/spaces/{space_id}/dashboard": {
       "get": {
+        "description": "`upcoming` covers today through today + 30 days inclusive (31 calendar days), at most 10 events. `recurring_monthly` counts active contracts that pay in the month. `has_records` is true when the space has any contract, expense or income entry.",
         "operationId": "get_dashboard_api_v1_spaces__space_id__dashboard_get",
         "parameters": [
           {

@@ -23,4 +23,6 @@ class DashboardOut(BaseModel):
     recurring_monthly: MoneyBase
     income_this_month: MoneyBase
     upcoming: list[DashboardEvent]
+    # Any contract, expense or income entry in the space at all (any month): false is the first run.
+    has_records: bool
     unconverted_count: int

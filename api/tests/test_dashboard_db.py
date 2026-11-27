@@ -130,6 +130,7 @@ async def test_empty_space_is_zeros(aclient: httpx.AsyncClient, key: TestKey) ->
         "recurring_monthly": _m("0.00"),
         "income_this_month": _m("0.00"),
         "upcoming": [],
+        "has_records": False,
         "unconverted_count": 0,
     }
 
@@ -261,6 +262,7 @@ async def test_invalid_month_is_422(aclient: httpx.AsyncClient, key: TestKey) ->
     for bad in ("2041-13", "2041-00", "2041-6", "June", "0000-01", "2041-06-01", ""):
         r = await aclient.get(f"{API}/{space}/dashboard", params={"month": bad}, headers=h)
         assert r.status_code == 422, bad
+        assert r.headers["content-type"].startswith("application/problem+json")
 
 
 async def test_stranger_gets_404(aclient: httpx.AsyncClient, key: TestKey) -> None:
@@ -271,3 +273,73 @@ async def test_stranger_gets_404(aclient: httpx.AsyncClient, key: TestKey) -> No
     assert r.status_code == 404
     assert (await aclient.get(f"{API}/{uuid4()}/dashboard", headers=owner)).status_code == 404
     assert (await aclient.get(f"{API}/{space}/dashboard")).status_code == 401
+
+
+async def test_recurring_counts_only_contracts_that_pay_in_the_month(
+    aclient: httpx.AsyncClient, key: TestKey
+) -> None:
+    _, h = await _user(aclient, key)
+    space = await _household(aclient, h)
+    cat = await _cat(aclient, h, space, "insurance")
+    await _contract(aclient, h, space, cat, amount="1.00")  # open-ended: counted
+    await _contract(aclient, h, space, cat, amount="2.00", end_date="2041-06-01")  # ends on day 1
+    await _contract(
+        aclient, h, space, cat, amount="4.00", start_date="2041-06-30"
+    )  # starts last day
+    await _contract(  # auto-renew keeps paying after its end date
+        aclient, h, space, cat, amount="8.00", auto_renew=True, end_date="2041-03-01"
+    )
+    await _contract(aclient, h, space, cat, amount="100.00", end_date="2041-05-31")  # ended
+    await _contract(aclient, h, space, cat, amount="200.00", start_date="2041-07-01")  # future
+    body = await _get(aclient, h, space)
+    assert body["recurring_monthly"] == _m("15.00")
+
+
+async def test_other_spaces_stay_out_of_the_totals(
+    aclient: httpx.AsyncClient, key: TestKey
+) -> None:
+    _, h = await _user(aclient, key)
+    first = await _household(aclient, h)
+    second = await _household(aclient, h)
+    for space, amount in ((first, "10.00"), (second, "7000.00")):
+        cat = await _cat(aclient, h, space, "food")
+        await _expense(aclient, h, space, cat, "2041-06-10", amount=amount)
+        await _income(aclient, h, space, "2041-06-10", amount=amount)
+        icat = await _cat(aclient, h, space, "insurance")
+        await _contract(aclient, h, space, icat, amount=amount)
+    body = await _get(aclient, h, space=first)
+    assert body["spent_this_month"] == _m("10.00")
+    assert body["income_this_month"] == _m("10.00")
+    assert body["recurring_monthly"] == _m("10.00")
+
+
+async def test_income_without_a_rate_is_counted(aclient: httpx.AsyncClient, key: TestKey) -> None:
+    await _seed_rates()
+    _, h = await _user(aclient, key)
+    space = await _household(aclient, h)
+    await _income(aclient, h, space, "2041-06-10", amount="50.00", currency="NOK")
+    await _income(aclient, h, space, "2041-06-10", amount="20.00")
+    body = await _get(aclient, h, space)
+    assert body["income_this_month"] == _m("20.00")
+    assert body["unconverted_count"] == 1
+
+
+async def test_has_records_ignores_the_month(aclient: httpx.AsyncClient, key: TestKey) -> None:
+    _, h = await _user(aclient, key)
+    space = await _household(aclient, h)
+    assert (await _get(aclient, h, space))["has_records"] is False
+    cat = await _cat(aclient, h, space, "food")
+    await _expense(aclient, h, space, cat, "2041-05-10")  # another month
+    body = await _get(aclient, h, space)
+    assert body["has_records"] is True
+    assert body["spent_this_month"] == _m("0.00")
+    # each kind alone is enough
+    for kind in ("income", "contract"):
+        other = await _household(aclient, h)
+        assert (await _get(aclient, h, other))["has_records"] is False
+        if kind == "income":
+            await _income(aclient, h, other, "2041-05-10")
+        else:
+            icat = await _cat(aclient, h, other, "insurance")
+            await _contract(aclient, h, other, icat, end_date="2041-05-31")
+        assert (await _get(aclient, h, other))["has_records"] is True

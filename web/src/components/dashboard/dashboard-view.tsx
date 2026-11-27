@@ -1,7 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { CalendarClock, CircleHelp, CreditCard, RefreshCw, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useFormat } from "@/components/format-provider";
 import { AppPageHeader } from "@/components/layout/app-page-header";
+import { useActiveSpace } from "@/components/layout/app-shell-client";
 import { Button } from "@/components/ui/button";
 import { DueChip } from "@/components/ui/due-chip";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -12,7 +16,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/ui/stat-card";
 import type { DashboardEventResponse, DashboardResponse } from "@/lib/api";
 import {
-  calendarDate,
   daysUntil,
   dueChip,
   EVENT_LABEL,
@@ -29,6 +32,7 @@ const EVENT_ICON: Record<DashboardEventResponse["type"], LucideIcon> = {
 };
 
 function Event({ event, base, today }: { event: DashboardEventResponse; base: string; today: string }) {
+  const { calendarDate } = useFormat();
   const Icon = EVENT_ICON[event.type];
   const chip = dueChip(event.type, daysUntil(event.date, today));
   // Below xl: a stacked card. From xl: one row of fixed columns (the wrapper "contents" lets its
@@ -49,9 +53,9 @@ function Event({ event, base, today }: { event: DashboardEventResponse; base: st
       </div>
       <Link
         href={`/contracts/${event.contract_id}`}
-        className="mt-1 line-clamp-2 inline-flex min-h-11 min-w-0 items-center break-words text-body text-primary underline-offset-4 hover:underline xl:order-2 xl:mt-0"
+        className="mt-1 flex min-h-11 min-w-0 items-center text-body text-primary underline-offset-4 hover:underline xl:order-2 xl:mt-0"
       >
-        {event.contract_name}
+        <span className="line-clamp-2 break-words">{event.contract_name}</span>
       </Link>
       {event.amount ? (
         <div className="whitespace-nowrap xl:order-4 xl:text-right">
@@ -108,6 +112,16 @@ function Upcoming({ data, today }: { data: DashboardResponse; today: string }) {
   );
 }
 
+function HouseholdPrivacy() {
+  const space = useActiveSpace();
+  if (space.type !== "household") return null;
+  return (
+    <p className="mt-4 text-center text-small text-muted-foreground" data-testid="first-run-privacy">
+      Household members see only what the household shares.
+    </p>
+  );
+}
+
 export function DashboardView({ data, today }: { data: DashboardResponse; today: string }) {
   if (isFirstRun(data)) {
     return (
@@ -122,6 +136,7 @@ export function DashboardView({ data, today }: { data: DashboardResponse; today:
             secondaryAction={{ label: "Record an expense instead", href: "/expenses" }}
             space="active"
           />
+          <HouseholdPrivacy />
         </div>
       </>
     );
@@ -174,7 +189,7 @@ export function DashboardView({ data, today }: { data: DashboardResponse; today:
                 ? "No income this month yet. Record some to see it here."
                 : `Received in ${month}`
             }
-            className="md:col-span-1"
+            className="md:col-span-1 md:self-start xl:self-auto"
           />
           <Upcoming data={data} today={today} />
         </div>

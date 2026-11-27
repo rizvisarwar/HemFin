@@ -73,6 +73,7 @@ export interface SeedDashboard {
     contract_name: string;
     amount: { amount: string; currency: string } | null;
   }[];
+  has_records: boolean;
   unconverted_count: number;
 }
 

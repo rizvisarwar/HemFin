@@ -296,7 +296,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Month totals and the next 30 days, in the caller's base currency */
+        /**
+         * Month totals and the next 30 days, in the caller's base currency
+         * @description `upcoming` covers today through today + 30 days inclusive (31 calendar days), at most 10 events. `recurring_monthly` counts active contracts that pay in the month. `has_records` is true when the space has any contract, expense or income entry.
+         */
         get: operations["get_dashboard_api_v1_spaces__space_id__dashboard_get"];
         put?: never;
         post?: never;
@@ -828,6 +831,8 @@ export interface components {
         DashboardOut: {
             /** Base Currency */
             base_currency: string;
+            /** Has Records */
+            has_records: boolean;
             income_this_month: components["schemas"]["MoneyBase"];
             /** Month */
             month: string;

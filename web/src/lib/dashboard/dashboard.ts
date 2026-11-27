@@ -4,7 +4,6 @@ import type { DashboardEventResponse, DashboardResponse } from "@/lib/api";
 // No money arithmetic lives here: every total comes from the API. These helpers only decide
 // which words and states to show.
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const MONTH_NAMES = [
   "January",
   "February",
@@ -19,18 +18,6 @@ const MONTH_NAMES = [
   "November",
   "December",
 ];
-
-/**
- * "2026-12-03" as "3 Dec 2026" (design-system rule 8). A calendar date has no time zone, so the
- * string is read as-is, never through `new Date(...)`. Minimal local helper: swap for the shared
- * `calendarDate` in lib/format once HEM-021 (#30) lands.
- */
-export function calendarDate(iso: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!m) return iso;
-  const month = MONTHS[Number(m[2]) - 1];
-  return month ? `${Number(m[3])} ${month} ${m[1]}` : iso;
-}
 
 /** "2026-11" as "November 2026". */
 export function monthLabel(month: string): string {
@@ -53,18 +40,9 @@ export function isZeroAmount(amount: string): boolean {
   return /^0*(\.0*)?$/.test(amount);
 }
 
-/**
- * First run: nothing to show yet. The API has no "has records" flag, so this is read from the
- * response: every total is zero, nothing is upcoming and nothing was skipped.
- */
+/** First run: the space has no contract, expense or income entry at all (the API says so). */
 export function isFirstRun(d: DashboardResponse): boolean {
-  return (
-    isZeroAmount(d.spent_this_month.amount) &&
-    isZeroAmount(d.recurring_monthly.amount) &&
-    isZeroAmount(d.income_this_month.amount) &&
-    d.upcoming.length === 0 &&
-    d.unconverted_count === 0
-  );
+  return !d.has_records;
 }
 
 export function unconvertedHint(count: number, base: string): string {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { calendarDate, daysUntil, dueChip, isFirstRun, isZeroAmount, monthLabel, unconvertedHint } from "./dashboard.ts";
+import { daysUntil, dueChip, isFirstRun, isZeroAmount, monthLabel, unconvertedHint } from "./dashboard.ts";
 
 const money = (amount: string) => ({ amount, currency: "EUR" });
 const empty = {
@@ -10,14 +10,9 @@ const empty = {
   recurring_monthly: money("0.00"),
   income_this_month: money("0.00"),
   upcoming: [],
+  has_records: false,
   unconverted_count: 0,
 };
-
-test("calendar dates read the string, not a time zone", () => {
-  assert.equal(calendarDate("2027-01-01"), "1 Jan 2027");
-  assert.equal(calendarDate("2026-12-31"), "31 Dec 2026");
-  assert.equal(calendarDate("nonsense"), "nonsense");
-});
 
 test("month label and day counts", () => {
   assert.equal(monthLabel("2026-11"), "November 2026");
@@ -32,11 +27,9 @@ test("zero amounts", () => {
   assert.ok(!isZeroAmount("10.00"));
 });
 
-test("first run needs all zeros, no events and nothing skipped", () => {
+test("first run follows has_records, not the totals", () => {
   assert.ok(isFirstRun(empty));
-  assert.ok(!isFirstRun({ ...empty, spent_this_month: money("1.00") }));
-  assert.ok(!isFirstRun({ ...empty, unconverted_count: 1 }));
-  assert.ok(!isFirstRun({ ...empty, upcoming: [{ type: "payment", date: "2026-12-01", contract_id: "x", contract_name: "n", amount: money("1.00") }] }));
+  assert.ok(!isFirstRun({ ...empty, has_records: true })); // records only in another month: totals are zero
 });
 
 test("unconverted hint uses singular and plural copy", () => {

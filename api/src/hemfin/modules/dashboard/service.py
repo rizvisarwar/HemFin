@@ -6,6 +6,9 @@ Conversion dates (a rate is looked up per item at its own date):
   in the future (rates do not exist for future dates). A monthly total has no date of its
   own, so one date per month keeps the figure stable through the month.
 
+Recurring cost counts contracts that pay in the month: active, started by the month's last day,
+and not ended before its first day unless they auto-renew.
+
 Each total sums unrounded converted values and rounds once to the base currency's minor
 units. An item with no rate is skipped and counted in `unconverted_count`, never guessed.
 """
@@ -15,7 +18,7 @@ from datetime import date
 from decimal import ROUND_HALF_EVEN, Decimal
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hemfin.core.money import MoneyBase, minor_units
@@ -88,10 +91,26 @@ async def dashboard(
     contract_rows = (
         await session.execute(
             select(Contract.amount, Contract.currency, Contract.frequency).where(
-                Contract.space_id == space_id, Contract.status == ContractStatus.active.value
+                Contract.space_id == space_id,
+                Contract.status == ContractStatus.active.value,
+                # Pays in the month: started by its last day, and not ended before its first day
+                # (an auto-renew contract keeps paying after `end_date`, the end of its term).
+                Contract.start_date <= last,
+                or_(
+                    Contract.auto_renew.is_(True),
+                    Contract.end_date.is_(None),
+                    Contract.end_date >= first,
+                ),
             )
         )
     ).all()
+
+    has_records = any(
+        [
+            await session.scalar(select(exists().where(m.space_id == space_id)))
+            for m in (Contract, Expense, IncomeEntry)
+        ]
+    )
 
     rate_day = min(first, today)
     spent, miss_spent = await _total(session, base, [(a, c, d) for a, c, d in expenses])
@@ -122,5 +141,6 @@ async def dashboard(
         recurring_monthly=recurring,
         income_this_month=income,
         upcoming=events,
+        has_records=has_records,
         unconverted_count=miss_spent + miss_income + miss_rec,
     )

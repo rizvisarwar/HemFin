@@ -1,5 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
-import { seed, seedDashboard, signInAs, uniqueUser, type SeedDashboard } from "./support/auth";
+import { seed, seedDashboard, seedHouseholds, signInAs, uniqueUser, type SeedDashboard } from "./support/auth";
 
 // HEM-023: the dashboard in its four states, at 375, 768 and 1280 px (the three projects).
 // Screenshots land in test-results/screenshots/hem023/<project>/<state>-<light|dark>.png.
@@ -34,6 +34,7 @@ function populated(overrides: Partial<SeedDashboard> = {}): SeedDashboard {
       { type: "renewal", date: iso(6), contract_id: "22222222-2222-4222-8222-222222222222", contract_name: "Music streaming with a rather long contract name that must wrap", amount: { amount: "11.99", currency: "USD" } },
       { type: "payment", date: iso(20), contract_id: "33333333-3333-4333-8333-333333333333", contract_name: "Gym", amount: eur("29.00") },
     ],
+    has_records: true,
     unconverted_count: 0,
     ...overrides,
   };
@@ -106,9 +107,10 @@ test.describe("dashboard", () => {
   });
 
   test("first run", async ({ page, context }, info) => {
-    const me = await open(page, context, info);
+    await open(page, context, info);
     await page.goto("/dashboard");
     await expect(page.getByTestId("dashboard-first-run")).toBeVisible();
+    await expect(page.getByTestId("first-run-privacy")).toHaveCount(0); // personal space
     await expect(page.getByRole("heading", { name: "Start with your bills" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Add a contract" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Record an expense instead" })).toBeVisible();
@@ -116,7 +118,58 @@ test.describe("dashboard", () => {
     await expect(page.getByText("€0.00")).toHaveCount(0); // no zero totals
     await checkLayout(page);
     await snap(page, info, "first-run");
-    void me;
+  });
+
+  test("records only in another month is not a first run", async ({ page, context }, info) => {
+    const me = await open(page, context, info);
+    await seedDashboard(me, {
+      dashboard: populated({
+        spent_this_month: eur("0.00"),
+        recurring_monthly: eur("0.00"),
+        income_this_month: eur("0.00"),
+        upcoming: [],
+        has_records: true,
+      }),
+    });
+    await page.goto("/dashboard");
+    await expect(page.getByTestId("dashboard")).toBeVisible();
+    await expect(page.getByTestId("dashboard-first-run")).toHaveCount(0);
+    await expect(page.getByText("No expenses this month yet. Record one to see it here.")).toBeVisible();
+  });
+
+  test("first run in a household shows the privacy line", async ({ page, context }, info) => {
+    const me = await open(page, context, info);
+    const { ids } = await seedHouseholds(me, [{ name: "The Lee family", role: "owner" }]);
+    await context.addCookies([{ name: "hemfin-space", value: ids[0], url: "http://127.0.0.1:3100", httpOnly: true, sameSite: "Lax" }]);
+    await page.goto("/dashboard");
+    await expect(page.getByTestId("dashboard-first-run")).toBeVisible();
+    await expect(page.getByText("Household members see only what the household shares.")).toBeVisible();
+    await checkLayout(page);
+    await snap(page, info, "first-run-household");
+  });
+
+  test("empty upcoming link is underlined; long names clamp to two lines", async ({ page, context }, info) => {
+    const me = await open(page, context, info);
+    await seedDashboard(me, { dashboard: populated({ upcoming: [] }) });
+    await page.goto("/dashboard");
+    const link = page.getByTestId("upcoming").getByRole("link", { name: "Add a contract" });
+    await expect(link).toBeVisible();
+    expect(await link.evaluate((el) => getComputedStyle(el).textDecorationLine)).toContain("underline");
+    expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(43.5);
+
+    const long = "Comprehensive household contents and liability insurance with a very long contract name that goes on and on and on and on and on and on and on";
+    await seedDashboard(me, {
+      dashboard: populated({
+        upcoming: [{ type: "payment", date: iso(3), contract_id: "44444444-4444-4444-8444-444444444444", contract_name: long, amount: eur("9.00") }],
+      }),
+    });
+    await page.reload();
+    const name = page.getByTestId("upcoming-event").getByRole("link").locator("span");
+    await expect(name).toBeVisible();
+    const { h, lh } = await name.evaluate((el) => ({ h: el.getBoundingClientRect().height, lh: parseFloat(getComputedStyle(el).lineHeight) }));
+    expect(h).toBeLessThanOrEqual(lh * 2 + 1);
+    await checkLayout(page);
+    await snap(page, info, "long-name");
   });
 
   test("partial: zero hints and empty upcoming", async ({ page, context }, info) => {

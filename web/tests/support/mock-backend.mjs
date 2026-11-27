@@ -742,6 +742,7 @@ const EMPTY_DASHBOARD = {
   recurring_monthly: { amount: "0.00", currency: "EUR" },
   income_this_month: { amount: "0.00", currency: "EUR" },
   upcoming: [],
+  has_records: false,
   unconverted_count: 0,
 };
 addRoute(

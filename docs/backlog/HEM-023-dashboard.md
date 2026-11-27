@@ -58,4 +58,20 @@ Built `GET /api/v1/spaces/{space_id}/dashboard?month=YYYY-MM` and replaced the `
 - `calendarDate` is a local helper in `lib/dashboard/dashboard.ts`; swap it for the shared one in `lib/format` once HEM-021 (#30) merges. The contract name links to `/contracts/[id]`, which HEM-021 builds.
 - The Playwright config and several specs hard-code port 3100. Another agent was using 3100 and 3199, so I ran with temporary port overrides and reverted them. Making the ports configurable in one place would help parallel agents.
 
+### 2026-11-27 Engineer, review round 1
+Merged origin/main (#30) and fixed every finding.
+- Code 1: `recurring_monthly` now counts only active contracts with `start_date <= last day` and (auto-renew, or no end date, or `end_date >= first day`). Tests: ended excluded, auto-renew past end included, future start excluded, boundary days included.
+- Code 2: test that a second space of the same user stays out of the first space's expenses, income and contracts.
+- Code 3: `has_records` added to the response (any contract, expense or income entry in the space). First run uses it. Client regenerated. API test (empty, other-month expense, income alone, contract alone) and Playwright test (records only in another month is not first run).
+- Code 4: first run in a household shows "Household members see only what the household shares." Playwright asserts it (and its absence in a personal space).
+- Design 5: the empty-state "Add a contract" link is underlined (EmptyState secondary link) and 44 px; Playwright checks both.
+- Design 6: the clamp is now on an inner span, not the inline-flex link; Playwright checks a very long name stays within two lines.
+- Code nits 6, 8, 9: 422 test checks `application/problem+json`; income unconverted test; `void me` removed. Item 7: window documented in the route description (today through today + 30 days, 31 days inclusive).
+- Design nits 3, 4: finance.md 7.1 state table and 7.3 now say the hint is above the totals and there is no provider. Nit 6: first-run actions side by side from `md` (EmptyState page variant). Nit 7: Income card uses `md:self-start xl:self-auto`.
+- #30 merged: the local `calendarDate` is gone; events use `useFormat().calendarDate`. The view is now a client component.
+- Screenshots regenerated under `web/test-results/screenshots/hem023/`.
+
 ## Review
+
+### Round 1 (2026-11-27)
+Reviewer: CHANGES_REQUESTED (code and design). Engineer fixes are in the Handoff log above; awaiting re-review.

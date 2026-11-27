@@ -1099,6 +1099,10 @@ The "Notice deadline" event has no amount (a notice date is not a payment). It s
 +---------------------------------------------------------------------------------------+
 ```
 
+**Unconverted hint position.** In the sketches the hint is drawn under the totals. As built, it sits above the totals at every width (PM decision, HEM-023 review round 1).
+
+**Provider.** The dashboard API returns `contract_name` only, so events show the name and no provider line (PM decision, HEM-023 review round 1).
+
 **Upcoming row layout (N11).** Each event is a row on `xl` and up, and a stacked card everywhere below `xl`. Below `xl` the card is used at every width, because at 768 the Upcoming card sits in a half-width column (about 316 px).
 
 - **Stacked (below `xl`).** Four lines, in this order: type with icon and date (the date is `shrink-0` on the right), name and provider (clamped), amount (on its own line, omitted for a notice deadline), DueChip (on its own line, so a long amount never shares a line with the chip).
@@ -1136,7 +1140,7 @@ At 768, row 2 has Income on the left and the Upcoming card on the right. The Upc
 | First run (see 7.2) | One page empty state, no totals. | 7.2 |
 | Partial (no expenses or no income) | The relevant card shows "€0.00" with its zero hint. Others show their figures. | see the zero hints |
 | Upcoming empty | Inline empty state in the upcoming card, with a text link. No button (the header has the expense action). | Title: "Nothing due in 30 days". Body: "Payments, renewals and notice deadlines show here as they come up." Link: "Add a contract". |
-| Unconverted hint | Info note under the totals (7.1). | 3.3 and the copy above |
+| Unconverted hint | Info note **above** the totals (PM decision, HEM-023 review: it keeps Income beside Upcoming at 768 px). | 3.3 and the copy above |
 | Error | `FormMessage` kind error above the totals, with Retry. The totals and the list are replaced by the error, because they come from one request. | "We could not load your summary just now." Button "Retry" |
 | Space switched | Skeletons until the new space's data arrives. The previous space's numbers are never shown (`app-shell.md` 4.2). | none |
 
@@ -1170,6 +1174,9 @@ At 768, row 2 has Income on the left and the Upcoming card on the right. The Upc
 - Privacy line for household spaces: "Household members see only what the household shares." is added under the body in a household space (`app-shell.md` 6, privacy rule).
 
 ### 7.3 Responsive summary (dashboard)
+
+- Events show no provider (the API has `contract_name` only). The hint sits above the totals. Both are accepted PM decisions (HEM-023 review round 1).
+- First run: the spec 7.2 privacy line shows in a household space, and the two actions sit side by side from `md`. First run is read from the API's `has_records`, not from zero totals.
 
 - No horizontal scroll at 375, 768 or 1280. The totals grid and the upcoming card wrap. Long names clamp to two lines.
 - The three totals never shrink the figure below `text-money-lg` (28 px phone). A total or event amount never wraps (`whitespace-nowrap`, 3.2).
