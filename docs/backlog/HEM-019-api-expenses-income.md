@@ -52,4 +52,15 @@ A space member can record one-off expenses and their income (recurring income so
 - Verify: `cd api && uv run pytest tests/test_expenses_income_db.py` with `DATABASE_URL` set; PR checks.
 - Limitations and follow-ups: income entries have no category (per ticket). `convert_many` still costs one query per distinct (currency, date); a single bulk rate query is possible later. `get_today` lives in `contracts.router` and is reused by the new routers; moving it to `core/` is a small follow-up.
 
+### 2026-11-27 Engineer, review round 1
+- Fixed the N3, N4, N5 and N8 nits and merged origin/main (details under Review).
+
 ## Review
+
+**APPROVED** (round 1, PM comment on PR #28) with nits, addressed in one push:
+- N5 fixed: amount strings must fully match `[0-9]+(\.[0-9]+)?` (no exponent, underscores, sign or spaces). This applies to contracts too. Tests added.
+- N4 fixed: `from` after `to` on expense and income-entry lists returns 422 `invalid_dates`. Test added.
+- N8 done: single-day range (`from == to`) test added.
+- N3 done: tests for CLF and UYW (4 minor units); amounts in these currencies serialize with 4 decimals.
+- N1 not changed: deriving `IncomeFrequency` from `Frequency` needs the functional enum API, which mypy cannot use as a type, so the explicit enum stays (the DB check constraint lists the values too).
+- Left as follow-ups: N2 (move `get_today` to `core/`), N6 (known gap: an FK race, for example a category or contract deleted between the check and the insert, gives a 500), N7 (member attribution after leaving, a Phase 5 follow-up), N9.

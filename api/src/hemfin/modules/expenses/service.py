@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hemfin.core.dates import check_not_future
+from hemfin.core.dates import check_not_future, check_range
 from hemfin.core.errors import CodedHTTPException
 from hemfin.core.money import MoneyBase, validate_amount
 from hemfin.core.pagination import decode_date_cursor, encode_date_cursor
@@ -125,6 +125,7 @@ async def list_expenses_page(
     member_user_id: UUID | None = None,
     contract_id: UUID | None = None,
 ) -> tuple[list[ExpenseOut], str | None]:
+    check_range(from_, to)
     stmt = _ROW.where(Expense.space_id == space_id)
     if from_ is not None:
         stmt = stmt.where(Expense.spent_on >= from_)
