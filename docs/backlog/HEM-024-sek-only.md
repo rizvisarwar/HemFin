@@ -35,3 +35,20 @@ The user decided on 2026-11-27 that the POC is for Sweden only and uses SEK. Rem
 - [ ] `docs/deploy.md`: FX settings mentions removed (none were present).
 
 ## Handoff log
+
+### 2026-11-27 Engineer
+Removed multi-currency. PR: https://github.com/rizvisarwar/HemFin/pull/34
+
+**What changed**
+- API: FX module, routes, settings, `defusedxml` and tests removed. Migration 0009 drops `app.fx_rates` (downgrade recreates it as in 0007) and sets `server_default 'SEK'` on the four `currency` columns and on `profiles.base_currency`. `core/money.py` is now `Amount`, `validate_amount`, `AmountIn` (input) and `MoneyBase` (output). Create and patch ignore a client-sent `currency` (default pydantic behaviour; the profile PATCH keeps `extra=forbid`, so `base_currency` there is a 422). Dashboard sums only rows stored as SEK.
+- Web: sv-SE `format.ts`, `FormatProvider` without props (the layout no longer fetches the profile), `parseAmount(raw)`, `AmountInput` with "kr". A row stored in another currency shows its own ISO code. Month headings stay English ("November 2026").
+- The profile Locale field stays (it still seeds the phone country); its hint now says numbers and dates use the Swedish format for now.
+
+**How to verify**
+- API: ruff, mypy, pytest (334 passed) against Postgres 16, `alembic upgrade head` and the roundtrip test.
+- Web: lint, `npm --prefix web test` (unit), build, full Playwright. Screenshots: `web/test-results/screenshots/hem024/`.
+
+**Known limitations and follow-ups**
+- Existing profiles keep their stored `base_currency` (not rewritten); it is unused.
+- `docs/design/app-shell.md`, `design-system.md` and `profile.md` still mention currency; only `finance.md` was updated, as asked.
+- Service functions still take an unused `user_id` argument in expenses and income (kept to avoid router churn).
