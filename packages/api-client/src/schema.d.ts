@@ -2001,6 +2001,7 @@ export interface operations {
                 /** @description Category key; a group key such as `insurance` includes its children. */
                 category?: string | null;
                 status?: components["schemas"]["ContractStatus"] | null;
+                /** @description A member's user id, or `none` for contracts that apply to the whole household. */
                 member_user_id?: string | null;
             };
             header?: never;
@@ -2029,13 +2030,13 @@ export interface operations {
                     "application/problem+json": unknown;
                 };
             };
-            /** @description Validation Error */
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": unknown;
                 };
             };
         };

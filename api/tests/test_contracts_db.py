@@ -447,6 +447,10 @@ async def test_list_filters_and_pagination(aclient: httpx.AsyncClient, key: Test
     assert await names(category="insur") == []  # no partial matches
     assert await names(status="cancelled") == ["e"]
     assert await names(member_user_id=str(uid)) == ["b"]
+    assert await names(member_user_id="none") == ["a", "c", "d", "e"]  # whole household
+    assert (
+        await aclient.get(url, params={"member_user_id": "someone"}, headers=h)
+    ).status_code == 422
     assert (await aclient.get(url, params={"cursor": "garbage"}, headers=h)).status_code == 422
     assert (await aclient.get(url, params={"status": "weird"}, headers=h)).status_code == 422
 

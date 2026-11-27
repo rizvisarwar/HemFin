@@ -161,6 +161,7 @@ async def list_contracts_page(
     category: str | None = None,
     status: ContractStatus | None = None,
     member_user_id: UUID | None = None,
+    whole_household: bool = False,
 ) -> tuple[list[ContractOut], str | None]:
     stmt = _ROW.where(Contract.space_id == space_id)
     if category:
@@ -172,6 +173,8 @@ async def list_contracts_page(
         stmt = stmt.where(Contract.status == status.value)
     if member_user_id is not None:
         stmt = stmt.where(Contract.member_user_id == member_user_id)
+    elif whole_household:
+        stmt = stmt.where(Contract.member_user_id.is_(None))
     if cursor:
         at, rid = decode_cursor(cursor)
         stmt = stmt.where(tuple_(Contract.created_at, Contract.id) > tuple_(at, rid))
