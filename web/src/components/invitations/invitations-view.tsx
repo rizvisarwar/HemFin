@@ -3,7 +3,8 @@
 import * as React from "react";
 import { Mail } from "lucide-react";
 import { useCooldown } from "@/components/auth/cooldown";
-import { Field, useFocusFirstInvalid } from "@/components/auth/form-parts";
+import { Field } from "@/components/ui/field";
+import { useFocusFirstInvalid } from "@/components/auth/form-parts";
 import { useFormat } from "@/components/format-provider";
 import { ROLE_COPY } from "@/components/households/member-dialogs";
 import { Button } from "@/components/ui/button";

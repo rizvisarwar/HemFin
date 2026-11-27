@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hemfin.core.db import get_session
 from hemfin.core.deps import SpaceAccess, require_space_member
-from hemfin.core.errors import PROBLEM_JSON
+from hemfin.core.errors import PROBLEM_JSON, CodedHTTPException
 from hemfin.core.pagination import DEFAULT_LIMIT, CursorParam, LimitParam, Page
 from hemfin.modules.contracts import service
 from hemfin.modules.contracts.models import ContractStatus
@@ -35,7 +35,23 @@ _404: dict[int | str, dict[str, Any]] = {404: {"description": "Not a member, or 
 _422: dict[int | str, dict[str, Any]] = {422: {"description": "Validation error", **_P}}
 
 
-@router.get("", summary="List contracts (filter by category, status, member)", responses=_404)
+def _parse_member_filter(value: str | None) -> tuple[UUID | None, bool]:
+    """`member_user_id` is a user id, or the word `none` for the whole household."""
+    if value is None:
+        return None, False
+    if value == "none":
+        return None, True
+    try:
+        return UUID(value), False
+    except ValueError:
+        raise CodedHTTPException(
+            422, "invalid_member_filter", "member_user_id must be a user id or `none`."
+        ) from None
+
+
+@router.get(
+    "", summary="List contracts (filter by category, status, member)", responses={**_404, **_422}
+)
 async def list_contracts(
     access: Member,
     session: Session,
@@ -50,8 +66,17 @@ async def list_contracts(
         ),
     ] = None,
     status: ContractStatus | None = None,
-    member_user_id: UUID | None = None,
+    member_user_id: Annotated[
+        str | None,
+        Query(
+            max_length=36,
+            description=(
+                "A member's user id, or `none` for contracts that apply to the whole household."
+            ),
+        ),
+    ] = None,
 ) -> Page[ContractOut]:
+    member, whole_household = _parse_member_filter(member_user_id)
     items, nxt = await service.list_contracts_page(
         session,
         space_id=access.space_id,
@@ -60,7 +85,8 @@ async def list_contracts(
         as_of=today,
         category=category,
         status=status,
-        member_user_id=member_user_id,
+        member_user_id=member,
+        whole_household=whole_household,
     )
     return Page[ContractOut](items=items, next_cursor=nxt)
 

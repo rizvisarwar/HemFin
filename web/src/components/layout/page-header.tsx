@@ -51,7 +51,7 @@ export function PageHeader({
               <li key={`${crumb.label}-${i}`} className="flex items-center gap-1">
                 {i > 0 ? <span aria-hidden="true">/</span> : null}
                 {crumb.href ? (
-                  <Link href={crumb.href} className="underline-offset-4 hover:underline">
+                  <Link href={crumb.href} className="inline-flex min-h-11 items-center underline-offset-4 hover:underline">
                     {crumb.label}
                   </Link>
                 ) : (

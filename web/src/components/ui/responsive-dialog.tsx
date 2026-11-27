@@ -12,6 +12,8 @@ export interface ResponsiveDialogProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   description?: string;
+  /** Shown under the title and above the scrolling body, at every width (for example the space badge). */
+  headerExtra?: React.ReactNode;
   children?: React.ReactNode;
   /** Buttons row. Stacked full width on phone, right-aligned from md up. */
   footer?: React.ReactNode;
@@ -36,6 +38,7 @@ export function ResponsiveDialog({
   onOpenChange,
   title,
   description,
+  headerExtra,
   children,
   footer,
   alert,
@@ -79,8 +82,9 @@ export function ResponsiveDialog({
             <div className="min-w-0 flex-1">
               <Title className="text-h3">{title}</Title>
               {description ? (
-                <Description className="mt-1 text-body text-muted-foreground">{description}</Description>
+                <Description className="mt-1 text-balance text-body text-muted-foreground">{description}</Description>
               ) : null}
+              {headerExtra ? <div className="mt-2">{headerExtra}</div> : null}
             </div>
             {/* A confirmation has a Cancel button, so it has no close X. */}
             {alert ? null : (

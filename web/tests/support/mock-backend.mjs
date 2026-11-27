@@ -142,6 +142,7 @@ addRoute("POST", /^\/__test\/reset$/, async () => {
   invitations.clear();
   TOKEN_TO_INVITATION.clear();
   leaks.length = 0;
+  contractsBySpace.clear();
   return [204, null];
 });
 addRoute("POST", /^\/auth\/v1\/token$/, async ({ body }) => {
@@ -776,6 +777,198 @@ addRoute("POST", /^\/__test\/leave$/, async ({ body }) => {
 addRoute("POST", /^\/__test\/space$/, async ({ body }) => {
   const space = spaces.get(body.space_id);
   return space ? [200, space] : [404, { detail: "not found" }];
+});
+
+// ---- Categories and contracts (HEM-018 API, mirrored closely enough for UI tests) ---------------
+// Contracts live per space. The schedule is set by the test (seed) because the real API computes it
+// from dates: the mock only keeps what it is given, and clears it when a contract is cancelled.
+const SYSTEM_CATEGORIES = [
+  ["insurance", "Insurance", null],
+  ["insurance.home", "Home insurance", "insurance"],
+  ["insurance.car", "Car insurance", "insurance"],
+  ["insurance.health", "Health insurance", "insurance"],
+  ["utility", "Utilities", null],
+  ["utility.electricity", "Electricity", "utility"],
+  ["utility.internet", "Internet", "utility"],
+  ["subscription", "Subscriptions", null],
+  ["subscription.streaming", "Streaming", "subscription"],
+  ["subscription.software", "Software", "subscription"],
+  ["membership", "Memberships", null],
+  ["membership.gym", "Gym", "membership"],
+  ["housing", "Housing", null],
+  ["housing.rent", "Rent", "housing"],
+  ["transport", "Transport", null],
+  ["food", "Food", null],
+  ["health", "Health", null],
+  ["kids", "Kids", null],
+  ["other", "Other", null],
+].map(([key, name, parent_key]) => ({ id: uuidFor(`category:${key}`), key, name, parent_key, kind: "expense", system: true }));
+SYSTEM_CATEGORIES.push({ id: uuidFor("category:income.salary"), key: "income.salary", name: "Salary", parent_key: "income", kind: "income", system: true });
+const SUPPORTED_CURRENCIES = new Set(["EUR", "USD", "SEK", "GBP", "JPY"]);
+
+/** Contracts per space id, in creation order. */
+export const contractsBySpace = new Map();
+const contractsOf = (spaceId) => {
+  if (!contractsBySpace.has(spaceId)) contractsBySpace.set(spaceId, []);
+  return contractsBySpace.get(spaceId);
+};
+let contractSeq = 0;
+
+const EMPTY_SCHEDULE = { next_payment_date: null, renewal_date: null, notice_deadline: null };
+function newContract(space, userId, data) {
+  contractSeq += 1;
+  const now = new Date(Date.UTC(2026, 10, 25, 12, 0, contractSeq)).toISOString();
+  return {
+    id: uuidFor(`contract:${space.id}:${contractSeq}:${Math.random()}`),
+    space_id: space.id,
+    provider: null,
+    end_date: null,
+    auto_renew: false,
+    renewal_term_months: null,
+    notice_period_days: null,
+    member_user_id: null,
+    status: "active",
+    notes: null,
+    created_by: userId,
+    created_at: now,
+    updated_at: now,
+    schedule: { ...EMPTY_SCHEDULE },
+    ...data,
+  };
+}
+const categoryByKey = (key) => SYSTEM_CATEGORIES.find((c) => c.key === key);
+const withCategoryKey = (c) => ({ ...c, category: SYSTEM_CATEGORIES.find((x) => x.id === c.category_id)?.key ?? "other" });
+
+/** Validates a create or patch body like the API does. Returns an error response or null. */
+function contractErrors(space, body, partial) {
+  const errors = [];
+  if (!partial || "name" in body) {
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    if (name === "" || [...name].length > 120) errors.push(["name", "String should have between 1 and 120 characters"]);
+  }
+  if (!partial || "amount" in body) {
+    if (typeof body.amount !== "string" || !/^\d+(\.\d+)?$/.test(body.amount) || /^0+(\.0+)?$/.test(body.amount)) {
+      errors.push(["amount", "Amount must be greater than 0."]);
+    }
+  }
+  if ((!partial || "currency" in body) && !SUPPORTED_CURRENCIES.has(body.currency)) errors.push(["currency", "Unsupported currency."]);
+  if ((!partial || "start_date" in body) && !/^\d{4}-\d{2}-\d{2}$/.test(String(body.start_date ?? ""))) errors.push(["start_date", "Input should be a valid date"]);
+  if (errors.length) return validation(...errors);
+  if ((!partial || "category_id" in body) && !SYSTEM_CATEGORIES.some((c) => c.id === body.category_id && c.kind === "expense")) {
+    return [422, { type: "urn:hemfin:problem:invalid_category", title: "Unprocessable Content", status: 422, code: "invalid_category", detail: "Unknown category." }, "application/problem+json"];
+  }
+  if (body.member_user_id && !space.members.some((m) => m.user_id === body.member_user_id)) {
+    return [422, { type: "urn:hemfin:problem:invalid_member", title: "Unprocessable Content", status: 422, code: "invalid_member", detail: "member_user_id must be a member of this space." }, "application/problem+json"];
+  }
+  return null;
+}
+
+addRoute(
+  "GET",
+  /^\/api\/v1\/spaces\/([^/]+)\/categories$/,
+  inSpace("member", async ({ space }) => [200, { items: SYSTEM_CATEGORIES.concat(space.custom_categories ?? []), next_cursor: null }]),
+);
+addRoute(
+  "GET",
+  /^\/api\/v1\/spaces\/([^/]+)\/contracts$/,
+  inSpace("member", async ({ space, url, me }) => {
+    if (me.fail_contracts) return serverError();
+    const status = url.searchParams.get("status");
+    const category = url.searchParams.get("category");
+    const member = url.searchParams.get("member_user_id");
+    if (member && member !== "none" && !/^[0-9a-f-]{36}$/i.test(member)) return problem(422, "member_user_id must be a user id or `none`.");
+    const items = contractsOf(space.id)
+      .map(withCategoryKey)
+      .filter((c) => !status || c.status === status)
+      .filter((c) => !category || c.category === category || c.category.startsWith(`${category}.`))
+      .filter((c) => !member || (member === "none" ? c.member_user_id === null : c.member_user_id === member));
+    return [200, pageOf(items, url)];
+  }),
+);
+addRoute(
+  "POST",
+  /^\/api\/v1\/spaces\/([^/]+)\/contracts$/,
+  inSpace("member", async ({ space, claims, body, me }) => {
+    if (me.fail_contract_save) return serverError();
+    const bad = contractErrors(space, body, false);
+    if (bad) return bad;
+    const contract = newContract(space, claims.sub, {
+      ...body,
+      name: body.name.trim(),
+      schedule: { next_payment_date: body.start_date, renewal_date: body.auto_renew ? body.end_date ?? null : null, notice_deadline: null },
+    });
+    contractsOf(space.id).push(contract);
+    return [201, withCategoryKey(contract)];
+  }),
+);
+addRoute(
+  "GET",
+  /^\/api\/v1\/spaces\/([^/]+)\/contracts\/([^/]+)$/,
+  inSpace("member", async ({ space, match, me }) => {
+    if (me.fail_contracts) return serverError();
+    const c = contractsOf(space.id).find((x) => x.id === match[2]);
+    return c ? [200, withCategoryKey(c)] : problem(404, "Contract not found.");
+  }),
+);
+addRoute(
+  "PATCH",
+  /^\/api\/v1\/spaces\/([^/]+)\/contracts\/([^/]+)$/,
+  inSpace("member", async ({ space, match, body, me }) => {
+    if (me.fail_contract_save) return serverError();
+    const c = contractsOf(space.id).find((x) => x.id === match[2]);
+    if (!c) return problem(404, "Contract not found.");
+    const bad = contractErrors(space, body, true);
+    if (bad) return bad;
+    Object.assign(c, body, { updated_at: new Date().toISOString() });
+    if (body.status === "cancelled") c.schedule = { ...EMPTY_SCHEDULE };
+    // A status change keeps the seeded schedule when the contract is made active again.
+    else if (body.status === "active" && c._schedule) c.schedule = { ...c._schedule };
+    return [200, withCategoryKey(c)];
+  }),
+);
+addRoute(
+  "DELETE",
+  /^\/api\/v1\/spaces\/([^/]+)\/contracts\/([^/]+)$/,
+  inSpace("member", async ({ space, match, me }) => {
+    if (me.fail_contract_save) return serverError();
+    const list = contractsOf(space.id);
+    const i = list.findIndex((x) => x.id === match[2]);
+    if (i === -1) return problem(404, "Contract not found.");
+    list.splice(i, 1);
+    return [204, null];
+  }),
+);
+// Test helper: seed contracts in a space. Body: {space_id, contracts: [{name, category (key), amount, currency, frequency, start_date, ...}]}.
+// `schedule` is stored as given. Returns the ids in order.
+addRoute("POST", /^\/__test\/contracts$/, async ({ body }) => {
+  const space = spaces.get(body.space_id);
+  if (!space) return [404, { detail: "no such space" }];
+  const ids = [];
+  for (const data of body.contracts ?? []) {
+    const { category, ...rest } = data;
+    const cat = categoryByKey(category ?? "other");
+    const c = newContract(space, space.members[0].user_id, {
+      amount: "10.00",
+      currency: "EUR",
+      frequency: "monthly",
+      start_date: "2026-01-01",
+      ...rest,
+      category_id: cat.id,
+    });
+    c._schedule = { ...c.schedule };
+    contractsOf(space.id).push(c);
+    ids.push(c.id);
+  }
+  return [200, { ids }];
+});
+// Test helper: the contracts of a space as stored, to check what the app really saved.
+addRoute("POST", /^\/__test\/stored-contracts$/, async ({ body }) => [200, contractsOf(body.space_id).map(withCategoryKey)]);
+// Test helper: make contract calls fail for a user. Body: {email, list?: boolean, save?: boolean}.
+addRoute("POST", /^\/__test\/contracts-fail$/, async ({ body }) => {
+  const me = userState({ sub: userIdOf(body.email), email: body.email });
+  if (body.list !== undefined) me.fail_contracts = body.list;
+  if (body.save !== undefined) me.fail_contract_save = body.save;
+  return [204, null];
 });
 
 const server = createServer(async (req, res) => {

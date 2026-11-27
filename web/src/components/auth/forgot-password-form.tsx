@@ -7,7 +7,8 @@ import { createClient } from "@/lib/supabase/client";
 import { GENERIC_ERROR, mapAuthError, RESET_REQUESTED_MESSAGE } from "@/lib/auth/errors";
 import { isEmailValid } from "@/lib/auth/password";
 import { CooldownNote, useCooldown } from "./cooldown";
-import { Field, useFocusFirstInvalid } from "./form-parts";
+import { Field } from "@/components/ui/field";
+import { useFocusFirstInvalid } from "./form-parts";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { FormMessage } from "@/components/ui/form-message";
 

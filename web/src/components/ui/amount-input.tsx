@@ -1,5 +1,5 @@
-import { CircleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { FieldError } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,8 @@ export interface AmountInputProps {
   /** The raw text as typed, for example "12,50". It is parsed on submit, never here. */
   value: string;
   onValueChange: (raw: string) => void;
+  /** Called when focus leaves the amount field, to validate on blur. */
+  onBlur?: () => void;
   currency: string;
   currencyOptions: CurrencyOption[];
   onCurrencyChange: (code: string) => void;
@@ -51,6 +53,7 @@ export function AmountInput({
   label,
   value,
   onValueChange,
+  onBlur,
   currency,
   currencyOptions,
   onCurrencyChange,
@@ -98,6 +101,7 @@ export function AmountInput({
             aria-invalid={error ? true : undefined}
             aria-describedby={describedBy}
             onChange={(e) => onValueChange(e.target.value)}
+            onBlur={onBlur}
             className="tabular-nums text-right"
           />
         </div>
@@ -127,22 +131,8 @@ export function AmountInput({
           {hint ?? defaultHint}
         </p>
       )}
-      <div aria-live="polite" id={errorId}>
-        {error ? (
-          <p className="flex items-start gap-1.5 text-small text-destructive">
-            <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-            <span>{error}</span>
-          </p>
-        ) : null}
-      </div>
-      <div aria-live="polite" id={currencyErrorId}>
-        {currencyError ? (
-          <p className="flex items-start gap-1.5 text-small text-destructive">
-            <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-            <span>{currencyError}</span>
-          </p>
-        ) : null}
-      </div>
+      <FieldError id={errorId} error={error} />
+      <FieldError id={currencyErrorId} error={currencyError} />
     </div>
   );
 }
