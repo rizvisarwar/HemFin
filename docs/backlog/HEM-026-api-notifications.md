@@ -39,7 +39,8 @@ Every day the job creates in-app notifications for upcoming contract events, onc
 
 ## Design notes
 - Module `modules/notifications/` (models, schemas, service, router).
-- Title text is generated server-side in English with sv-SE dates and amounts, for example "Home insurance renews on 1 jan. 2027". Keep it simple.
+- Title text is generated server-side in English and stays stable, with no date (for example "Home insurance renews"), per the HEM-025 spec. `event_date` and `amount` are separate fields, which the web formats in sv-SE.
+- Unread count excludes dismissed rows. The default page size is 20.
 - Retention: none for now (POC).
 
 ## Handoff log
