@@ -43,9 +43,11 @@ The count is shown wherever the Notifications item appears: the top bar bell, th
 - **Text:** the exact number from 1 to 9. From 10 up it shows "9+". The number is `tabular-nums`.
 - **Component:** `CountBadge` (`web/src/components/ui/count-badge.tsx`, `max` defaults to 9). It is `aria-hidden`.
 - **Style:** `--primary` fill, `--primary-foreground` text, `text-caption` (12 px), minimum 20 × 20 px, fully rounded.
-- **Accessible name** of the control (set by the shell, from the exact count):
-  - 0 or loading: "Notifications"
-  - 1 or more: "Notifications, 3 unread" (exact, so "Notifications, 12 unread" even though the badge reads "9+")
+- **Accessible name** of the control (set by the shell, from the exact count). The name starts with the visible label, so a voice user can say what they see (WCAG 2.5.3):
+  - Top bar bell and icon rail (visible label is an icon): "Notifications" at 0 or while loading, "Notifications, 3 unread" at 1 or more.
+  - Sidebar (visible label "Notifications"): "Notifications" at 0, "Notifications, 3 unread" at 1 or more. The visible count on the right is `aria-hidden` with the badge, so it is read once, through the name.
+  - Bottom nav (visible label "Alerts"): "Alerts" at 0, "Alerts, 3 unread" at 1 or more.
+  - The exact count is always used, so "Notifications, 12 unread" is read even though the badge shows "9+".
 - The badge is never the only signal. The text in the name carries the number, and the bell is never coloured to show a count.
 
 ### 3.2 Phone top bar (375 px)
@@ -61,7 +63,7 @@ The count is shown wherever the Notifications item appears: the top bar bell, th
 
 | Place | Badge position | Notes |
 |---|---|---|
-| Bottom nav, "Alerts" slot | Top-right of the 32 × 24 px icon pill | The label stays "Alerts" (app-shell.md, section 3.1). |
+| Bottom nav, "Alerts" slot | Top-right of the 32 × 24 px icon pill | The label stays "Alerts" (app-shell.md, section 3.1). The name is "Alerts, 3 unread" (section 3.1). |
 | Icon rail (768 px) | Top-right of the 48 × 48 px button | The tooltip and `aria-label` give the full count. |
 | Sidebar (1280 px) | Right edge of the item, vertically centred | The item is 44 px tall, so the badge is easy to hit. |
 
@@ -135,29 +137,29 @@ The count is shown wherever the Notifications item appears: the top bar bell, th
 +------+--------------------------------------------------+
 ```
 
-- The rail's Alerts button shows the badge (3.3). The rail is 72 px and the content gutter is 24 px.
+- The rail's Notifications button shows the badge (3.3). The rail is 72 px and the content gutter is 24 px.
 - Rows keep their phone layout. At this width the row can hold the dismiss button on the right, so it is inside the card footer.
 
 ### 4.4 Desktop (1280 px)
 
 ```
-+-------------+--------------------------------------------------------------+
-| HemFin      | HemFin                             [Lock Personal v]  (B 3)  |  top bar 64 px
-| Overview    +==============================================================+
-|  Dashboard  |                                                              |
-|  Alerts  3  |  Notifications                           [ Mark all as read ] |
-| Money       |  [Lock] Personal     3 unread                                |
-|  Contracts  |                                                              |
-|  Reports    |  +----------------------------------------------------------+|  list max 720 px
-|  ...        |  ||  (icon)  Home insurance payment is due      [New]      ||
-| Account     |  ||          Due 1 jan. 2027, 1 234,50 kr                   ||
-|  Profile    |  ||          Added today                 [ Dismiss ]        ||
-| [Lock] Personal                                                          |
-+-------------+----------------------------------------------------------------+
++------------------------+------------------------------------------------------------+
+| HemFin                 | HemFin                       [Lock Personal v]  (B 3)      |  top bar 64 px
+| Overview               +============================================================+
+|  Dashboard             |                                                            |
+|  Notifications       3 |  Notifications                     [ Mark all as read ]    |
+| Money                  |  [Lock] Personal   3 unread                                |
+|  Contracts             |                                                            |
+|  Reports               |  +------------------------------------------------------+  |  list max 720 px
+|  ...                   |  ||  (icon)  Home insurance payment is due     [New]  ||  |
+| Account                |  ||          Due 1 jan. 2027, 1 234,50 kr              ||  |
+|  Profile               |  ||          Added today                [ Dismiss ]    ||  |
+| [Lock] Personal        |                                                            |
++------------------------+------------------------------------------------------------+
 ```
 
-- The sidebar is 256 px. The content area is 1120 px at most, so the list is capped at 720 px and starts at the left edge of the content.
-- The sidebar shows the Alerts count on the right (3.3).
+- The sidebar is 256 px. The content area is 1024 px wide at most, and 960 px after the 32 px gutters. The list is capped at 720 px and starts at the left edge of the content.
+- The sidebar label is "Notifications", as in `app-shell.md`, section 3.1. Its count is on the right (3.3).
 
 ---
 
@@ -170,7 +172,7 @@ Each row is a `HemCard` (variant `interactive`).
 | Part | Phone and tablet | Desktop | Notes |
 |---|---|---|---|
 | Icon | 40 px circle, `--muted` fill, icon 20 px in `--foreground` | Same | Icon by type (section 6). Decorative. |
-| Title | `text-body-strong`, up to 2 lines | Same | The link text (5.3). |
+| Title | `text-body-strong`, up to 2 lines, `min-w-0 break-words line-clamp-2` so a long contract name wraps and never pushes the card wider | Same | The link text (5.3). |
 | Unread chip | `Badge` (default, primary fill), text "New", top-right | Same | Unread rows only. |
 | Left bar | 4 px `--primary` on the card's left edge | Same | Unread rows only. |
 | Event line | `text-small`, `--muted-foreground` | Same | Date (and amount when there is one). |
@@ -179,17 +181,18 @@ Each row is a `HemCard` (variant `interactive`).
 
 ### 5.2 Read and unread
 
-| State | Left bar | Chip | Title weight | Accessible name starts with |
+| State | Left bar | Chip | Title weight | Text inside the link, before the title |
 |---|---|---|---|---|
-| Unread (`read_at` is null) | Yes, `--primary` | "New" | 600 | "Unread," |
-| Read | No | No | 500 | (nothing) |
+| Unread (`read_at` is null) | Yes, `--primary` | "New" | 600 | An sr-only span with the text "Unread: " |
+| Read | No | No | 500 | Nothing |
 
-Unread titles are weight 600 and read titles weight 500. Both are readable, and the unread row also has the bar and the word "New", so the difference does not rely on weight or colour alone.
+The sr-only span sits inside the link, so the link's accessible name is, for example, "Unread: Car insurance renews. Due 1 jan. 2027, 1 234,50 kr. Added today". The visible "New" chip is read as well, so the word "New" and the sr-only word agree. Unread titles are weight 600 and read titles weight 500. Both are readable, and the unread row also has the bar and the word "New", so the difference does not rely on weight or colour alone.
 
 ### 5.3 Tap to open the contract
 
-- The title is a link to `/contracts/{contract_id}`. It is stretched over the whole card with an `after:absolute after:inset-0` pseudo-element, so the full card is the tap target (44 px minimum, in practice 72 px or more).
-- The Dismiss button is `relative z-10`, so it sits above the stretched link.
+- The title is a link to `/contracts/{contract_id}`. The link is an absolutely positioned element that covers the whole card (`absolute inset-0 rounded-lg`), so the full card is the tap target (72 px or more in practice). The title text sits inside it. The card is `relative`, so the link covers only the card.
+- Focus: the link's own `:focus-visible` outline (global rule, 2 px `--ring`, 2 px offset) draws around the whole card, because the link is the size of the card. Do not use `HemCard`'s `focus-within` border on the row: it lights up when the Dismiss button has focus, and it is not a ring.
+- The Dismiss button is `relative z-10`, so it sits above the covering link. It has its own focus ring.
 - On tap: fire `POST .../{id}/read` (if unread), then navigate. Do not wait for the response (N6).
 - Keyboard: Tab reaches the title link, then the Dismiss button. Enter on the link opens the contract.
 
@@ -278,7 +281,7 @@ Used when the list has no rows, including after the user has dismissed everythin
 - Body: "We will tell you here when a renewal, payment or contract end is coming up. Only you can see these."
 - Primary action: "Review your contracts", links to `/contracts`.
 - No secondary link.
-- After a dismiss or mark-all that empties the list, the page changes to this state without a toast. The announcement from 9.2 is enough.
+- Only dismissing the last row can empty the list (mark all only changes the read state). After the last row is dismissed, the page changes to this state without a toast. The announcement from 9.2 is enough.
 
 Layout at 375 px: 48 px from the top of the content, centred, the button full width. At 1280 px: the same, with the button at its natural width.
 
@@ -327,12 +330,13 @@ Success is shown by the change itself: the row goes, the badge goes, the list ch
 |---|---|---|---|
 | Mark all as read succeeds | Page status region (sr-only, `role="status"`) | polite | "All notifications marked as read." |
 | Dismiss succeeds | Page status region | polite | "Notification dismissed." |
-| Last row dismissed or marked all (list is now empty) | Page status region | polite | "You are all caught up." |
+| Last row dismissed (list is now empty) | Page status region | polite | "You are all caught up." |
 | Show more loads rows | Page status region | polite | "{n} more notifications loaded." |
-| Unread count goes up while the app is open (a refresh finds new rows) | App shell status region (sr-only) | polite | "{n} new notifications." |
+| Count rises after a refresh (navigation, space change, or a poll every 60 s or slower) while this page is open | Page status region | polite | "{n} new notifications." |
 | An action fails | Inline alert | assertive (`role="alert"`) | "We could not update your notifications. Try again." |
 
-- The count is never announced on first load, only when it rises while the user is on the app. Users are not interrupted by a count they already had.
+- The count is never announced on first load. It is announced only on this page, and only when it rises after a refresh. Users are not interrupted by a count they already had.
+- The status region is owned by the notifications page. It is an sr-only `role="status"` element rendered with the page, empty, before any text is written, so a screen reader picks up the change. The app shell has no status region for this, and the bell's refresh (navigation, space change, a poll every 60 s or slower, as HEM-027 specifies) does not announce anything by itself.
 - The bell's accessible name changes with the count. That is a name change, not a live region, so it is not announced again. The status text above is the announcement.
 - Polite messages are never announced over a dialog's own text. The status region sits outside the dialog.
 
@@ -389,15 +393,17 @@ Rules: sentence case, no exclamation marks, no "Oops". "Dismiss" always means "h
 |---|---|---|---|---|
 | Badge text `--primary-foreground` on `--primary` | 11.4:1 | 9.0:1 | 4.5 | Pass |
 | "New" chip (same as the badge) | 11.4:1 | 9.0:1 | 4.5 | Pass |
-| Unread left bar `--primary` on `--card` | high | high | 3 (non-text) | Pass |
+| Unread left bar `--primary` on `--card` | 11.4:1 | 9.0:1 | 3 (non-text) | Pass |
 | Title `--foreground` on `--card` | 16.0:1 | 15.1:1 | 4.5 | Pass |
-| Event and added lines `--muted-foreground` on `--card` | about 7:1 | about 7:1 | 4.5 | Pass |
-| Icon `--foreground` on `--muted` circle | high | high | 3 (meaningful icon, with text beside it) | Pass |
-| Alert text `--destructive` on `--destructive-subtle` | about 6:1 | about 6:1 | 4.5 | Pass |
+| Event and added lines `--muted-foreground` on `--card` | 7.0:1 | 7.5:1 | 4.5 | Pass |
+| Added line `--muted-foreground` on `--muted` (the skeleton and icon circle background) | 6.1:1 | 6.4:1 | 4.5 | Pass |
+| Icon `--foreground` on `--muted` circle | 14.1:1 | 13.0:1 | 3 (meaningful icon, with text beside it) | Pass |
+| Alert text `--destructive` on `--destructive-subtle` | 5.8:1 | 5.2:1 | 4.5 | Pass |
 
 Checks for the reviewer:
 - Every control is a labelled link or button, at least 44 px.
-- The unread state has text ("New" and the accessible "Unread,"), not colour alone.
+- The unread state has text (the visible "New" chip, and the sr-only "Unread: " in the link name), not colour alone.
+- Contrast figures were computed from the hex values in `design-system.md`, section 2.1, with the WCAG relative-luminance formula.
 - The Dismiss button's name begins with the visible word "Dismiss" and then the title (for example "Dismiss: Car insurance renews"). That satisfies label-in-name.
 - Focus order: bell, page header, Mark all, then each row's link and Dismiss, then Show more.
 

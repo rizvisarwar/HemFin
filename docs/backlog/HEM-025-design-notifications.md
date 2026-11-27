@@ -9,7 +9,7 @@ A short spec in `docs/design/notifications.md`, plus any presentational componen
 - **Bell in the top bar** (it already exists in `top-bar.tsx`, phone and desktop): unread count badge (cap at "9+"), accessible name ("Notifications, 3 unread"). Tapping opens `/notifications`; no popover.
 - **Notification centre `/notifications`:**
   - List, newest first, for the active space.
-  - Each row: icon by type, title (for example "Home insurance renews in 7 days"), the date of the event ("1 jan. 2027"), how long ago it was created, and an unread marker.
+  - Each row: icon by type, title (for example "Home insurance renews"), the date of the event ("1 jan. 2027"), how long ago it was created, and an unread marker.
   - Tapping a row marks it read and opens the contract.
   - Actions: "Mark all as read" and dismiss one row.
   - Empty, loading and error states.
@@ -33,11 +33,11 @@ A short spec in `docs/design/notifications.md`, plus any presentational componen
 
 **Left (for HEM-027)**
 - Swap the inline badges in `top-bar.tsx`, `bottom-nav.tsx` and `side-nav.tsx` for `CountBadge` (they still show "99+" in red).
-- Build the centre, rows and dialogs from `notifications.md`.
+- Build the centre and rows from `notifications.md`. Dismiss has no dialog.
 
 **Decisions** (details in the spec, section 2)
 - Titles are stable copy with no date (N5). The date goes on its own line.
-- Dismiss has a confirmation (N8). Mark all does not.
+- Dismiss acts at once, with no confirmation (N8, PM Q3). Mark all does not need one either.
 - The list is for the active space only (N4).
 
 **PM decisions (2026-11-27, answers to the open questions)**
