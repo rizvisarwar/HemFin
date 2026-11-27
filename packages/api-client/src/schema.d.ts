@@ -197,6 +197,98 @@ export interface paths {
         patch: operations["rename_space_api_v1_spaces__space_id__patch"];
         trace?: never;
     };
+    "/api/v1/spaces/{space_id}/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** System categories plus this space's own */
+        get: operations["list_categories_api_v1_spaces__space_id__categories_get"];
+        put?: never;
+        /** Create a custom category for this space */
+        post: operations["create_category_api_v1_spaces__space_id__categories_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/spaces/{space_id}/categories/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a custom category (not a system one, not one in use) */
+        delete: operations["delete_category_api_v1_spaces__space_id__categories__category_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/spaces/{space_id}/contracts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List contracts (filter by category, status, member) */
+        get: operations["list_contracts_api_v1_spaces__space_id__contracts_get"];
+        put?: never;
+        /** Create a contract */
+        post: operations["create_contract_api_v1_spaces__space_id__contracts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/spaces/{space_id}/contracts/upcoming": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Payments, renewals and notice deadlines in the next N days
+         * @description Bounded, not cursor-paginated (approved exception): the window is at most 366 days and the response holds at most `limit` events (default 50, max 200), sorted by date, type, contract name and id. `has_more` is true when events were cut off; narrow `days` to see the rest.
+         */
+        get: operations["upcoming_contracts_api_v1_spaces__space_id__contracts_upcoming_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/spaces/{space_id}/contracts/{contract_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a contract */
+        get: operations["get_contract_api_v1_spaces__space_id__contracts__contract_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete a contract */
+        delete: operations["delete_contract_api_v1_spaces__space_id__contracts__contract_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update a contract */
+        patch: operations["update_contract_api_v1_spaces__space_id__contracts__contract_id__patch"];
+        trace?: never;
+    };
     "/api/v1/spaces/{space_id}/invitations": {
         parameters: {
             query?: never;
@@ -412,6 +504,191 @@ export interface components {
             /** Region */
             region?: string | null;
         };
+        /** CategoryCreate */
+        CategoryCreate: {
+            /** Key */
+            key?: string | null;
+            kind: components["schemas"]["CategoryKind"];
+            /** Name */
+            name: string;
+            /** Parent Key */
+            parent_key?: string | null;
+        };
+        /**
+         * CategoryKind
+         * @enum {string}
+         */
+        CategoryKind: "expense" | "income";
+        /** CategoryOut */
+        CategoryOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Key */
+            key: string;
+            kind: components["schemas"]["CategoryKind"];
+            /** Name */
+            name: string;
+            /** Parent Key */
+            parent_key: string | null;
+            /** System */
+            system: boolean;
+        };
+        /** ContractCreate */
+        ContractCreate: {
+            /**
+             * Amount
+             * @example 12.50
+             */
+            amount: string;
+            /**
+             * Auto Renew
+             * @default false
+             */
+            auto_renew: boolean;
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
+            /** Currency */
+            currency: string;
+            /** End Date */
+            end_date?: string | null;
+            frequency: components["schemas"]["Frequency"];
+            /** Member User Id */
+            member_user_id?: string | null;
+            /** Name */
+            name: string;
+            /** Notes */
+            notes?: string | null;
+            /** Notice Period Days */
+            notice_period_days?: number | null;
+            /** Provider */
+            provider?: string | null;
+            /** Renewal Term Months */
+            renewal_term_months?: number | null;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+        };
+        /** ContractOut */
+        ContractOut: {
+            /**
+             * Amount
+             * @example 12.50
+             */
+            amount: string;
+            /** Auto Renew */
+            auto_renew: boolean;
+            /** Category */
+            category: string;
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Created By
+             * Format: uuid
+             */
+            created_by: string;
+            /** Currency */
+            currency: string;
+            /** End Date */
+            end_date: string | null;
+            frequency: components["schemas"]["Frequency"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Member User Id */
+            member_user_id: string | null;
+            /** Name */
+            name: string;
+            /** Notes */
+            notes: string | null;
+            /** Notice Period Days */
+            notice_period_days: number | null;
+            /** Provider */
+            provider: string | null;
+            /** Renewal Term Months */
+            renewal_term_months: number | null;
+            schedule: components["schemas"]["ScheduleOut"];
+            /**
+             * Space Id
+             * Format: uuid
+             */
+            space_id: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            status: components["schemas"]["ContractStatus"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * ContractPatch
+         * @description Partial update. Omitted fields are unchanged; nullable fields can be set to null.
+         */
+        ContractPatch: {
+            /** Amount */
+            amount?: string | null;
+            /** Auto Renew */
+            auto_renew?: boolean | null;
+            /** Category Id */
+            category_id?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** End Date */
+            end_date?: string | null;
+            frequency?: components["schemas"]["Frequency"] | null;
+            /** Member User Id */
+            member_user_id?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Notice Period Days */
+            notice_period_days?: number | null;
+            /** Provider */
+            provider?: string | null;
+            /** Renewal Term Months */
+            renewal_term_months?: number | null;
+            /** Start Date */
+            start_date?: string | null;
+            status?: components["schemas"]["ContractStatus"] | null;
+        };
+        /**
+         * ContractStatus
+         * @enum {string}
+         */
+        ContractStatus: "active" | "cancelled";
+        /**
+         * EventType
+         * @enum {string}
+         */
+        EventType: "payment" | "renewal" | "notice_deadline";
+        /**
+         * Frequency
+         * @enum {string}
+         */
+        Frequency: "weekly" | "monthly" | "quarterly" | "semiannual" | "annual";
         /**
          * FxRatesOut
          * @description Euro foreign exchange reference rates: 1 EUR = rates[code] units of that currency.
@@ -543,6 +820,33 @@ export interface components {
              */
             role: "admin" | "member";
         };
+        /**
+         * MoneyBase
+         * @description Output shape: amount as a string at the currency's minor units.
+         */
+        MoneyBase: {
+            /**
+             * Amount
+             * @example 12.50
+             */
+            amount: string;
+            /** Currency */
+            currency: string;
+        };
+        /** Page[CategoryOut] */
+        Page_CategoryOut_: {
+            /** Items */
+            items: components["schemas"]["CategoryOut"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** Page[ContractOut] */
+        Page_ContractOut_: {
+            /** Items */
+            items: components["schemas"]["ContractOut"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
         /** Page[InvitationOut] */
         Page_InvitationOut_: {
             /** Items */
@@ -593,6 +897,15 @@ export interface components {
          * @enum {string}
          */
         Role: "owner" | "admin" | "member";
+        /** ScheduleOut */
+        ScheduleOut: {
+            /** Next Payment Date */
+            next_payment_date: string | null;
+            /** Notice Deadline */
+            notice_deadline: string | null;
+            /** Renewal Date */
+            renewal_date: string | null;
+        };
         /** SpaceCreate */
         SpaceCreate: {
             /** Name */
@@ -662,6 +975,40 @@ export interface components {
              * Format: uuid
              */
             user_id: string;
+        };
+        /** UpcomingEvent */
+        UpcomingEvent: {
+            amount: components["schemas"]["MoneyBase"];
+            /**
+             * Contract Id
+             * Format: uuid
+             */
+            contract_id: string;
+            /** Contract Name */
+            contract_name: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            type: components["schemas"]["EventType"];
+        };
+        /** UpcomingOut */
+        UpcomingOut: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["UpcomingEvent"][];
+            /**
+             * Until
+             * Format: date
+             */
+            until: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -1499,6 +1846,409 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_categories_api_v1_spaces__space_id__categories_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_CategoryOut_"];
+                };
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_category_api_v1_spaces__space_id__categories_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryOut"];
+                };
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Conflict; `code` is category_exists, category_limit, system_category or category_in_use */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+        };
+    };
+    delete_category_api_v1_spaces__space_id__categories__category_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Conflict; `code` is category_exists, category_limit, system_category or category_in_use */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_contracts_api_v1_spaces__space_id__contracts_get: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: number;
+                /** @description Opaque cursor from `next_cursor`. */
+                cursor?: string | null;
+                /** @description Category key; a group key such as `insurance` includes its children. */
+                category?: string | null;
+                status?: components["schemas"]["ContractStatus"] | null;
+                member_user_id?: string | null;
+            };
+            header?: never;
+            path: {
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_ContractOut_"];
+                };
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_contract_api_v1_spaces__space_id__contracts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContractCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractOut"];
+                };
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+        };
+    };
+    upcoming_contracts_api_v1_spaces__space_id__contracts_upcoming_get: {
+        parameters: {
+            query?: {
+                days?: number;
+                /** @description Maximum events returned. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpcomingOut"];
+                };
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+        };
+    };
+    get_contract_api_v1_spaces__space_id__contracts__contract_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: string;
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractOut"];
+                };
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_contract_api_v1_spaces__space_id__contracts__contract_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: string;
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_contract_api_v1_spaces__space_id__contracts__contract_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: string;
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContractPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractOut"];
+                };
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
                 };
             };
         };

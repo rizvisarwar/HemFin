@@ -8,12 +8,7 @@ import phonenumbers
 import pycountry
 from pydantic import AfterValidator, BaseModel, ConfigDict, StringConstraints, model_validator
 
-
-def _currency(v: str) -> str:
-    code = v.strip().upper()
-    if pycountry.currencies.get(alpha_3=code) is None:
-        raise ValueError("Must be an ISO 4217 currency code, for example EUR.")
-    return code
+from hemfin.core.money import Currency  # shared with contracts; re-exported here
 
 
 def _country(v: str) -> str:
@@ -53,11 +48,6 @@ def _phone(v: str) -> str:
     return phonenumbers.format_number(number, phonenumbers.PhoneNumberFormat.E164)
 
 
-Currency = Annotated[
-    str,
-    StringConstraints(strip_whitespace=True, to_upper=True, min_length=3, max_length=3),
-    AfterValidator(_currency),
-]
 Country = Annotated[
     str,
     StringConstraints(strip_whitespace=True, to_upper=True, min_length=2, max_length=2),
