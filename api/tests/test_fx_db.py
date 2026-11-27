@@ -1,5 +1,6 @@
 """DB-backed FX tests (CI only). Dates sit in 1999 so they never clash with real ECB data."""
 
+from collections.abc import AsyncIterator
 from datetime import date
 from decimal import Decimal
 from uuid import uuid4
@@ -14,6 +15,14 @@ from hemfin.modules.fx import service
 from hemfin.modules.fx.models import FxRate
 
 pytestmark = pytest.mark.db
+
+
+@pytest.fixture(autouse=True)
+async def _fresh_engine() -> AsyncIterator[None]:
+    """Each test runs on its own event loop, so the pooled engine must not outlive it."""
+    yield
+    await db.dispose_engine()
+
 
 D1 = date(1999, 1, 4)
 D2 = date(1999, 1, 5)

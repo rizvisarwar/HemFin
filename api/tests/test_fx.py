@@ -226,11 +226,11 @@ async def test_job_returns_date_and_count(
     monkeypatch.setattr(service, "has_rates", fake_has_rates)
     monkeypatch.setattr(service, "fetch_xml", fake_fetch)
     monkeypatch.setattr(service, "upsert_rates", fake_upsert)
-    async with _client(authed_app, JOB_SECRET=SECRET, FX_ECB_DAILY_URL="http://ecb.test/d") as c:
+    async with _client(authed_app, JOB_SECRET=SECRET) as c:
         r = await c.post(JOB, headers={"X-Job-Secret": SECRET})
     assert r.status_code == 200
     assert r.json() == {"rate_date": "2026-11-26", "count": 4}
-    assert urls == ["http://ecb.test/d"]
+    assert urls == [Settings().FX_ECB_DAILY_URL]
     assert len(stored) == 1
 
 
@@ -253,11 +253,11 @@ async def test_job_backfills_from_90_day_feed_when_table_is_empty(
     monkeypatch.setattr(service, "has_rates", fake_has_rates)
     monkeypatch.setattr(service, "fetch_xml", fake_fetch)
     monkeypatch.setattr(service, "upsert_rates", fake_upsert)
-    async with _client(authed_app, JOB_SECRET=SECRET, FX_ECB_HIST_URL="http://ecb.test/h") as c:
+    async with _client(authed_app, JOB_SECRET=SECRET) as c:
         r = await c.post(JOB, headers={"X-Job-Secret": SECRET})
     assert r.status_code == 200
     assert r.json() == {"rate_date": "2026-11-26", "count": 2}
-    assert urls == ["http://ecb.test/h"]
+    assert urls == [Settings().FX_ECB_HIST_URL]
 
 
 @pytest.mark.parametrize("failure", ["fetch", "parse"])
