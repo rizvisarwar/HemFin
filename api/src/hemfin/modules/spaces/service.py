@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy import and_, delete, func, or_, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hemfin.core.errors import CodedHTTPException
 from hemfin.core.pagination import decode_cursor, encode_cursor
 from hemfin.modules.spaces.models import Role, Space, SpaceMembership, SpaceType
 from hemfin.modules.spaces.schemas import MemberOut, SpaceListItem
@@ -261,3 +262,16 @@ async def transfer_ownership(
         .values(role=Role.owner)
     )
     await session.commit()
+
+
+async def ensure_member(session: AsyncSession, space_id: UUID, user_id: UUID) -> None:
+    """422 unless `user_id` is a member of the space (used for `member_user_id` fields)."""
+    found = await session.scalar(
+        select(SpaceMembership.id).where(
+            SpaceMembership.space_id == space_id, SpaceMembership.user_id == user_id
+        )
+    )
+    if found is None:
+        raise CodedHTTPException(
+            422, "invalid_member", "member_user_id must be a member of this space."
+        )

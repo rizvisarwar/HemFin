@@ -5,6 +5,7 @@ goes through EUR as the cross currency. Money is Decimal throughout.
 """
 
 import logging
+from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
 
@@ -15,6 +16,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hemfin.core.money import minor_units
 from hemfin.modules.fx.models import FxRate
 
 log = logging.getLogger("hemfin.fx")
@@ -23,13 +25,6 @@ BASE = "EUR"
 MAX_LOOKBACK_DAYS = 7
 MAX_FEED_BYTES = 5_000_000  # the 90-day feed is about 250 KB
 
-# ISO 4217 minor units that differ from the default of 2.
-_ZERO_DECIMAL = {
-    "BIF", "CLP", "DJF", "GNF", "ISK", "JPY", "KMF", "KRW", "PYG", "RWF", "UGX", "UYI", "VND",
-    "VUV", "XAF", "XOF", "XPF",
-}  # fmt: skip
-_THREE_DECIMAL = {"BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND"}
-
 
 class FxFetchError(Exception):
     """The ECB feed could not be fetched or understood. Messages never include feed content."""
@@ -37,14 +32,6 @@ class FxFetchError(Exception):
 
 class FxAmountError(ValueError):
     """The amount to convert is not finite or is too large to round to minor units."""
-
-
-def minor_units(currency: str) -> int:
-    if currency in _ZERO_DECIMAL:
-        return 0
-    if currency in _THREE_DECIMAL:
-        return 3
-    return 2
 
 
 def parse_rates(xml: bytes) -> dict[date, dict[str, Decimal]]:
@@ -183,6 +170,12 @@ async def convert(
         return amount
     rate_from = await _latest_rate(session, from_ccy, on_date)
     rate_to = await _latest_rate(session, to_ccy, on_date)
+    return _apply(amount, rate_from, rate_to, to_ccy)
+
+
+def _apply(
+    amount: Decimal, rate_from: Decimal | None, rate_to: Decimal | None, to_ccy: str
+) -> Decimal | None:
     if rate_from is None or rate_to is None:
         return None
     try:
@@ -191,6 +184,37 @@ async def convert(
         return result.quantize(Decimal(1).scaleb(-minor_units(to_ccy)), rounding=ROUND_HALF_EVEN)
     except InvalidOperation:
         raise FxAmountError("The amount cannot be converted.") from None
+
+
+async def convert_many(
+    session: AsyncSession, to_ccy: str, items: Sequence[tuple[Decimal, str, date]]
+) -> list[Decimal | None]:
+    """`convert` for a page of (amount, currency, date). Each (currency, date) rate is looked
+    up once, so a page costs one query per distinct pair rather than two per row. An amount
+    that cannot be converted is None, like a missing rate."""
+    to_ccy = to_ccy.upper()
+    cache: dict[tuple[str, date], Decimal | None] = {}
+
+    async def rate(ccy: str, on_date: date) -> Decimal | None:
+        if (ccy, on_date) not in cache:
+            cache[(ccy, on_date)] = await _latest_rate(session, ccy, on_date)
+        return cache[(ccy, on_date)]
+
+    out: list[Decimal | None] = []
+    for amount, ccy, on_date in items:
+        ccy = ccy.upper()
+        if not amount.is_finite():
+            out.append(None)
+        elif ccy == to_ccy:
+            out.append(amount)
+        else:
+            try:
+                out.append(
+                    _apply(amount, await rate(ccy, on_date), await rate(to_ccy, on_date), to_ccy)
+                )
+            except FxAmountError:
+                out.append(None)
+    return out
 
 
 def today_utc() -> date:

@@ -2,7 +2,7 @@
 
 import base64
 import json
-from datetime import datetime
+from datetime import UTC, date, datetime, time
 from typing import Annotated, Generic, TypeVar
 from uuid import UUID
 
@@ -38,3 +38,13 @@ def decode_cursor(cursor: str) -> tuple[datetime, UUID]:
         return at, UUID(rid)
     except Exception:
         raise HTTPException(422, detail="Invalid cursor.") from None
+
+
+def encode_date_cursor(day: date, row_id: UUID) -> str:
+    """Cursor over (date, id), for lists ordered by a calendar date."""
+    return encode_cursor(datetime.combine(day, time.min, tzinfo=UTC), row_id)
+
+
+def decode_date_cursor(cursor: str) -> tuple[date, UUID]:
+    at, rid = decode_cursor(cursor)
+    return at.astimezone(UTC).date(), rid

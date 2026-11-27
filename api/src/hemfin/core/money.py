@@ -5,6 +5,7 @@ is the output shape (no re-validation, amounts rendered to the currency's minor 
 HEM-019 reuses these for expenses and income.
 """
 
+import re
 from decimal import Decimal
 from typing import Annotated
 
@@ -66,9 +67,17 @@ Currency = Annotated[
 ]
 
 
+_AMOUNT_RE = re.compile(r"[0-9]+(\.[0-9]+)?")
+
+
 def _string_or_decimal(v: object) -> object:
     """Amounts travel as strings. JSON numbers (float or int) are rejected, never rounded."""
-    if isinstance(v, str | Decimal):
+    if isinstance(v, Decimal):
+        return v
+    if isinstance(v, str):
+        # Exactly the published pattern: no sign, exponent, underscores or spaces.
+        if _AMOUNT_RE.fullmatch(v) is None:
+            raise ValueError('Amount must be a plain decimal string, for example "12.50".')
         return v
     raise ValueError('Amount must be a string, for example "12.50".')
 
