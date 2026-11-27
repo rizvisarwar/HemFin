@@ -24,10 +24,10 @@ export function ConvertedAmount({ originalCurrency, baseCurrency, locale = "en",
   const formatter = makeFormatter({ currency: baseCurrency, locale });
   const money = formatter.money(converted.amount, { currency: baseCurrency, code: true });
   return (
-    <p className={cn("text-right text-small text-muted-foreground tabular-nums", className)}>
+    <span className={cn("block text-right text-small text-muted-foreground tabular-nums", className)}>
       <span aria-hidden="true">≈ </span>
       <span className="sr-only">About </span>
       {money}
-    </p>
+    </span>
   );
 }

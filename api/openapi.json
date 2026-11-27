@@ -4517,19 +4517,21 @@
             }
           },
           {
+            "description": "A member's user id, or `none` for expenses that apply to the whole household.",
             "in": "query",
             "name": "member_user_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "format": "uuid",
+                  "maxLength": 36,
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "A member's user id, or `none` for expenses that apply to the whole household.",
               "title": "Member User Id"
             }
           },
@@ -4570,13 +4572,9 @@
           },
           "422": {
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
+              "application/problem+json": {}
             },
-            "description": "Validation Error"
+            "description": "Validation error"
           }
         },
         "security": [

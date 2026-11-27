@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils";
 import type { SpaceType } from "@/components/layout/types";
 
 type EmptyStateAction =
-  | { label: string; href: string; onClick?: never }
-  | { label: string; onClick: () => void; href?: never };
+  | { label: string; href: string; onClick?: never; ghost?: boolean }
+  | { label: string; onClick: () => void; href?: never; ghost?: boolean };
 
 export interface EmptyStateProps {
   icon: LucideIcon;
@@ -74,7 +74,7 @@ export function EmptyState({
               {primaryAction.label}
             </Button>
           ) : (
-            <Button onClick={primaryAction.onClick} className={inline ? undefined : "w-full sm:w-auto"}>
+            <Button variant={primaryAction.ghost ? "ghost" : "default"} onClick={primaryAction.onClick} className={inline ? undefined : "w-full sm:w-auto"}>
               {primaryAction.label}
             </Button>
           )}

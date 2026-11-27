@@ -76,7 +76,9 @@ export function AmountInput({
     fractionDigits === 0
       ? "Whole numbers only for this currency."
       : `Use ${decimalSeparator} before the cents.`;
-  const describedBy = [hint === "" ? null : hintId, error ? errorId : null].filter(Boolean).join(" ") || undefined;
+  // The error takes the hint's place, so it sits right under the field (finance.md 3.1).
+  const showHint = hint !== "" && !error;
+  const describedBy = error ? errorId : showHint ? hintId : undefined;
 
   return (
     <div className={cn("space-y-2", className)}>
@@ -126,11 +128,11 @@ export function AmountInput({
           </NativeSelect>
         </div>
       </div>
-      {hint === "" ? null : (
+      {showHint ? (
         <p id={hintId} className="text-small text-muted-foreground">
           {hint ?? defaultHint}
         </p>
-      )}
+      ) : null}
       <FieldError id={errorId} error={error} />
       <FieldError id={currencyErrorId} error={currencyError} />
     </div>

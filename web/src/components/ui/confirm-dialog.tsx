@@ -5,6 +5,14 @@ import { Button } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/form-message";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 
+/**
+ * The focus outline of the dismiss button in an alert, which takes focus when the alert opens. One constant for
+ * every alert. It is `focus:` and not `focus-visible:` on purpose: the alert moves focus here by script, after a
+ * mouse click on the menu item or button that opened it, and a browser does not treat that as keyboard focus, so
+ * `focus-visible` would draw no ring on the very button that holds focus.
+ */
+export const DISMISS_FOCUS_CLASS = "focus:outline-2 focus:outline-offset-2 focus:outline-ring";
+
 export interface ConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -70,7 +78,7 @@ export function ConfirmDialog({
           >
             {busy ? busyLabel : confirmLabel}
           </Button>
-          <Button id="confirm-dismiss" type="button" variant="outline" className="focus:outline-2 focus:outline-offset-2 focus:outline-ring" disabled={busy} onClick={() => onOpenChange(false)}>
+          <Button id="confirm-dismiss" type="button" variant="outline" className={DISMISS_FOCUS_CLASS} disabled={busy} onClick={() => onOpenChange(false)}>
             {dismissLabel}
           </Button>
         </>

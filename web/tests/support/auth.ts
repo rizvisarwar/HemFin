@@ -252,6 +252,61 @@ export async function selectSpace(context: BrowserContext, spaceId: string) {
   await context.addCookies([{ name: "hemfin-space", value: spaceId, url: APP, httpOnly: true, sameSite: "Lax" }]);
 }
 
+// ---- Expenses and income (HEM-022) -------------------------------------------------------------
+
+export interface SeedExpense {
+  /** Category key, for example "food.groceries". */
+  category?: string;
+  amount?: string;
+  currency?: string;
+  spent_on?: string;
+  description?: string | null;
+  merchant?: string | null;
+  contract_id?: string | null;
+  member_user_id?: string | null;
+  /** The base-currency amount the real API would add, set by the test (the mock has no rates). */
+  base_amount?: { amount: string; currency: string } | null;
+}
+
+export interface SeedSource {
+  name: string;
+  type?: "salary" | "business" | "other";
+  amount?: string;
+  currency?: string;
+  frequency?: "weekly" | "monthly" | "quarterly" | "semiannual" | "annual" | "irregular";
+  member_user_id?: string | null;
+  active?: boolean;
+}
+
+export interface SeedEntry {
+  amount?: string;
+  currency?: string;
+  received_on?: string;
+  source_id?: string | null;
+  description?: string | null;
+  member_user_id?: string | null;
+  base_amount?: { amount: string; currency: string } | null;
+}
+
+type FinanceKind = "expenses" | "sources" | "entries";
+
+function seedFinance(spaceId: string, kind: FinanceKind, records: object[]) {
+  return post<{ ids: string[] }>("/__test/finance", { space_id: spaceId, kind, records });
+}
+export const seedExpenses = (spaceId: string, records: SeedExpense[]) => seedFinance(spaceId, "expenses", records);
+export const seedSources = (spaceId: string, records: SeedSource[]) => seedFinance(spaceId, "sources", records);
+export const seedEntries = (spaceId: string, records: SeedEntry[]) => seedFinance(spaceId, "entries", records);
+
+/** A space's records as the mock API stores them, to check what the app really saved. */
+export function storedFinance<T = Record<string, unknown>>(spaceId: string, kind: FinanceKind) {
+  return post<T[]>("/__test/stored-finance", { space_id: spaceId, kind });
+}
+
+/** Makes the expense and income list calls (`list`) and/or the save and delete calls (`save`) fail with a 500. */
+export function failFinance(who: { email: string }, flags: { list?: boolean; save?: boolean }) {
+  return post<void>("/__test/finance-fail", { email: who.email, ...flags });
+}
+
 /** A calendar date `days` from today in the test runner's time zone, "YYYY-MM-DD". */
 export function isoIn(days: number): string {
   const d = new Date();

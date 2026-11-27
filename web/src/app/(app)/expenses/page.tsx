@@ -1,19 +1,15 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
-import { Receipt } from "lucide-react";
-import { PlaceholderPage } from "@/components/layout/placeholder-page";
+import { ExpensesView } from "@/components/expenses/expenses-view";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Expenses" };
 
 export default function ExpensesPage() {
+  // useSearchParams (`?new=1`, `?contract_id=`) needs a Suspense boundary.
   return (
-    <PlaceholderPage
-      title="Expenses"
-      description="Where the money goes, month by month."
-      icon={Receipt}
-      emptyTitle="No expenses this month"
-      emptyDescription="Record one-off payments to see where the money goes."
-      actionLabel="Add an expense"
-      actionHref="/expenses"
-    />
+    <Suspense fallback={<Skeleton className="h-32 w-full" aria-busy="true" />}>
+      <ExpensesView />
+    </Suspense>
   );
 }

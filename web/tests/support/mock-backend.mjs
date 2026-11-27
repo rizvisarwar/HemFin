@@ -143,6 +143,7 @@ addRoute("POST", /^\/__test\/reset$/, async () => {
   TOKEN_TO_INVITATION.clear();
   leaks.length = 0;
   contractsBySpace.clear();
+  financeBySpace.clear();
   return [204, null];
 });
 addRoute("POST", /^\/auth\/v1\/token$/, async ({ body }) => {
@@ -969,6 +970,283 @@ addRoute("POST", /^\/__test\/contracts-fail$/, async ({ body }) => {
   const me = userState({ sub: userIdOf(body.email), email: body.email });
   if (body.list !== undefined) me.fail_contracts = body.list;
   if (body.save !== undefined) me.fail_contract_save = body.save;
+  return [204, null];
+});
+
+// ---- Expenses and income (HEM-019 API, mirrored closely enough for UI tests) -----------------------
+// Records live per space. `base_amount` is kept as seeded (the mock has no exchange rates); created
+// records get null, like a currency with no rate.
+export const financeBySpace = new Map(); // `${spaceId}:${kind}` -> records, in creation order
+const financeOf = (spaceId, kind) => {
+  const key = `${spaceId}:${kind}`;
+  if (!financeBySpace.has(key)) financeBySpace.set(key, []);
+  return financeBySpace.get(key);
+};
+let financeSeq = 0;
+const stampFor = () => new Date(Date.UTC(2026, 10, 25, 12, 0, ++financeSeq)).toISOString();
+const DATE_OK = /^\d{4}-\d{2}-\d{2}$/;
+const tomorrowIso = () => {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
+const codedProblem = (code, detail) => [422, { type: `urn:hemfin:problem:${code}`, title: "Unprocessable Content", status: 422, code, detail }, "application/problem+json"];
+const badAmount = (body, partial) =>
+  (!partial || "amount" in body) && (typeof body.amount !== "string" || !/^\d+(\.\d+)?$/.test(body.amount) || /^0+(\.0+)?$/.test(body.amount))
+    ? ["amount", "Amount must be greater than 0."]
+    : null;
+const badCurrency = (body, partial) => ((!partial || "currency" in body) && !SUPPORTED_CURRENCIES.has(body.currency) ? ["currency", "Unsupported currency."] : null);
+
+/** A date field: required unless partial, a date, and at most one day ahead (a coded 422 like the API's). */
+function dateProblem(body, field, partial) {
+  if (partial && !(field in body)) return null;
+  if (!DATE_OK.test(String(body[field] ?? ""))) return validation([field, "Input should be a valid date"]);
+  if (body[field] > tomorrowIso()) return codedProblem("date_in_future", `${field} cannot be more than a day in the future.`);
+  return null;
+}
+const memberProblem = (space, body) =>
+  body.member_user_id && !space.members.some((m) => m.user_id === body.member_user_id)
+    ? codedProblem("invalid_member", "member_user_id must be a member of this space.")
+    : null;
+
+function expenseErrors(space, body, partial) {
+  const errors = [badAmount(body, partial), badCurrency(body, partial)].filter(Boolean);
+  if (errors.length) return validation(...errors);
+  const late = dateProblem(body, "spent_on", partial);
+  if (late) return late;
+  if ((!partial || "category_id" in body) && !SYSTEM_CATEGORIES.some((c) => c.id === body.category_id && c.kind === "expense")) return codedProblem("invalid_category", "Unknown category.");
+  if (body.contract_id && !contractsOf(space.id).some((c) => c.id === body.contract_id)) return codedProblem("invalid_contract", "Unknown contract.");
+  return memberProblem(space, body);
+}
+const withExpenseCategory = (e) => ({ ...e, category: SYSTEM_CATEGORIES.find((c) => c.id === e.category_id)?.key ?? "other" });
+const byDateDesc = (field) => (a, b) => (a[field] === b[field] ? b.id.localeCompare(a.id) : a[field] < b[field] ? 1 : -1);
+const inRange = (value, url) => {
+  const from = url.searchParams.get("from");
+  const to = url.searchParams.get("to");
+  return (!from || value >= from) && (!to || value <= to);
+};
+const FINANCE_BASE = { description: null, member_user_id: null, base_amount: null };
+const memberFilter = (url) => url.searchParams.get("member_user_id");
+
+const EXPENSES = /^\/api\/v1\/spaces\/([^/]+)\/expenses$/;
+const EXPENSE = /^\/api\/v1\/spaces\/([^/]+)\/expenses\/([^/]+)$/;
+addRoute(
+  "GET",
+  EXPENSES,
+  inSpace("member", async ({ space, url, me }) => {
+    if (me.fail_finance_list) return serverError();
+    const category = url.searchParams.get("category");
+    const member = memberFilter(url);
+    const contract = url.searchParams.get("contract_id");
+    if (member && member !== "none" && !/^[0-9a-f-]{36}$/i.test(member)) return problem(422, "member_user_id must be a user id or `none`.");
+    const items = financeOf(space.id, "expenses")
+      .map(withExpenseCategory)
+      .filter((e) => inRange(e.spent_on, url))
+      .filter((e) => !category || e.category === category || e.category.startsWith(`${category}.`))
+      .filter((e) => !member || (member === "none" ? e.member_user_id === null : e.member_user_id === member))
+      .filter((e) => !contract || e.contract_id === contract)
+      .sort(byDateDesc("spent_on"));
+    return [200, pageOf(items, url)];
+  }),
+);
+addRoute(
+  "POST",
+  EXPENSES,
+  inSpace("member", async ({ space, claims, body, me }) => {
+    if (me.fail_finance_save) return serverError();
+    const bad = expenseErrors(space, body, false);
+    if (bad) return bad;
+    const now = stampFor();
+    const e = { id: uuidFor(`expense:${space.id}:${financeSeq}:${Math.random()}`), space_id: space.id, merchant: null, contract_id: null, ...FINANCE_BASE, ...body, created_by: claims.sub, created_at: now, updated_at: now };
+    financeOf(space.id, "expenses").push(e);
+    return [201, withExpenseCategory(e)];
+  }),
+);
+addRoute(
+  "PATCH",
+  EXPENSE,
+  inSpace("member", async ({ space, match, body, me }) => {
+    if (me.fail_finance_save) return serverError();
+    const e = financeOf(space.id, "expenses").find((x) => x.id === match[2]);
+    if (!e) return problem(404, "Expense not found.");
+    const bad = expenseErrors(space, body, true);
+    if (bad) return bad;
+    Object.assign(e, body, { updated_at: new Date().toISOString() });
+    return [200, withExpenseCategory(e)];
+  }),
+);
+addRoute(
+  "DELETE",
+  EXPENSE,
+  inSpace("member", async ({ space, match, me }) => {
+    if (me.fail_finance_save) return serverError();
+    const list = financeOf(space.id, "expenses");
+    const i = list.findIndex((x) => x.id === match[2]);
+    if (i === -1) return problem(404, "Expense not found.");
+    list.splice(i, 1);
+    return [204, null];
+  }),
+);
+
+const SOURCES = /^\/api\/v1\/spaces\/([^/]+)\/income-sources$/;
+const SOURCE = /^\/api\/v1\/spaces\/([^/]+)\/income-sources\/([^/]+)$/;
+const SOURCE_TYPES = new Set(["salary", "business", "other"]);
+const SOURCE_FREQUENCIES = new Set(["weekly", "monthly", "quarterly", "semiannual", "annual", "irregular"]);
+function sourceErrors(space, body, partial) {
+  const errors = [badAmount(body, partial), badCurrency(body, partial)].filter(Boolean);
+  if (!partial || "name" in body) {
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    if (name === "" || [...name].length > 120) errors.push(["name", "String should have between 1 and 120 characters"]);
+  }
+  if ((!partial || "type" in body) && !SOURCE_TYPES.has(body.type)) errors.push(["type", "Input should be 'salary', 'business' or 'other'"]);
+  if ((!partial || "frequency" in body) && !SOURCE_FREQUENCIES.has(body.frequency)) errors.push(["frequency", "Input should be a valid frequency"]);
+  if (errors.length) return validation(...errors);
+  return memberProblem(space, body);
+}
+addRoute(
+  "GET",
+  SOURCES,
+  inSpace("member", async ({ space, url, me }) => {
+    if (me.fail_finance_list) return serverError();
+    return [200, pageOf(financeOf(space.id, "sources"), url)];
+  }),
+);
+addRoute(
+  "POST",
+  SOURCES,
+  inSpace("member", async ({ space, claims, body, me }) => {
+    if (me.fail_finance_save) return serverError();
+    const bad = sourceErrors(space, body, false);
+    if (bad) return bad;
+    const now = stampFor();
+    const s = { id: uuidFor(`source:${space.id}:${financeSeq}:${Math.random()}`), space_id: space.id, member_user_id: null, active: true, ...body, name: body.name.trim(), created_by: claims.sub, created_at: now, updated_at: now };
+    financeOf(space.id, "sources").push(s);
+    return [201, s];
+  }),
+);
+addRoute(
+  "PATCH",
+  SOURCE,
+  inSpace("member", async ({ space, match, body, me }) => {
+    if (me.fail_finance_save) return serverError();
+    const s = financeOf(space.id, "sources").find((x) => x.id === match[2]);
+    if (!s) return problem(404, "Income source not found.");
+    const bad = sourceErrors(space, body, true);
+    if (bad) return bad;
+    Object.assign(s, body, { updated_at: new Date().toISOString() });
+    return [200, s];
+  }),
+);
+addRoute(
+  "DELETE",
+  SOURCE,
+  inSpace("member", async ({ space, match, me }) => {
+    if (me.fail_finance_save) return serverError();
+    const list = financeOf(space.id, "sources");
+    const i = list.findIndex((x) => x.id === match[2]);
+    if (i === -1) return problem(404, "Income source not found.");
+    list.splice(i, 1);
+    // Received payments stay, without the link (SET NULL).
+    for (const e of financeOf(space.id, "entries")) if (e.source_id === match[2]) e.source_id = null;
+    return [204, null];
+  }),
+);
+
+const ENTRIES = /^\/api\/v1\/spaces\/([^/]+)\/income-entries$/;
+const ENTRY = /^\/api\/v1\/spaces\/([^/]+)\/income-entries\/([^/]+)$/;
+function entryErrors(space, body, partial) {
+  const errors = [badAmount(body, partial), badCurrency(body, partial)].filter(Boolean);
+  if (errors.length) return validation(...errors);
+  const late = dateProblem(body, "received_on", partial);
+  if (late) return late;
+  if (body.source_id && !financeOf(space.id, "sources").some((s) => s.id === body.source_id)) return codedProblem("invalid_source", "Unknown income source.");
+  return memberProblem(space, body);
+}
+addRoute(
+  "GET",
+  ENTRIES,
+  inSpace("member", async ({ space, url, me }) => {
+    if (me.fail_finance_list) return serverError();
+    const source = url.searchParams.get("source_id");
+    const items = financeOf(space.id, "entries")
+      .filter((e) => inRange(e.received_on, url))
+      .filter((e) => !source || e.source_id === source)
+      .sort(byDateDesc("received_on"));
+    return [200, pageOf(items, url)];
+  }),
+);
+addRoute(
+  "POST",
+  ENTRIES,
+  inSpace("member", async ({ space, claims, body, me }) => {
+    if (me.fail_finance_save) return serverError();
+    const bad = entryErrors(space, body, false);
+    if (bad) return bad;
+    const now = stampFor();
+    const e = { id: uuidFor(`entry:${space.id}:${financeSeq}:${Math.random()}`), space_id: space.id, source_id: null, ...FINANCE_BASE, ...body, created_by: claims.sub, created_at: now, updated_at: now };
+    financeOf(space.id, "entries").push(e);
+    return [201, e];
+  }),
+);
+addRoute(
+  "PATCH",
+  ENTRY,
+  inSpace("member", async ({ space, match, body, me }) => {
+    if (me.fail_finance_save) return serverError();
+    const e = financeOf(space.id, "entries").find((x) => x.id === match[2]);
+    if (!e) return problem(404, "Income entry not found.");
+    const bad = entryErrors(space, body, true);
+    if (bad) return bad;
+    Object.assign(e, body, { updated_at: new Date().toISOString() });
+    return [200, e];
+  }),
+);
+addRoute(
+  "DELETE",
+  ENTRY,
+  inSpace("member", async ({ space, match, me }) => {
+    if (me.fail_finance_save) return serverError();
+    const list = financeOf(space.id, "entries");
+    const i = list.findIndex((x) => x.id === match[2]);
+    if (i === -1) return problem(404, "Income entry not found.");
+    list.splice(i, 1);
+    return [204, null];
+  }),
+);
+
+// Test helper: seed records in a space. Body: {space_id, kind: "expenses"|"sources"|"entries", records: [...]}.
+// Expenses take `category` (a key) instead of `category_id`. Returns the ids in order.
+addRoute("POST", /^\/__test\/finance$/, async ({ body }) => {
+  const space = spaces.get(body.space_id);
+  if (!space) return [404, { detail: "no such space" }];
+  const defaults = {
+    expenses: { amount: "10.00", currency: "EUR", spent_on: "2026-11-10", merchant: null, contract_id: null, ...FINANCE_BASE },
+    sources: { type: "salary", amount: "100.00", currency: "EUR", frequency: "monthly", member_user_id: null, active: true },
+    entries: { amount: "100.00", currency: "EUR", received_on: "2026-11-10", source_id: null, ...FINANCE_BASE },
+  }[body.kind];
+  if (!defaults) return [400, { detail: "unknown kind" }];
+  const ids = [];
+  for (const data of body.records ?? []) {
+    const { category, ...rest } = data;
+    const now = stampFor();
+    const record = { id: uuidFor(`${body.kind}:${space.id}:${financeSeq}:${Math.random()}`), space_id: space.id, ...defaults, ...rest, created_by: space.members[0].user_id, created_at: now, updated_at: now };
+    if (body.kind === "expenses") record.category_id = categoryByKey(category ?? "other").id;
+    financeOf(space.id, body.kind).push(record);
+    ids.push(record.id);
+  }
+  return [200, { ids }];
+});
+// Test helper: the records of a space as stored, to check what the app really saved.
+addRoute("POST", /^\/__test\/stored-finance$/, async ({ body }) => [
+  200,
+  financeOf(body.space_id, body.kind).map((r) => (body.kind === "expenses" ? withExpenseCategory(r) : r)),
+]);
+// Test helper: make the expense and income list calls (`list`) and/or the save and delete calls (`save`) fail with a 500.
+addRoute("POST", /^\/__test\/finance-fail$/, async ({ body }) => {
+  const me = userState({ sub: userIdOf(body.email), email: body.email });
+  if (body.list !== undefined) me.fail_finance_list = body.list;
+  if (body.save !== undefined) me.fail_finance_save = body.save;
   return [204, null];
 });
 

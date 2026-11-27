@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from hemfin.core.db import get_session
 from hemfin.core.deps import SpaceAccess, require_space_member
 from hemfin.core.errors import PROBLEM_JSON
+from hemfin.core.filters import parse_member_filter
 from hemfin.core.pagination import DEFAULT_LIMIT, CursorParam, LimitParam, Page
 from hemfin.modules.contracts.router import get_today
 from hemfin.modules.expenses import service
@@ -24,7 +25,7 @@ _404: dict[int | str, dict[str, Any]] = {404: {"description": "Not a member, or 
 _422: dict[int | str, dict[str, Any]] = {422: {"description": "Validation error", **_P}}
 
 
-@router.get("", summary="List expenses, newest first", responses=_404)
+@router.get("", summary="List expenses, newest first", responses={**_404, **_422})
 async def list_expenses(
     access: Member,
     session: Session,
@@ -41,9 +42,18 @@ async def list_expenses(
             description="Category key; a group key such as `food` includes its children.",
         ),
     ] = None,
-    member_user_id: UUID | None = None,
+    member_user_id: Annotated[
+        str | None,
+        Query(
+            max_length=36,
+            description=(
+                "A member's user id, or `none` for expenses that apply to the whole household."
+            ),
+        ),
+    ] = None,
     contract_id: UUID | None = None,
 ) -> Page[ExpenseOut]:
+    member, whole_household = parse_member_filter(member_user_id)
     items, nxt = await service.list_expenses_page(
         session,
         space_id=access.space_id,
@@ -53,7 +63,8 @@ async def list_expenses(
         from_=from_,
         to=to,
         category=category,
-        member_user_id=member_user_id,
+        member_user_id=member,
+        whole_household=whole_household,
         contract_id=contract_id,
     )
     return Page[ExpenseOut](items=items, next_cursor=nxt)

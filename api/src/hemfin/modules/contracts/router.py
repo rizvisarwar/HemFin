@@ -7,7 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hemfin.core.db import get_session
 from hemfin.core.deps import SpaceAccess, require_space_member
-from hemfin.core.errors import PROBLEM_JSON, CodedHTTPException
+from hemfin.core.errors import PROBLEM_JSON
+from hemfin.core.filters import parse_member_filter
 from hemfin.core.pagination import DEFAULT_LIMIT, CursorParam, LimitParam, Page
 from hemfin.modules.contracts import service
 from hemfin.modules.contracts.models import ContractStatus
@@ -33,20 +34,6 @@ Today = Annotated[date, Depends(get_today)]
 _P: dict[str, Any] = {"content": {PROBLEM_JSON: {}}}
 _404: dict[int | str, dict[str, Any]] = {404: {"description": "Not a member, or not found", **_P}}
 _422: dict[int | str, dict[str, Any]] = {422: {"description": "Validation error", **_P}}
-
-
-def _parse_member_filter(value: str | None) -> tuple[UUID | None, bool]:
-    """`member_user_id` is a user id, or the word `none` for the whole household."""
-    if value is None:
-        return None, False
-    if value == "none":
-        return None, True
-    try:
-        return UUID(value), False
-    except ValueError:
-        raise CodedHTTPException(
-            422, "invalid_member_filter", "member_user_id must be a user id or `none`."
-        ) from None
 
 
 @router.get(
@@ -76,7 +63,7 @@ async def list_contracts(
         ),
     ] = None,
 ) -> Page[ContractOut]:
-    member, whole_household = _parse_member_filter(member_user_id)
+    member, whole_household = parse_member_filter(member_user_id)
     items, nxt = await service.list_contracts_page(
         session,
         space_id=access.space_id,
