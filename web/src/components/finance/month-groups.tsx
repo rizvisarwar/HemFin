@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useFormat } from "@/components/format-provider";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { MonthHeader } from "@/components/ui/month-header";
 import { ResponsiveList } from "@/components/ui/responsive-list";
@@ -29,12 +28,11 @@ export interface MonthGroupsProps<T> {
  * cards on a phone and a table from md. Presentational: the screen owns the data and the actions.
  */
 export function MonthGroups<T>({ items, dateOf, getRowKey, label, noun, more, renderCard, columns, cardTestId, rowTestId }: MonthGroupsProps<T>) {
-  const { prefs } = useFormat();
   const groups = groupByMonth(items, dateOf);
   return (
     <>
       {groups.map((g, i) => {
-        const title = monthTitle(g.key, prefs.locale);
+        const title = monthTitle(g.key);
         const open = more && i === groups.length - 1;
         const count = `${g.items.length} ${g.items.length === 1 ? noun : `${noun}s`}`;
         return (

@@ -1,17 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { daysUntil, dueChip, isFirstRun, isZeroAmount, monthLabel, unconvertedHint } from "./dashboard.ts";
+import { daysUntil, dueChip, isFirstRun, isZeroAmount, monthLabel } from "./dashboard.ts";
 
-const money = (amount: string) => ({ amount, currency: "EUR" });
+const money = (amount: string) => ({ amount, currency: "SEK" });
 const empty = {
   month: "2026-11",
-  base_currency: "EUR",
+  base_currency: "SEK",
   spent_this_month: money("0.00"),
   recurring_monthly: money("0.00"),
   income_this_month: money("0.00"),
   upcoming: [],
   has_records: false,
-  unconverted_count: 0,
 };
 
 test("month label and day counts", () => {
@@ -30,11 +29,6 @@ test("zero amounts", () => {
 test("first run follows has_records, not the totals", () => {
   assert.ok(isFirstRun(empty));
   assert.ok(!isFirstRun({ ...empty, has_records: true })); // records only in another month: totals are zero
-});
-
-test("unconverted hint uses singular and plural copy", () => {
-  assert.match(unconvertedHint(1, "EUR"), /^1 amount is not in EUR, because no rate was found for its date/);
-  assert.match(unconvertedHint(3, "SEK"), /^3 amounts are not in SEK, because no rate was found for their dates/);
 });
 
 test("due chips follow the 7 and 30 day thresholds", () => {

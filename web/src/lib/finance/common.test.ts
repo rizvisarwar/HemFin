@@ -112,10 +112,9 @@ describe("financeProblem", () => {
     const p = financeProblem(422, {
       errors: [
         { loc: ["body", "amount"], msg: "Value error, Too many decimals" },
-        { loc: ["body", "currency"], msg: "Unsupported currency" },
       ],
     });
-    assert.deepEqual(p.fields, { amount: "Too many decimals", currency: "Unsupported currency" });
+    assert.deepEqual(p.fields, { amount: "Too many decimals" });
   });
   it("maps a coded refusal to its field", () => {
     assert.deepEqual(financeProblem(422, { code: "invalid_category", detail: "Unknown category." }).fields, {

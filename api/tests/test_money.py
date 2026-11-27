@@ -4,58 +4,47 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from hemfin.core.money import Money, MoneyBase, minor_units, validate_amount
+from hemfin.core.money import AmountIn, MoneyBase, validate_amount
 from hemfin.modules.contracts.schemas import ContractCreate, ContractPatch
 
 CAT = "6f1c2d0e-5a4b-4c8e-9a57-3b1e0f7d2c11"
 
 
-def test_minor_units() -> None:
-    assert (minor_units("JPY"), minor_units("EUR"), minor_units("kwd")) == (0, 2, 3)
+@pytest.mark.parametrize("amount", ["12.34", "12.3", "100", "12.3400", "0.01"])
+def test_valid(amount: str) -> None:
+    assert validate_amount(Decimal(amount)) == Decimal(amount)
 
 
 @pytest.mark.parametrize(
-    ("amount", "currency"),
-    [("12.34", "EUR"), ("12.3", "EUR"), ("100", "JPY"), ("1.234", "KWD"), ("12.3400", "EUR")],
-)
-def test_valid(amount: str, currency: str) -> None:
-    assert validate_amount(Decimal(amount), currency) == Decimal(amount)
-
-
-@pytest.mark.parametrize(
-    ("amount", "currency"),
+    "amount",
     [
-        ("0", "EUR"),
-        ("-1", "EUR"),
-        ("12.345", "EUR"),
-        ("10.5", "JPY"),
-        ("NaN", "EUR"),
-        ("Infinity", "EUR"),
-        ("100000000000000", "EUR"),
+        "0",
+        "-1",
+        "12.345",
+        "NaN",
+        "Infinity",
+        "100000000000000",
         # Excess decimals beyond the 28-digit default context must not be rounded away.
-        ("100.0000000000000000000000000001", "JPY"),
-        ("10.0000000000000000000000000001", "EUR"),
+        "10.0000000000000000000000000001",
     ],
 )
-def test_invalid(amount: str, currency: str) -> None:
+def test_invalid(amount: str) -> None:
     with pytest.raises(ValueError):
-        validate_amount(Decimal(amount), currency)
+        validate_amount(Decimal(amount))
 
 
-def test_money_input_and_string_output() -> None:
-    m = Money(amount=Decimal("12.5"), currency="eur")
-    assert m.currency == "EUR"
-    out = json.loads(MoneyBase(amount=Decimal("12.5000"), currency="EUR").model_dump_json())
-    assert out == {"amount": "12.50", "currency": "EUR"}
-    jpy = json.loads(MoneyBase(amount=Decimal("1200.0000"), currency="JPY").model_dump_json())
-    assert jpy["amount"] == "1200"
+def test_amount_input_and_money_output() -> None:
+    assert AmountIn(amount=Decimal("12.5")).amount == Decimal("12.5")
+    out = json.loads(MoneyBase(amount=Decimal("12.5000")).model_dump_json())
+    assert out == {"amount": "12.50", "currency": "SEK"}
+    # A stored row with another code keeps displaying its own.
+    other = json.loads(MoneyBase(amount=Decimal("5"), currency="EUR").model_dump_json())
+    assert other == {"amount": "5.00", "currency": "EUR"}
 
 
-def test_money_rejects_bad_currency_and_amount() -> None:
+def test_amount_rejects_three_decimals() -> None:
     with pytest.raises(ValidationError):
-        Money(amount=Decimal("1"), currency="XXQ")
-    with pytest.raises(ValidationError):
-        Money(amount=Decimal("1.001"), currency="EUR")
+        AmountIn(amount=Decimal("1.001"))
 
 
 def _create(**kw: object) -> ContractCreate:
@@ -63,7 +52,6 @@ def _create(**kw: object) -> ContractCreate:
         "category_id": CAT,
         "name": "Home",
         "amount": "10.00",
-        "currency": "EUR",
         "frequency": "monthly",
         "start_date": "2026-01-01",
     }
@@ -75,7 +63,7 @@ def test_contract_create_rules() -> None:
     for bad in (
         {"end_date": "2025-12-31"},
         {"amount": "0"},
-        {"currency": "JPY", "amount": "1.5"},
+        {"amount": "1.234"},
         {"frequency": "daily"},
         {"renewal_term_months": 0},
         {"notice_period_days": -1},
@@ -86,9 +74,14 @@ def test_contract_create_rules() -> None:
             _create(**bad)
 
 
+def test_contract_create_ignores_a_currency_input() -> None:
+    c = _create(currency="EUR")
+    assert not hasattr(c, "currency")
+
+
 def test_contract_patch_rules() -> None:
     assert ContractPatch.model_validate({"notes": None}).model_fields_set == {"notes"}
-    for bad in ({"name": None}, {"amount": None}, {"amount": "1.234", "currency": "EUR"}):
+    for bad in ({"name": None}, {"amount": None}, {"amount": "1.234"}):
         with pytest.raises(ValidationError):
             ContractPatch.model_validate(bad)
 
@@ -96,17 +89,15 @@ def test_contract_patch_rules() -> None:
 @pytest.mark.parametrize("bad", [12.5, 12, True])
 def test_amount_rejects_json_numbers(bad: object) -> None:
     with pytest.raises(ValidationError):
-        Money.model_validate({"amount": bad, "currency": "EUR"})
+        AmountIn.model_validate({"amount": bad})
     with pytest.raises(ValidationError):
         ContractPatch.model_validate({"amount": bad})
 
 
 def test_amount_openapi_input_is_string_only() -> None:
-    assert Money.model_json_schema()["properties"]["amount"]["type"] == "string"
+    assert AmountIn.model_json_schema()["properties"]["amount"]["type"] == "string"
 
 
 def test_patch_amount_precision_bypass_rejected() -> None:
     with pytest.raises(ValidationError):
-        ContractPatch.model_validate(
-            {"amount": "10.0000000000000000000000000001", "currency": "EUR"}
-        )
+        ContractPatch.model_validate({"amount": "10.0000000000000000000000000001"})

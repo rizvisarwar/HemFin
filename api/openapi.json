@@ -385,12 +385,6 @@
             "title": "Category Id",
             "type": "string"
           },
-          "currency": {
-            "maxLength": 3,
-            "minLength": 3,
-            "title": "Currency",
-            "type": "string"
-          },
           "end_date": {
             "anyOf": [
               {
@@ -483,7 +477,6 @@
         },
         "required": [
           "amount",
-          "currency",
           "category_id",
           "name",
           "frequency",
@@ -526,8 +519,7 @@
             "type": "string"
           },
           "currency": {
-            "maxLength": 3,
-            "minLength": 3,
+            "default": "SEK",
             "title": "Currency",
             "type": "string"
           },
@@ -635,7 +627,6 @@
         },
         "required": [
           "amount",
-          "currency",
           "id",
           "space_id",
           "category_id",
@@ -699,19 +690,6 @@
               }
             ],
             "title": "Category Id"
-          },
-          "currency": {
-            "anyOf": [
-              {
-                "maxLength": 3,
-                "minLength": 3,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Currency"
           },
           "end_date": {
             "anyOf": [
@@ -887,10 +865,6 @@
       },
       "DashboardOut": {
         "properties": {
-          "base_currency": {
-            "title": "Base Currency",
-            "type": "string"
-          },
           "has_records": {
             "title": "Has Records",
             "type": "boolean"
@@ -908,10 +882,6 @@
           "spent_this_month": {
             "$ref": "#/components/schemas/MoneyBase"
           },
-          "unconverted_count": {
-            "title": "Unconverted Count",
-            "type": "integer"
-          },
           "upcoming": {
             "items": {
               "$ref": "#/components/schemas/DashboardEvent"
@@ -922,13 +892,11 @@
         },
         "required": [
           "month",
-          "base_currency",
           "spent_this_month",
           "recurring_monthly",
           "income_this_month",
           "upcoming",
-          "has_records",
-          "unconverted_count"
+          "has_records"
         ],
         "title": "DashboardOut",
         "type": "object"
@@ -941,12 +909,6 @@
             ],
             "pattern": "^\\d+(\\.\\d+)?$",
             "title": "Amount",
-            "type": "string"
-          },
-          "currency": {
-            "maxLength": 3,
-            "minLength": 3,
-            "title": "Currency",
             "type": "string"
           },
           "description": {
@@ -993,7 +955,6 @@
         },
         "required": [
           "amount",
-          "currency",
           "received_on"
         ],
         "title": "EntryCreate",
@@ -1009,16 +970,6 @@
             "title": "Amount",
             "type": "string"
           },
-          "base_amount": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MoneyBase"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -1030,8 +981,7 @@
             "type": "string"
           },
           "currency": {
-            "maxLength": 3,
-            "minLength": 3,
+            "default": "SEK",
             "title": "Currency",
             "type": "string"
           },
@@ -1093,14 +1043,12 @@
         },
         "required": [
           "amount",
-          "currency",
           "id",
           "space_id",
           "source_id",
           "received_on",
           "description",
           "member_user_id",
-          "base_amount",
           "created_by",
           "created_at",
           "updated_at"
@@ -1125,19 +1073,6 @@
               }
             ],
             "title": "Amount"
-          },
-          "currency": {
-            "anyOf": [
-              {
-                "maxLength": 3,
-                "minLength": 3,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Currency"
           },
           "description": {
             "anyOf": [
@@ -1227,12 +1162,6 @@
             ],
             "title": "Contract Id"
           },
-          "currency": {
-            "maxLength": 3,
-            "minLength": 3,
-            "title": "Currency",
-            "type": "string"
-          },
           "description": {
             "anyOf": [
               {
@@ -1277,7 +1206,6 @@
         },
         "required": [
           "amount",
-          "currency",
           "category_id",
           "spent_on"
         ],
@@ -1293,16 +1221,6 @@
             "pattern": "^\\d+(\\.\\d+)?$",
             "title": "Amount",
             "type": "string"
-          },
-          "base_amount": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MoneyBase"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "category": {
             "title": "Category",
@@ -1336,8 +1254,7 @@
             "type": "string"
           },
           "currency": {
-            "maxLength": 3,
-            "minLength": 3,
+            "default": "SEK",
             "title": "Currency",
             "type": "string"
           },
@@ -1398,7 +1315,6 @@
         },
         "required": [
           "amount",
-          "currency",
           "id",
           "space_id",
           "category_id",
@@ -1408,7 +1324,6 @@
           "merchant",
           "contract_id",
           "member_user_id",
-          "base_amount",
           "created_by",
           "created_at",
           "updated_at"
@@ -1457,19 +1372,6 @@
               }
             ],
             "title": "Contract Id"
-          },
-          "currency": {
-            "anyOf": [
-              {
-                "maxLength": 3,
-                "minLength": 3,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Currency"
           },
           "description": {
             "anyOf": [
@@ -1533,34 +1435,6 @@
         ],
         "title": "Frequency",
         "type": "string"
-      },
-      "FxRatesOut": {
-        "description": "Euro foreign exchange reference rates: 1 EUR = rates[code] units of that currency.",
-        "properties": {
-          "base": {
-            "default": "EUR",
-            "title": "Base",
-            "type": "string"
-          },
-          "rate_date": {
-            "format": "date",
-            "title": "Rate Date",
-            "type": "string"
-          },
-          "rates": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Rates",
-            "type": "object"
-          }
-        },
-        "required": [
-          "rate_date",
-          "rates"
-        ],
-        "title": "FxRatesOut",
-        "type": "object"
       },
       "HTTPValidationError": {
         "properties": {
@@ -1837,7 +1711,7 @@
         "type": "object"
       },
       "MoneyBase": {
-        "description": "Output shape: amount as a string at the currency's minor units.",
+        "description": "Output shape: amount as a string with 2 decimals, and the stored currency code.",
         "properties": {
           "amount": {
             "examples": [
@@ -1848,15 +1722,13 @@
             "type": "string"
           },
           "currency": {
-            "maxLength": 3,
-            "minLength": 3,
+            "default": "SEK",
             "title": "Currency",
             "type": "string"
           }
         },
         "required": [
-          "amount",
-          "currency"
+          "amount"
         ],
         "title": "MoneyBase",
         "type": "object"
@@ -2135,19 +2007,6 @@
       "ProfilePatch": {
         "additionalProperties": false,
         "properties": {
-          "base_currency": {
-            "anyOf": [
-              {
-                "maxLength": 3,
-                "minLength": 3,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Base Currency"
-          },
           "display_name": {
             "anyOf": [
               {
@@ -2261,12 +2120,6 @@
             "title": "Amount",
             "type": "string"
           },
-          "currency": {
-            "maxLength": 3,
-            "minLength": 3,
-            "title": "Currency",
-            "type": "string"
-          },
           "frequency": {
             "$ref": "#/components/schemas/IncomeFrequency"
           },
@@ -2294,7 +2147,6 @@
         },
         "required": [
           "amount",
-          "currency",
           "name",
           "type",
           "frequency"
@@ -2327,8 +2179,7 @@
             "type": "string"
           },
           "currency": {
-            "maxLength": 3,
-            "minLength": 3,
+            "default": "SEK",
             "title": "Currency",
             "type": "string"
           },
@@ -2372,7 +2223,6 @@
         },
         "required": [
           "amount",
-          "currency",
           "id",
           "space_id",
           "name",
@@ -2415,19 +2265,6 @@
               }
             ],
             "title": "Amount"
-          },
-          "currency": {
-            "anyOf": [
-              {
-                "maxLength": 3,
-                "minLength": 3,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Currency"
           },
           "frequency": {
             "anyOf": [
@@ -2740,75 +2577,6 @@
   },
   "openapi": "3.1.0",
   "paths": {
-    "/api/v1/fx/rates": {
-      "get": {
-        "operationId": "get_rates_api_v1_fx_rates_get",
-        "parameters": [
-          {
-            "description": "Defaults to today (UTC).",
-            "in": "query",
-            "name": "date",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Defaults to today (UTC).",
-              "title": "Date"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FxRatesOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {}
-            },
-            "description": "Not authenticated"
-          },
-          "404": {
-            "content": {
-              "application/problem+json": {}
-            },
-            "description": "No rates on or before that date"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "ECB reference rates for a date (or the latest date before it)",
-        "tags": [
-          "fx"
-        ]
-      }
-    },
     "/api/v1/invitations/accept": {
       "post": {
         "operationId": "accept_invitation_api_v1_invitations_accept_post",
@@ -4407,7 +4175,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Month totals and the next 30 days, in the caller's base currency",
+        "summary": "Month totals and the next 30 days, in SEK",
         "tags": [
           "dashboard"
         ]

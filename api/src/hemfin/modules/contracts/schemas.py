@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import AfterValidator, BaseModel, Field, StringConstraints, model_validator
 
-from hemfin.core.money import Amount, Currency, Money, MoneyBase, validate_amount
+from hemfin.core.money import Amount, AmountIn, MoneyBase, validate_amount
 from hemfin.modules.contracts.models import ContractStatus
 from hemfin.modules.contracts.schedule import EventType, Frequency
 
@@ -27,7 +27,7 @@ TermMonths = Annotated[int, Field(ge=1, le=120)]
 NoticeDays = Annotated[int, Field(ge=0, le=3650)]
 
 
-class ContractCreate(Money):
+class ContractCreate(AmountIn):
     category_id: UUID
     name: Name
     provider: Provider | None = None
@@ -54,7 +54,6 @@ class ContractPatch(BaseModel):
     name: Name | None = None
     provider: Provider | None = None
     amount: Amount | None = None
-    currency: Currency | None = None
     frequency: Frequency | None = None
     start_date: CalendarDate | None = None
     end_date: CalendarDate | None = None
@@ -71,7 +70,6 @@ class ContractPatch(BaseModel):
             "category_id",
             "name",
             "amount",
-            "currency",
             "frequency",
             "start_date",
             "auto_renew",
@@ -80,8 +78,8 @@ class ContractPatch(BaseModel):
         for f in required:
             if f in self.model_fields_set and getattr(self, f) is None:
                 raise ValueError(f"{f} cannot be null.")
-        if self.amount is not None and self.currency is not None:
-            validate_amount(self.amount, self.currency)
+        if self.amount is not None:
+            validate_amount(self.amount)
         if (
             self.start_date is not None
             and self.end_date is not None

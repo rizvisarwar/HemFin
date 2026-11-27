@@ -1,5 +1,6 @@
 import { expect, test, type BrowserContext, type Locator, type Page, type TestInfo } from "@playwright/test";
 import {
+  refuseSaves,
   failContracts,
   failLists,
   isoIn,
@@ -18,7 +19,7 @@ import {
 // HEM-021: the contracts list, detail and form (docs/design/finance.md section 4), against the mock
 // backend (tests/support/mock-backend.mjs). Each test signs in as its own user and seeds its own
 // spaces and contracts, so parallel tests never share state. Screenshots of every state land in
-// test-results/screenshots/hem021/<project>/<state>-<light|dark>.png (phone 375, tablet 768,
+// test-results/screenshots/hem024/<project>/<state>-<light|dark>.png (phone 375, tablet 768,
 // desktop 1280).
 
 const LEE = "The Lee family";
@@ -32,7 +33,7 @@ async function snap(page: Page, info: TestInfo, name: string, opts: { view?: boo
     else await expect(page.locator("html")).not.toHaveClass(/dark/);
     await page.mouse.move(0, 0); // no control captured in its hover state
     await page.screenshot({
-      path: `test-results/screenshots/hem021/${info.project.name}/${name}-${scheme}.png`,
+      path: `test-results/screenshots/hem024/${info.project.name}/${name}-${scheme}.png`,
       fullPage: !opts.view,
       animations: "disabled",
     });
@@ -123,10 +124,10 @@ test.describe("contracts list", () => {
 
     // Amounts are formatted from the decimal string, with the frequency in words; another currency shows its code.
     const car = rows.filter({ hasText: "Car insurance" });
-    await expect(car).toContainText("€4,350.00");
+    await expect(car).toContainText("4 350,00 kr");
     await expect(car).toContainText("a year");
     await expect(car).toContainText("Due in 6 days");
-    await expect(rows.filter({ hasText: "Gym" })).toContainText("SEK 540.00");
+    await expect(rows.filter({ hasText: "Gym" })).toContainText("540,00 kr");
     await expect(rows.filter({ hasText: "Gym" })).toContainText("every 3 months");
     await expect(rows.filter({ hasText: "Gym" })).not.toContainText("Due");
     // The notice chip and the renewal chip sit in the renewal column (xl) or the card.
@@ -306,7 +307,7 @@ test.describe("create a contract", () => {
     await dlg.getByLabel("Name", { exact: true }).fill("Electricity");
     await dlg.getByLabel("Provider (optional)").fill("Volt Energy");
     await dlg.getByLabel("Category").selectOption({ label: "Electricity" });
-    await dlg.getByLabel("Amount").fill("89.90");
+    await dlg.getByLabel("Amount").fill("89,90");
     await dlg.getByLabel("Billed").selectOption("monthly");
     await dlg.getByLabel("Starts").fill("2026-12-01");
     await dlg.getByLabel("Notice period (days, optional)").fill("30");
@@ -321,7 +322,7 @@ test.describe("create a contract", () => {
     const dlg = dialogOf(page, "Add a contract");
     await expect(dlg).toBeVisible();
     await expect(dlg.getByLabel("Name", { exact: true })).toBeFocused();
-    await expect(dlg.getByLabel("Currency")).toHaveValue("EUR");
+    await expect(dlg.getByLabel("Currency")).toHaveCount(0); // SEK only: no currency field
     await expect(dlg.getByLabel("Billed")).toHaveValue("monthly");
     await expect(dlg.getByLabel("Applies to (optional)")).toHaveCount(0); // personal space
     await snap(page, info, "form-empty", { view: true });
@@ -334,12 +335,12 @@ test.describe("create a contract", () => {
     await expect(page.getByText("Contract saved.")).toBeVisible();
     const rows = page.getByTestId(isPhone(page) ? "contract-card" : "contract-row");
     await expect(rows).toHaveCount(2);
-    await expect(rows.filter({ hasText: "Electricity" })).toContainText("€89.90");
+    await expect(rows.filter({ hasText: "Electricity" })).toContainText("89,90 kr");
 
     const saved = (await storedContracts(spaceId)).find((c) => c.name === "Electricity");
     expect(saved).toMatchObject({
       amount: "89.90",
-      currency: "EUR",
+      currency: "SEK",
       frequency: "monthly",
       provider: "Volt Energy",
       notice_period_days: 30,
@@ -383,22 +384,21 @@ test.describe("create a contract", () => {
     await expect(dlg.getByLabel("Name", { exact: true })).toHaveAttribute("aria-invalid", "true");
     await snap(page, info, "form-validation", { view: true });
 
-    // The amount rules of finance.md 3.1.1: the English decimal mark is a dot.
+    // The amount rules of finance.md 3.1: a decimal comma or dot, at most 2 decimals.
     const amount = dlg.getByLabel("Amount");
     for (const [typed, message] of [
-      ["12,50", "Enter an amount like 12.50."],
-      ["1,250", "Enter an amount like 12.50."],
+      ["12,5,0", "Use a comma before the öre, like 12,50."],
+      ["abc", "Use a comma before the öre, like 12,50."],
       ["0", "Enter an amount greater than 0."],
-      ["1.234", "EUR amounts can have up to 2 decimal places."],
+      ["1,234", "Use at most 2 decimals (öre)."],
     ] as const) {
       await amount.fill(typed);
       await amount.blur();
       await expect(dlg.getByText(message)).toBeVisible();
     }
-    await dlg.getByLabel("Currency").selectOption("JPY");
-    await amount.fill("5.5");
+    await amount.fill("1 234,50");
     await amount.blur();
-    await expect(dlg.getByText("JPY amounts are whole numbers.")).toBeVisible();
+    await expect(dlg.locator("#amount-error")).toHaveText("");
 
     await dlg.getByLabel("Starts").fill("2026-12-01");
     await dlg.getByLabel("Ends (optional)").fill("2026-11-01");
@@ -421,18 +421,18 @@ test.describe("create a contract", () => {
     const dlg = dialogOf(page, "Add a contract");
     await expect(dlg).toBeVisible();
     await fillValid(dlg);
-    // AED is a real currency the mock refuses: the message goes under the amount row (the currency slot).
-    await dlg.getByLabel("Currency").selectOption("AED");
+    // The API refuses the amount: the message goes under the amount field and the values stay.
+    const unroute = await refuseSaves(page, "**/api/v1/spaces/*/contracts", "amount", "Amount is too large.");
     await dlg.getByRole("button", { name: "Save contract" }).click();
-    await expect(dlg.getByText("Unsupported currency.")).toBeVisible();
-    await expect(dlg.getByLabel("Currency")).toHaveAttribute("aria-invalid", "true");
-    await expect(dlg.getByLabel("Currency")).toBeFocused();
+    await expect(dlg.getByText("Amount is too large.")).toBeVisible();
+    await expect(dlg.getByLabel("Amount")).toHaveAttribute("aria-invalid", "true");
+    await expect(dlg.getByLabel("Amount")).toBeFocused();
     await expect(dlg.getByLabel("Name", { exact: true })).toHaveValue("Electricity");
-    await expect(dlg.getByLabel("Amount")).toHaveValue("89.90");
+    await expect(dlg.getByLabel("Amount")).toHaveValue("89,90");
     await snap(page, info, "form-server-error", { view: true });
     expect(await storedContracts(spaceId)).toHaveLength(0);
     // Fix it and save.
-    await dlg.getByLabel("Currency").selectOption("SEK");
+    await unroute();
     await dlg.getByRole("button", { name: "Save contract" }).click();
     await expect(dlg).toHaveCount(0);
     expect((await storedContracts(spaceId))[0]).toMatchObject({ currency: "SEK", amount: "89.90" });
@@ -521,7 +521,7 @@ test.describe("contract detail", () => {
     await expect(schedule).toContainText("Notice period: 30 days before renewal");
     await expect(schedule.getByText("Renews", { exact: true })).toBeVisible();
     const details = page.getByTestId("details-card");
-    await expect(details).toContainText("€4,350.00");
+    await expect(details).toContainText("4 350,00 kr");
     await expect(details).toContainText("a year");
     await expect(details).toContainText("Automatically, every 12 months");
     await expect(details).toContainText("No end date");
@@ -602,7 +602,7 @@ test.describe("contract detail", () => {
     await page.getByRole("button", { name: "Edit contract" }).click();
     const dlg = dialogOf(page, "Edit contract");
     await expect(dlg.getByLabel("Name", { exact: true })).toHaveValue("Car insurance");
-    await expect(dlg.getByLabel("Amount")).toHaveValue("4350.00");
+    await expect(dlg.getByLabel("Amount")).toHaveValue("4350,00");
     await expect(dlg.getByLabel("Category")).toHaveValue(/.+/);
     await expect(dlg.getByLabel("Billed")).toHaveValue("annual");
     await expect(dlg.getByLabel("Renews automatically")).toBeChecked();
@@ -618,7 +618,7 @@ test.describe("contract detail", () => {
     await expect(dlg).toHaveCount(0);
     await expect(heading1(page, "Car insurance plus")).toBeVisible();
     await expect(toastText(page)).toContainText("Contract saved");
-    await expect(page.getByTestId("details-card")).toContainText("€4,500.50");
+    await expect(page.getByTestId("details-card")).toContainText("4 500,50 kr");
     const saved = (await storedContracts(spaceId))[0];
     expect(saved).toMatchObject({ name: "Car insurance plus", amount: "4500.50", provider: null, notice_period_days: null });
   });

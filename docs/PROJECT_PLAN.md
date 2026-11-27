@@ -8,7 +8,7 @@ HemFin is a new, API-first app for managing personal and family finances. The re
 - **Scope for now: web app only.** A Next.js site that is **fully responsive and mobile-first**, so it works well on phones in the browser. The API stays API-first so a native app can be added later.
 - **Deferred:** the native mobile app (Expo, App Store, Play Store) and WhatsApp notifications. The design leaves room for both, but neither is built in this plan.
 - **Hosting:** Free tiers only. Aspire is used for local debugging.
-- **Market:** Multi-currency, with no region-specific provider data.
+- **Market:** Sweden only, SEK (POC, user decision 2026-11-27). Multi-currency later.
 - **Agents in the app:** The app includes agentic workflows.
 - **Dev team:** The work is built by a team of Claude agents.
 - **Ticket tracking:** Tickets are Markdown files in the repo (no Jira yet).
@@ -28,7 +28,7 @@ HemFin is a new, API-first app for managing personal and family finances. The re
 | Auth | **Supabase Auth** | Email and password, email verification, password reset and Google OAuth, free for up to 50k monthly users. Its SDKs work on both web and Expo. |
 | File storage | **Supabase Storage** | 1 GB, private bucket. All access goes through signed URLs issued by the API. |
 | Transactional email | **Resend** | 3,000 emails/month (100/day). Also used as Supabase Auth's SMTP server, because the built-in sender is heavily rate-limited. |
-| Scheduled jobs | **GitHub Actions cron** | Calls `POST /internal/jobs/{daily,weekly,fx}` on the API with a shared secret. Uses only a few minutes of Actions time per month. |
+| Scheduled jobs | **GitHub Actions cron** | Calls `POST /internal/jobs/{daily,weekly}` on the API with a shared secret. Uses only a few minutes of Actions time per month. |
 | CI | **GitHub Actions** | 2,000 free min/month for private repos. |
 | Errors / monitoring | Sentry free plus Render logs | |
 
@@ -78,7 +78,7 @@ HemFin is a new, API-first app for managing personal and family finances. The re
 - **Documents:** `Document`, `DocumentAnalysis`.
 - **Notifications:** `Notification`, `NotificationPreference(channel: in_app|email)`. The channel list can grow later to add WhatsApp or push.
 - **Suggestions:** `Suggestion(type, estimated_saving, status)`.
-- **Exchange rates:** `FxRate`, with daily rates from the ECB.
+- **Exchange rates:** deferred (SEK only). `FxRate` and the ECB job were removed in HEM-024; records keep a `currency` column (always "SEK") so multi-currency can return without a data migration.
 - **Agent tables:** `AgentRun`, `AgentStep`, `PendingAction` (see §3).
 
 **Background work without a paid worker:**
@@ -129,7 +129,7 @@ Each phase ships the API with tests, regenerates the TS client, adds the matchin
 | 0 | **Foundations & team setup** | Add `origin` for `rizvisarwar/HemFin`, rename `master` to `main`, push. Monorepo scaffold, linters, FastAPI skeleton (`/health`, settings, logging, errors), Alembic `app` schema baseline, Next.js shell, api-client generation, Aspire AppHost, local Supabase, CI. **First deploy** of an empty app to Vercel, Render and Supabase, plus UptimeRobot. Create `.claude/agents/*`, `CLAUDE.md` and `docs/backlog`. |
 | 1 | **Auth & Profile** | Supabase Auth (email/password, verification, reset, Google) with Resend SMTP and branded templates. JWT verification in the API. User and personal-space setup on first request. Profile with E.164 phone, addresses, base currency. Web pages for login, sign-up, reset and profile. |
 | 2 | **Households & Invitations** | Household CRUD and roles. Invitations with a hashed token and 7-day expiry, emailed via Resend. On the accept page, a logged-out user signs in or signs up with the token kept, and their email must match the invite. Decline, resend and revoke. Household switcher in the web app. |
-| 3 | **Core Finance** | Contracts, expenses, income and categories. Schedule service for next payment, renewal and notice deadline. Multi-currency with an FX cron job. Web dashboard and forms. |
+| 3 | **Core Finance** | Contracts, expenses, income and categories. Schedule service for next payment, renewal and notice deadline. Web dashboard and forms. |
 | 4 | **Documents** | **Dropped for the POC (user decision 2026-11-27).** HemFin does not store contract documents. Users enter contracts and expenses by hand (Phase 3). |
 | 5 | **Notifications** | Daily cron finds expiries, notice deadlines and upcoming payments, with deduplication via an idempotency key. `NotificationChannel` with in-app and email. Bell icon, notification centre, preferences. |
 | 6 | **Reports & Forecast** | Spending by date range, grouped by category, month or contract. Income vs. expense, comparison with the previous period, CSV export. Forecast from contract schedules and income, plus a smoothed trend for variable spending with confidence bands. Charts (Recharts). |

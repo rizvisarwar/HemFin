@@ -42,7 +42,7 @@ function SpaceIncome({ spaceId, household }: { spaceId: string; household: boole
   const search = useSearchParams();
   const toast = useToast();
   const hydrated = useHydrated();
-  const { calendarDate, money, prefs } = useFormat();
+  const { calendarDate, money } = useFormat();
   const ref = useReferenceData(spaceId, household, { categories: false, sources: true });
   const { filters, list, applyFilters, refresh, loadMore, moreBusy, moreError } = usePagedList(spaceId, DEFAULT_ENTRY_FILTERS, listEntries);
   const [form, setForm] = React.useState<Form>({ open: search.get("new") === "1", key: 0, entry: null });
@@ -74,7 +74,7 @@ function SpaceIncome({ spaceId, household }: { spaceId: string; household: boole
 
   const title = (e: IncomeEntryResponse) => e.description?.trim() || (e.source_id ? sourceLabel(ref, e.source_id) : "") || "Income";
   const summary = (e: IncomeEntryResponse) =>
-    `${title(e)}, ${money(e.amount, { currency: e.currency, code: e.currency !== prefs.currency, signDisplay: "always" })}, ${calendarDate(e.received_on)}`;
+    `${title(e)}, ${money(e.amount, { currency: e.currency, signDisplay: "always" })}, ${calendarDate(e.received_on)}`;
   const sourceType = (e: IncomeEntryResponse) => {
     if (!e.source_id) return "No source";
     const type = ref.sources.find((s) => s.id === e.source_id)?.type as SourceType | undefined;
@@ -172,7 +172,7 @@ function SpaceIncome({ spaceId, household }: { spaceId: string; household: boole
                 </span>
                 <span className="mt-2 flex items-end justify-between gap-3">
                   <span className="text-small text-muted-foreground">{calendarDate(e.received_on)}</span>
-                  <RecordAmount amount={e.amount} currency={e.currency} base={e.base_amount} signDisplay="always" />
+                  <RecordAmount amount={e.amount} currency={e.currency} signDisplay="always" />
                 </span>
               </RecordCardButton>
             )}
@@ -204,7 +204,7 @@ function SpaceIncome({ spaceId, household }: { spaceId: string; household: boole
                     },
                   ]
                 : []),
-              { id: "amount", header: "Amount", align: "right", cell: (e) => <RecordAmount amount={e.amount} currency={e.currency} base={e.base_amount} signDisplay="always" /> },
+              { id: "amount", header: "Amount", align: "right", cell: (e) => <RecordAmount amount={e.amount} currency={e.currency} signDisplay="always" /> },
             ]}
           />
           {list.next ? (

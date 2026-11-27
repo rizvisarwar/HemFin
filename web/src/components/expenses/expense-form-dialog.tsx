@@ -4,7 +4,7 @@ import * as React from "react";
 import { ChevronDown } from "lucide-react";
 import { useFormat } from "@/components/format-provider";
 import { useActiveSpace } from "@/components/layout/app-shell-client";
-import { categoryLabel, CURRENCY_OPTIONS, DeleteButton, memberLabel, PendingFormDialog, useToday, type ReferenceData } from "@/components/finance/finance-parts";
+import { categoryLabel, DeleteButton, memberLabel, PendingFormDialog, useToday, type ReferenceData } from "@/components/finance/finance-parts";
 import { useFormState } from "@/components/finance/use-form-state";
 import { AmountInput } from "@/components/ui/amount-input";
 import { AppliesToSelect } from "@/components/ui/applies-to-select";
@@ -28,10 +28,10 @@ import {
   type ExpenseFormField,
   type ExpenseFormValues,
 } from "@/lib/expenses/expenses";
-import { amountToInput, decimalMark, fractionDigits } from "@/lib/finance/amount";
+import { amountToInput } from "@/lib/finance/amount";
 import { categoryGroups, DESCRIPTION_MAX, todayIso } from "@/lib/finance/common";
 
-const FIELDS: ExpenseFormField[] = ["amount", "currency", "category_id", "spent_on", "description", "merchant", "contract_id", "member_user_id"];
+const FIELDS: ExpenseFormField[] = ["amount", "category_id", "spent_on", "description", "merchant", "contract_id", "member_user_id"];
 const FORM_ID = "expense-form";
 
 export interface ExpenseFormDialogProps {
@@ -72,12 +72,11 @@ export function ExpenseFormDialog(props: ExpenseFormDialogProps) {
 function LoadedExpenseForm({ open, onOpenChange, spaceId, expense, reference, onSaved, onDeleted, finalFocus }: ExpenseFormDialogProps) {
   const space = useActiveSpace();
   const household = space.type === "household";
-  const { prefs, calendarDate, money } = useFormat();
-  const mark = decimalMark(prefs.locale);
+  const { calendarDate, money } = useFormat();
   const groups = React.useMemo(() => categoryGroups(reference.categories, "id"), [reference.categories]);
 
   const f = useFormState<ExpenseFormValues>(
-    () => initialValues(expense, prefs.currency, prefs.locale, spaceId, reference),
+    () => initialValues(expense, spaceId, reference),
     FIELDS,
     FORM_ID,
   );
@@ -85,7 +84,6 @@ function LoadedExpenseForm({ open, onOpenChange, spaceId, expense, reference, on
   const [which, setWhich] = React.useState<"save" | "again">("save");
   const [details, setDetails] = React.useState(expense !== null);
   const [ask, setAsk] = React.useState(false);
-  const digits = fractionDigits(values.currency, prefs.locale);
   const today = useToday();
   const editing = expense !== null;
 
@@ -94,12 +92,12 @@ function LoadedExpenseForm({ open, onOpenChange, spaceId, expense, reference, on
     .map((c) => ({ value: c.id, label: c.status === "active" ? c.name : `${c.name} (cancelled)` }));
 
   function blur(field: ExpenseFormField) {
-    f.blur(field, validateExpense(values, { mark, digits, today }).errors);
+    f.blur(field, validateExpense(values, { today }).errors);
   }
 
   async function save(again: boolean) {
     if (busy) return;
-    const result = validateExpense(values, { mark, digits, today });
+    const result = validateExpense(values, { today });
     if (!result.payload) return f.invalid(result.errors);
     f.setErrors({});
     f.setFormError(undefined);
@@ -113,7 +111,7 @@ function LoadedExpenseForm({ open, onOpenChange, spaceId, expense, reference, on
     }
     writeLastCategory(spaceId, result.payload.category_id);
     if (again) {
-      // Keep the category, date, currency and who it applies to; start the next one empty and ready to type.
+      // Keep the category, date and who it applies to; start the next one empty and ready to type.
       f.rebase({ ...values, amount: "", description: "", merchant: "", contract_id: "" });
       requestAnimationFrame(() => document.getElementById("amount")?.focus());
     }
@@ -122,7 +120,7 @@ function LoadedExpenseForm({ open, onOpenChange, spaceId, expense, reference, on
 
   const requestClose = () => f.requestClose(() => onOpenChange(false));
   const confirmText = expense
-    ? `${expense.description?.trim() || categoryLabel(reference, expense.category)}, ${money(expense.amount, { currency: expense.currency, code: expense.currency !== prefs.currency })}, ${calendarDate(expense.spent_on)}. It cannot be undone.`
+    ? `${expense.description?.trim() || categoryLabel(reference, expense.category)}, ${money(expense.amount, { currency: expense.currency })}, ${calendarDate(expense.spent_on)}. It cannot be undone.`
     : "";
 
   return (
@@ -175,14 +173,8 @@ function LoadedExpenseForm({ open, onOpenChange, spaceId, expense, reference, on
           value={values.amount}
           onValueChange={(v) => set("amount", v)}
           onBlur={() => blur("amount")}
-          currency={values.currency}
-          currencyOptions={CURRENCY_OPTIONS}
-          onCurrencyChange={(c) => set("currency", c)}
-          decimalSeparator={mark}
-          fractionDigits={digits}
           required
           error={errors.amount}
-          currencyError={errors.currency}
         />
         <CategorySelect
           id="category_id"
@@ -295,13 +287,12 @@ function LoadedExpenseForm({ open, onOpenChange, spaceId, expense, reference, on
   );
 }
 
-function initialValues(e: ExpenseResponse | null, baseCurrency: string, locale: string, spaceId: string, reference: ReferenceData): ExpenseFormValues {
+function initialValues(e: ExpenseResponse | null, spaceId: string, reference: ReferenceData): ExpenseFormValues {
   if (!e) {
     const last = readLastCategory(spaceId);
     const known = reference.categories.some((c) => c.id === last && c.kind === "expense");
     return {
       amount: "",
-      currency: baseCurrency,
       category_id: known ? last : "",
       spent_on: todayIso(),
       description: "",
@@ -311,8 +302,7 @@ function initialValues(e: ExpenseResponse | null, baseCurrency: string, locale: 
     };
   }
   return {
-    amount: amountToInput(e.amount, { mark: decimalMark(locale), digits: fractionDigits(e.currency, locale) }),
-    currency: e.currency,
+    amount: amountToInput(e.amount),
     category_id: e.category_id,
     spent_on: e.spent_on,
     description: e.description ?? "",

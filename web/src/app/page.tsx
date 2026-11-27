@@ -80,7 +80,7 @@ export default function LandingPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <HemCard variant="muted">
                     <p className="text-small text-muted-foreground">Next 30 days</p>
-                    <MoneyText amount="1240.00" currency="EUR" size="lg" showCode />
+                    <MoneyText amount="1240.00" currency="SEK" size="lg" />
                     <p className="text-small text-muted-foreground">3 payments due</p>
                   </HemCard>
                   <HemCard variant="muted">

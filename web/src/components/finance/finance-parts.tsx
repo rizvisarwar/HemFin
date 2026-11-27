@@ -1,10 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useFormat } from "@/components/format-provider";
 import { useActiveSpace } from "@/components/layout/app-shell-client";
 import { Button } from "@/components/ui/button";
-import { ConvertedAmount } from "@/components/ui/converted-amount";
 import { FormMessage } from "@/components/ui/form-message";
 import { MoneyText } from "@/components/ui/money-text";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
@@ -15,10 +13,7 @@ import { listAllContracts } from "@/lib/contracts/client";
 import { todayIso } from "@/lib/finance/common";
 import { listCategories, listMembers } from "@/lib/finance/client";
 import { listAllSources } from "@/lib/income/client";
-import { CURRENCY_CODES } from "@/lib/profile/currencies";
 
-/** The currency codes for `AmountInput` (the closed select shows the code only, finance.md 3.1). */
-export const CURRENCY_OPTIONS = CURRENCY_CODES.map((code) => ({ code, label: code }));
 
 /** Today as a calendar date, fixed for the life of the screen. */
 export function useToday(): string {
@@ -236,26 +231,19 @@ export function ListSkeleton({ label, testId, cardClass = "h-28" }: { label: str
   );
 }
 
-/**
- * A record's amount for a row or card: in its own currency (a code when it is not the base currency), and the
- * base-currency line under it, or nothing when there is no rate (finance.md 3.2, 3.3). `signDisplay="always"` for income.
- */
+/** A record's amount for a row or card, in its stored currency. `signDisplay="always"` for income (finance.md 3.2). */
 export function RecordAmount({
   amount,
   currency,
-  base,
   signDisplay,
 }: {
   amount: string;
   currency: string;
-  base: { amount: string } | null;
   signDisplay?: "always";
 }) {
-  const { prefs } = useFormat();
   return (
     <span className="inline-flex shrink-0 flex-col items-end whitespace-nowrap text-right">
-      <MoneyText amount={amount} currency={currency} locale={prefs.locale} showCode={currency !== prefs.currency} signDisplay={signDisplay} size="md" />
-      <ConvertedAmount originalCurrency={currency} baseCurrency={prefs.currency} locale={prefs.locale} converted={base} />
+      <MoneyText amount={amount} currency={currency} signDisplay={signDisplay} size="md" />
     </span>
   );
 }

@@ -8,8 +8,6 @@ import phonenumbers
 import pycountry
 from pydantic import AfterValidator, BaseModel, ConfigDict, StringConstraints, model_validator
 
-from hemfin.core.money import Currency  # shared with contracts; re-exported here
-
 
 def _country(v: str) -> str:
     code = v.strip().upper()
@@ -84,12 +82,11 @@ class ProfilePatch(BaseModel):
 
     display_name: DisplayName | None = None  # explicit null clears the display name
     phone_e164: Phone | None = None  # explicit null clears the phone number
-    base_currency: Currency | None = None
     locale: Locale | None = None
 
     @model_validator(mode="after")
     def _no_null_required(self) -> "ProfilePatch":
-        for name in ("base_currency", "locale"):
+        for name in ("locale",):
             if name in self.model_fields_set and getattr(self, name) is None:
                 raise ValueError(f"{name} cannot be null.")
         return self

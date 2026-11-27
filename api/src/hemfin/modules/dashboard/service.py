@@ -1,16 +1,11 @@
-"""Dashboard summary: month totals in the caller's base currency, plus the next 30 days.
+"""Dashboard summary: month totals in SEK, plus the next 30 days.
 
-Conversion dates (a rate is looked up per item at its own date):
-- expenses: `spent_on`; income entries: `received_on`.
-- recurring contracts: the first day of the requested month, or today when that day is still
-  in the future (rates do not exist for future dates). A monthly total has no date of its
-  own, so one date per month keeps the figure stable through the month.
+Totals are plain Decimal sums. Records whose stored currency is not SEK (demo rows from before
+HEM-024) are excluded from the totals; there is no UI for it.
 
 Recurring cost counts contracts that pay in the month: active, started by the month's last day,
-and not ended before its first day unless they auto-renew.
-
-Each total sums unrounded converted values and rounds once to the base currency's minor
-units. An item with no rate is skipped and counted in `unconverted_count`, never guessed.
+and not ended before its first day unless they auto-renew. Each contract contributes its
+unrounded monthly equivalent; the total is rounded once to 2 decimals.
 """
 
 import calendar
@@ -21,15 +16,13 @@ from uuid import UUID
 from sqlalchemy import exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hemfin.core.money import MoneyBase, minor_units
+from hemfin.core.money import CURRENCY, MINOR_UNITS, MoneyBase
 from hemfin.modules.contracts import service as contracts
 from hemfin.modules.contracts.models import Contract, ContractStatus
 from hemfin.modules.contracts.schedule import EventType, Frequency
 from hemfin.modules.dashboard.schemas import DashboardEvent, DashboardOut
 from hemfin.modules.expenses.models import Expense
-from hemfin.modules.fx.service import convert_many
 from hemfin.modules.income.models import IncomeEntry
-from hemfin.modules.profile.service import get_profile
 
 UPCOMING_DAYS = 30
 UPCOMING_LIMIT = 10
@@ -56,33 +49,31 @@ def month_bounds(month: str) -> tuple[date, date]:
     return date(year, mon, 1), date(year, mon, calendar.monthrange(year, mon)[1])
 
 
-async def _total(
-    session: AsyncSession, base: str, items: list[tuple[Decimal, str, date]]
-) -> tuple[MoneyBase, int]:
-    converted = await convert_many(session, base, items, round_results=False)
-    total = sum((c for c in converted if c is not None), Decimal(0))
-    total = total.quantize(Decimal(1).scaleb(-minor_units(base)), rounding=ROUND_HALF_EVEN)
-    skipped = sum(1 for c in converted if c is None)
-    return MoneyBase(amount=total, currency=base), skipped
+def _total(amounts: list[Decimal]) -> MoneyBase:
+    total = sum(amounts, Decimal(0)).quantize(Decimal(1).scaleb(-MINOR_UNITS), ROUND_HALF_EVEN)
+    return MoneyBase(amount=total, currency=CURRENCY)
 
 
 async def dashboard(
     session: AsyncSession, *, space_id: UUID, user_id: UUID, month: str, today: date
 ) -> DashboardOut:
-    base = (await get_profile(session, user_id)).base_currency
     first, last = month_bounds(month)
 
     expenses = (
         await session.execute(
-            select(Expense.amount, Expense.currency, Expense.spent_on).where(
-                Expense.space_id == space_id, Expense.spent_on >= first, Expense.spent_on <= last
+            select(Expense.amount).where(
+                Expense.space_id == space_id,
+                Expense.currency == CURRENCY,
+                Expense.spent_on >= first,
+                Expense.spent_on <= last,
             )
         )
     ).all()
     entries = (
         await session.execute(
-            select(IncomeEntry.amount, IncomeEntry.currency, IncomeEntry.received_on).where(
+            select(IncomeEntry.amount).where(
                 IncomeEntry.space_id == space_id,
+                IncomeEntry.currency == CURRENCY,
                 IncomeEntry.received_on >= first,
                 IncomeEntry.received_on <= last,
             )
@@ -90,8 +81,9 @@ async def dashboard(
     ).all()
     contract_rows = (
         await session.execute(
-            select(Contract.amount, Contract.currency, Contract.frequency).where(
+            select(Contract.amount, Contract.frequency).where(
                 Contract.space_id == space_id,
+                Contract.currency == CURRENCY,
                 Contract.status == ContractStatus.active.value,
                 # Pays in the month: started by its last day, and not ended before its first day
                 # (an auto-renew contract keeps paying after `end_date`, the end of its term).
@@ -112,14 +104,9 @@ async def dashboard(
         ]
     )
 
-    rate_day = min(first, today)
-    spent, miss_spent = await _total(session, base, [(a, c, d) for a, c, d in expenses])
-    income, miss_income = await _total(session, base, [(a, c, d) for a, c, d in entries])
-    recurring, miss_rec = await _total(
-        session,
-        base,
-        [(monthly_amount(a, Frequency(f)), c, rate_day) for a, c, f in contract_rows],
-    )
+    spent = _total([a for (a,) in expenses])
+    income = _total([a for (a,) in entries])
+    recurring = _total([monthly_amount(a, Frequency(f)) for a, f in contract_rows])
 
     page = await contracts.upcoming(
         session, space_id=space_id, as_of=today, days=UPCOMING_DAYS, limit=UPCOMING_LIMIT
@@ -136,11 +123,9 @@ async def dashboard(
     ]
     return DashboardOut(
         month=month,
-        base_currency=base,
         spent_this_month=spent,
         recurring_monthly=recurring,
         income_this_month=income,
         upcoming=events,
         has_records=has_records,
-        unconverted_count=miss_spent + miss_income + miss_rec,
     )

@@ -8,14 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hemfin.core.dates import check_not_future, check_range
 from hemfin.core.errors import CodedHTTPException
-from hemfin.core.money import MoneyBase, validate_amount
+from hemfin.core.money import CURRENCY
 from hemfin.core.pagination import (
     decode_cursor,
     decode_date_cursor,
     encode_cursor,
     encode_date_cursor,
 )
-from hemfin.modules.fx.base_amount import base_amounts
 from hemfin.modules.income.models import (
     IncomeEntry,
     IncomeFrequency,
@@ -31,14 +30,6 @@ from hemfin.modules.income.schemas import (
     SourcePatch,
 )
 from hemfin.modules.spaces.service import ensure_member
-
-
-def _check_amount(amount: Any, currency: str) -> None:
-    try:
-        validate_amount(amount, currency)
-    except ValueError as exc:
-        raise CodedHTTPException(422, "invalid_amount", str(exc)) from None
-
 
 # ---- sources ----
 
@@ -82,7 +73,7 @@ async def create_source(
         name=body.name,
         type=body.type.value,
         amount=body.amount,
-        currency=body.currency,
+        currency=CURRENCY,
         frequency=body.frequency.value,
         member_user_id=body.member_user_id,
         active=body.active,
@@ -119,8 +110,6 @@ async def update_source(
 ) -> SourceOut:
     s = await _get_source(session, space_id, source_id)
     changes: dict[str, Any] = body.model_dump(exclude_unset=True)
-    if "amount" in changes or "currency" in changes:
-        _check_amount(changes.get("amount", s.amount), changes.get("currency", s.currency))
     if changes.get("member_user_id") is not None:
         await ensure_member(session, space_id, changes["member_user_id"])
     for key in ("type", "frequency"):
@@ -141,7 +130,7 @@ async def delete_source(session: AsyncSession, *, space_id: UUID, source_id: UUI
 # ---- entries ----
 
 
-def _entry_out(e: IncomeEntry, base: MoneyBase | None) -> EntryOut:
+def _entry_out(e: IncomeEntry) -> EntryOut:
     return EntryOut(
         id=e.id,
         space_id=e.space_id,
@@ -151,20 +140,10 @@ def _entry_out(e: IncomeEntry, base: MoneyBase | None) -> EntryOut:
         received_on=e.received_on,
         description=e.description,
         member_user_id=e.member_user_id,
-        base_amount=base,
         created_by=e.created_by,
         created_at=e.created_at,
         updated_at=e.updated_at,
     )
-
-
-async def _entries_out(
-    session: AsyncSession, user_id: UUID, rows: list[IncomeEntry]
-) -> list[EntryOut]:
-    bases = await base_amounts(
-        session, user_id, [(e.amount, e.currency, e.received_on) for e in rows]
-    )
-    return [_entry_out(e, b) for e, b in zip(rows, bases, strict=True)]
 
 
 async def _check_entry_refs(
@@ -204,22 +183,20 @@ async def create_entry(
         created_by=actor,
         source_id=body.source_id,
         amount=body.amount,
-        currency=body.currency,
+        currency=CURRENCY,
         received_on=body.received_on,
         description=body.description,
         member_user_id=body.member_user_id,
     )
     session.add(e)
     await session.commit()
-    return (await _entries_out(session, actor, [await _get_entry(session, space_id, e.id)]))[0]
+    return _entry_out(await _get_entry(session, space_id, e.id))
 
 
 async def get_entry(
     session: AsyncSession, *, space_id: UUID, user_id: UUID, entry_id: UUID
 ) -> EntryOut:
-    return (await _entries_out(session, user_id, [await _get_entry(session, space_id, entry_id)]))[
-        0
-    ]
+    return _entry_out(await _get_entry(session, space_id, entry_id))
 
 
 async def list_entries_page(
@@ -251,7 +228,7 @@ async def list_entries_page(
     )
     page = rows[:limit]
     nxt = encode_date_cursor(page[-1].received_on, page[-1].id) if len(rows) > limit else None
-    return await _entries_out(session, user_id, page), nxt
+    return [_entry_out(e) for e in page], nxt
 
 
 async def update_entry(
@@ -265,8 +242,6 @@ async def update_entry(
 ) -> EntryOut:
     e = await _get_entry(session, space_id, entry_id)
     changes: dict[str, Any] = body.model_dump(exclude_unset=True)
-    if "amount" in changes or "currency" in changes:
-        _check_amount(changes.get("amount", e.amount), changes.get("currency", e.currency))
     if "received_on" in changes:
         check_not_future(changes["received_on"], today, "received_on")
     await _check_entry_refs(
@@ -275,9 +250,7 @@ async def update_entry(
     for field, value in changes.items():
         setattr(e, field, value)
     await session.commit()
-    return (await _entries_out(session, user_id, [await _get_entry(session, space_id, entry_id)]))[
-        0
-    ]
+    return _entry_out(await _get_entry(session, space_id, entry_id))
 
 
 async def delete_entry(session: AsyncSession, *, space_id: UUID, entry_id: UUID) -> None:

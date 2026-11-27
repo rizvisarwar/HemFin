@@ -12,15 +12,12 @@ from fastapi import FastAPI
 from authkit import TestKey
 from hemfin.core import db
 from hemfin.modules.contracts.router import get_today
-from hemfin.modules.fx import service as fx
 from hemfin.modules.spaces.models import Role, SpaceMembership
 
 pytestmark = pytest.mark.db
 
 API = "/api/v1/spaces"
-# A far-off "today" so seeded rates never collide with other tests' rate rows.
 TODAY = date(2040, 6, 15)
-RATE_DAY = date(2040, 6, 8)
 
 
 @pytest.fixture(autouse=True)
@@ -56,17 +53,10 @@ async def _cat(c: httpx.AsyncClient, h: dict[str, str], space: str, key: str) ->
     return next(i["id"] for i in r.json()["items"] if i["key"] == key)
 
 
-async def _seed_rates() -> None:
-    async with db.get_session_ctx() as s:
-        await fx.upsert_rates(s, {RATE_DAY: {"USD": Decimal("1.25"), "JPY": Decimal("160")}})
-        await s.commit()
-
-
 def _exp(cat: str, **kw: Any) -> dict[str, Any]:
     return {
         "category_id": cat,
         "amount": "12.50",
-        "currency": "eur",
         "spent_on": "2040-06-10",
         **kw,
     }
@@ -81,11 +71,11 @@ async def _mk_expense(
 
 
 def _entry(**kw: Any) -> dict[str, Any]:
-    return {"amount": "1000.00", "currency": "EUR", "received_on": "2040-06-10", **kw}
+    return {"amount": "1000.00", "received_on": "2040-06-10", **kw}
 
 
 def _source(**kw: Any) -> dict[str, Any]:
-    return {"name": "Salary", "type": "salary", "amount": "3000", "currency": "EUR",
+    return {"name": "Salary", "type": "salary", "amount": "3000",
             "frequency": "monthly", **kw}  # fmt: skip
 
 
@@ -102,15 +92,14 @@ async def test_expense_crud_and_decimal_round_trip(
     # 0.1 and 0.2 come back exactly, and no float sneaks in
     a = await _mk_expense(aclient, h, space, cat, amount="0.1", merchant="  Shop ", description="x")
     b = await _mk_expense(aclient, h, space, cat, amount="0.2")
-    assert (a["amount"], b["amount"], a["currency"]) == ("0.10", "0.20", "EUR")
+    assert (a["amount"], b["amount"], a["currency"]) == ("0.10", "0.20", "SEK")
     assert Decimal(a["amount"]) + Decimal(b["amount"]) == Decimal("0.30")
     assert a["merchant"] == "Shop" and a["category"] == "food"
     assert a["space_id"] == space and a["contract_id"] is None
-    # zero-decimal and three-decimal currencies
+    # the largest amount, and a client-sent currency is ignored
     j = await _mk_expense(aclient, h, space, cat, amount="99999999999999", currency="JPY")
-    assert j["amount"] == "99999999999999"
-    k = await _mk_expense(aclient, h, space, cat, amount="0.123", currency="KWD")
-    assert k["amount"] == "0.123"
+    assert j["amount"] == "99999999999999.00" and j["currency"] == "SEK"
+    assert "base_amount" not in j
 
     got = await aclient.get(f"{url}/{a['id']}", headers=h)
     assert got.status_code == 200 and got.json()["amount"] == "0.10"
@@ -139,9 +128,8 @@ async def test_expense_validation(aclient: httpx.AsyncClient, key: TestKey) -> N
         {"amount": 12.5},  # JSON number
         {"amount": "0"},
         {"amount": "-1"},
-        {"amount": "1.234"},  # too many decimals for EUR
-        {"amount": "10.5", "currency": "JPY"},
-        {"currency": "ZZZ"},
+        {"amount": "1.234"},  # too many decimals
+        {"amount": "12,50"},  # decimal comma is a web-side input format only
         {"spent_on": "1800-01-01"},
         {"description": "d" * 121},
         {"merchant": "m" * 81},
@@ -150,11 +138,10 @@ async def test_expense_validation(aclient: httpx.AsyncClient, key: TestKey) -> N
         r = await aclient.post(url, json=_exp(cat, **kw), headers=h)
         assert r.status_code == 422, (kw, r.status_code)
         assert r.headers["content-type"].startswith("application/problem+json")
-    # patch merges with stored values: 12.50 EUR -> JPY has too many decimals
     e = await _mk_expense(aclient, h, space, cat)
-    r = await aclient.patch(f"{url}/{e['id']}", json={"currency": "JPY"}, headers=h)
-    assert r.status_code == 422 and r.json()["code"] == "invalid_amount"
-    for field in ("amount", "currency", "category_id", "spent_on"):
+    r = await aclient.patch(f"{url}/{e['id']}", json={"currency": "USD"}, headers=h)
+    assert r.status_code == 200 and r.json()["currency"] == "SEK"
+    for field in ("amount", "category_id", "spent_on"):
         r = await aclient.patch(f"{url}/{e['id']}", json={field: None}, headers=h)
         assert r.status_code == 422, field
 
@@ -198,7 +185,6 @@ async def test_expense_refs_must_belong_to_the_space(
                 "category_id": await _cat(aclient, hb, sb, "insurance.home"),
                 "name": "C",
                 "amount": "5",
-                "currency": "EUR",
                 "frequency": "monthly",
                 "start_date": "2040-01-01",
             },
@@ -240,7 +226,6 @@ async def test_expense_filters_boundaries_and_pagination(
                 "category_id": other,
                 "name": "C",
                 "amount": "5",
-                "currency": "EUR",
                 "frequency": "monthly",
                 "start_date": "2040-01-01",
             },
@@ -308,36 +293,6 @@ async def test_expense_filters_boundaries_and_pagination(
     assert r.status_code == 422
 
 
-async def test_expense_base_amount(aclient: httpx.AsyncClient, key: TestKey) -> None:
-    await _seed_rates()
-    _, h = await _user(aclient, key)
-    space = await _household(aclient, h)
-    cat = await _cat(aclient, h, space, "food")
-    url = f"{API}/{space}/expenses"
-    usd = await _mk_expense(aclient, h, space, cat, amount="10.00", currency="USD")
-    eur = await _mk_expense(aclient, h, space, cat, amount="7.5")
-    jpy = await _mk_expense(aclient, h, space, cat, amount="800", currency="JPY")
-    nok = await _mk_expense(aclient, h, space, cat, amount="5.00", currency="NOK")  # no rate
-    assert usd["base_amount"] == {"amount": "8.00", "currency": "EUR"}
-    assert eur["base_amount"] == {"amount": "7.50", "currency": "EUR"}
-    assert jpy["base_amount"] == {"amount": "5.00", "currency": "EUR"}
-    assert nok["base_amount"] is None
-    listed = {i["id"]: i for i in (await aclient.get(url, headers=h)).json()["items"]}
-    assert listed[usd["id"]]["base_amount"] == usd["base_amount"]
-    assert listed[nok["id"]]["base_amount"] is None
-    # the caller's own base currency is used
-    assert (
-        await aclient.patch("/api/v1/me/profile", json={"base_currency": "usd"}, headers=h)
-    ).status_code == 200
-    got = (await aclient.get(f"{url}/{eur['id']}", headers=h)).json()
-    assert got["base_amount"] == {"amount": "9.38", "currency": "USD"}  # 7.5 * 1.25, half-even
-    # a record dated before any rate in the lookback window has no base amount
-    old = await _mk_expense(
-        aclient, h, space, cat, spent_on="2040-05-01", amount="100", currency="JPY"
-    )
-    assert old["base_amount"] is None
-
-
 async def test_category_in_use_by_expense_cannot_be_deleted(
     aclient: httpx.AsyncClient, key: TestKey
 ) -> None:
@@ -369,7 +324,6 @@ async def test_deleting_a_contract_keeps_its_expenses(
                 "category_id": await _cat(aclient, h, space, "insurance.home"),
                 "name": "C",
                 "amount": "5",
-                "currency": "EUR",
                 "frequency": "monthly",
                 "start_date": "2040-01-01",
             },
@@ -418,7 +372,7 @@ async def test_income_source_crud_and_pagination(aclient: httpx.AsyncClient, key
     ):
         r = await aclient.post(url, json=_source(**bad), headers=h)
         assert r.status_code == 422, bad
-    for field in ("name", "type", "amount", "currency", "frequency", "active"):
+    for field in ("name", "type", "amount", "frequency", "active"):
         r = await aclient.patch(f"{url}/{body['id']}", json={field: None}, headers=h)
         assert r.status_code == 422, field
     made = [body["id"]]
@@ -462,10 +416,7 @@ async def test_income_source_member_must_belong_to_the_space(
 # ---- income entries ----
 
 
-async def test_income_entry_crud_dates_and_base_amount(
-    aclient: httpx.AsyncClient, key: TestKey
-) -> None:
-    await _seed_rates()
+async def test_income_entry_crud_and_dates(aclient: httpx.AsyncClient, key: TestKey) -> None:
     _, h = await _user(aclient, key)
     space = await _household(aclient, h)
     url = f"{API}/{space}/income-entries"
@@ -473,11 +424,9 @@ async def test_income_entry_crud_dates_and_base_amount(
     assert r.status_code == 201, r.text
     e = r.json()
     assert (e["amount"], e["description"], e["source_id"]) == ("0.10", "pay", None)
-    assert e["base_amount"] == {"amount": "0.10", "currency": "EUR"}
+    assert e["currency"] == "SEK" and "base_amount" not in e
     usd = (await aclient.post(url, json=_entry(amount="100", currency="USD"), headers=h)).json()
-    assert usd["base_amount"] == {"amount": "80.00", "currency": "EUR"}
-    nok = (await aclient.post(url, json=_entry(currency="NOK"), headers=h)).json()
-    assert nok["base_amount"] is None
+    assert usd["currency"] == "SEK"  # a client-sent currency is ignored
 
     assert (
         await aclient.post(url, json=_entry(received_on="2040-06-16"), headers=h)
@@ -486,9 +435,9 @@ async def test_income_entry_crud_dates_and_base_amount(
     assert r.status_code == 422 and r.json()["code"] == "date_in_future"
     r = await aclient.patch(f"{url}/{e['id']}", json={"received_on": "2040-06-17"}, headers=h)
     assert r.status_code == 422 and r.json()["code"] == "date_in_future"
-    for bad in ({"amount": 1.5}, {"amount": "-3"}, {"currency": "ZZZ"}, {"description": "d" * 121}):
+    for bad in ({"amount": 1.5}, {"amount": "-3"}, {"description": "d" * 121}):
         assert (await aclient.post(url, json=_entry(**bad), headers=h)).status_code == 422, bad
-    for field in ("amount", "currency", "received_on"):
+    for field in ("amount", "received_on"):
         r = await aclient.patch(f"{url}/{e['id']}", json={field: None}, headers=h)
         assert r.status_code == 422, field
     p = await aclient.patch(

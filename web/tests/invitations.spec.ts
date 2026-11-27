@@ -112,7 +112,7 @@ test.describe("invitations: admin", () => {
     await expect(row).toBeVisible();
     await expect(row).toContainText("Pending");
     await expect(row).toContainText("Admin");
-    await expect(row).toContainText(/Expires [A-Z][a-z]{2} \d/);
+    await expect(row).toContainText(/Expires \d{1,2} \S+ \d{4}/);
     await expect(page.locator("#invite-email")).toHaveValue("");
     await expect(page.getByRole("radio", { name: /Member/ })).toBeChecked();
     await expect(page.getByTestId("invitations-empty")).toHaveCount(0);

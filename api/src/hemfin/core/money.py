@@ -1,71 +1,30 @@
 """Shared money types. Money is `Decimal` plus an ISO-4217 currency, never a float.
 
-JSON carries amounts as strings (for example "12.50"). `Money` validates input; `MoneyBase`
-is the output shape (no re-validation, amounts rendered to the currency's minor units).
-HEM-019 reuses these for expenses and income.
+The POC is Sweden only: every new record is stored in SEK (HEM-024). Responses still carry
+`currency`, so multi-currency can return later without a data migration. Rows written before
+that may hold another code; they simply display their own.
+
+JSON carries amounts as strings (for example "12.50"). `AmountIn` validates input;
+`MoneyBase` is the output shape (no re-validation, amounts rendered with 2 decimals).
 """
 
 import re
 from decimal import Decimal
 from typing import Annotated
 
-import pycountry
 from pydantic import (
-    AfterValidator,
     BaseModel,
     BeforeValidator,
     ConfigDict,
-    StringConstraints,
     WithJsonSchema,
     field_serializer,
     model_validator,
 )
 
-# ISO 4217 minor units that differ from the default of 2.
-_MINOR_UNITS = {
-    **dict.fromkeys(
-        [
-            "BIF",
-            "CLP",
-            "DJF",
-            "GNF",
-            "ISK",
-            "JPY",
-            "KMF",
-            "KRW",
-            "PYG",
-            "RWF",
-            "UGX",
-            "UYI",
-            "VND",
-            "VUV",
-            "XAF",
-            "XOF",
-            "XPF",
-        ],
-        0,
-    ),
-    **dict.fromkeys(["BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND"], 3),
-    **dict.fromkeys(["CLF", "UYW"], 4),
-}
-DEFAULT_MINOR_UNITS = 2
+CURRENCY = "SEK"
+MINOR_UNITS = 2
 # Columns are Numeric(18, 4): at most 14 integer digits.
 MAX_AMOUNT = Decimal("99999999999999")
-
-
-def _currency(v: str) -> str:
-    code = v.strip().upper()
-    if pycountry.currencies.get(alpha_3=code) is None:
-        raise ValueError("Must be an ISO 4217 currency code, for example EUR.")
-    return code
-
-
-Currency = Annotated[
-    str,
-    StringConstraints(strip_whitespace=True, to_upper=True, min_length=3, max_length=3),
-    AfterValidator(_currency),
-]
-
 
 _AMOUNT_RE = re.compile(r"[0-9]+(\.[0-9]+)?")
 
@@ -90,48 +49,46 @@ Amount = Annotated[
 ]
 
 
-def minor_units(currency: str) -> int:
-    """Decimal places of the currency's minor unit (JPY 0, EUR 2, KWD 3)."""
-    return _MINOR_UNITS.get(currency.upper(), DEFAULT_MINOR_UNITS)
-
-
-def validate_amount(amount: Decimal, currency: str) -> Decimal:
-    """A positive, finite amount with at most the currency's minor-unit decimals."""
+def validate_amount(amount: Decimal) -> Decimal:
+    """A positive, finite SEK amount with at most 2 decimals."""
     if not amount.is_finite():
         raise ValueError("Amount must be a finite number.")
     if amount <= 0:
         raise ValueError("Amount must be greater than 0.")
     if amount > MAX_AMOUNT:
         raise ValueError("Amount is too large.")
-    places = minor_units(currency)
     # Strip trailing zeros from the digit tuple. `normalize()` would round to the context
-    # precision and could hide excess decimals (100.000...0001 JPY).
+    # precision and could hide excess decimals (100.000...0001).
     _, digits, exponent = amount.as_tuple()
     assert isinstance(exponent, int)
     trailing = len(digits) - len("".join(map(str, digits)).rstrip("0"))
-    if exponent + trailing < -places:
-        raise ValueError(f"{currency.upper()} allows at most {places} decimal places.")
+    if exponent + trailing < -MINOR_UNITS:
+        raise ValueError(f"Amounts allow at most {MINOR_UNITS} decimal places.")
     return amount
 
 
 class MoneyBase(BaseModel):
-    """Output shape: amount as a string at the currency's minor units."""
+    """Output shape: amount as a string with 2 decimals, and the stored currency code."""
 
     model_config = ConfigDict(from_attributes=True)
 
     amount: Amount
-    currency: Currency
+    currency: str = CURRENCY
 
     @field_serializer("amount")
     def _amount_str(self, v: Decimal) -> str:
-        places = minor_units(self.currency)
-        return format(v.quantize(Decimal(1).scaleb(-places)), "f")
+        return format(v.quantize(Decimal(1).scaleb(-MINOR_UNITS)), "f")
 
 
-class Money(MoneyBase):
-    """Validated money input."""
+class AmountIn(BaseModel):
+    """Validated amount input. The currency is not an input; the server always writes SEK.
+
+    Unknown fields (including a stray `currency`) are ignored, as everywhere else in the API.
+    """
+
+    amount: Amount
 
     @model_validator(mode="after")
-    def _check_amount(self) -> "Money":
-        validate_amount(self.amount, self.currency)
+    def _check_amount(self) -> "AmountIn":
+        validate_amount(self.amount)
         return self

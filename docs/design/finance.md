@@ -4,6 +4,8 @@ Status: v1.1 (HEM-017, PM decisions applied, review round 1 fixes applied; see t
 Related: `design-system.md` (tokens, type, money rules in section 5, dialogs and states), `app-shell.md` (shell, page header, empty-state pattern, space badge), `households.md` (form, dialog and section-link patterns, the `Field` and `FormMessage` usage).
 API source: HEM-018 (categories, contracts, schedule), HEM-019 (expenses, income), HEM-020 (FX), HEM-023 (dashboard). Field names are in section 11.
 
+**SEK only (HEM-024, user decision 2026-11-27).** The POC is for Sweden and uses SEK. Multi-currency is removed: no currency select, no base currency, no converted amounts, no `base_amount`, no unconverted hint. Everything below that describes those is marked "Removed (SEK only, HEM-024)" and is superseded by these rules. UI text stays English. Numbers and dates use Swedish conventions (`sv-SE`): amounts like "1 234,50 kr", dates like "1 jan. 2027" (whatever `Intl` produces). Amount fields accept a decimal comma ("12,50") or a dot ("12.50") and always send a dot-decimal string ("12.50"). Records still carry `currency: "SEK"` in responses, set by the server; it is not an input.
+
 Example data in this spec is fictional. People are Alex, Jordan and Sam, the household is "The Lee family", and providers and merchants are invented. Addresses use `example.com`. Amounts are examples only.
 
 ---
@@ -32,8 +34,8 @@ These decisions let HEM-021, HEM-022 and HEM-023 start without a design round tr
 | # | Decision | Why |
 |---|---|---|
 | F1 | Amounts are decimal strings from the API and stay strings in the UI. Amount inputs are `type="text"` with `inputMode="decimal"`, never `type="number"`. The text is parsed on submit (3.1). | `design-system.md` 5, rules 1 and 2. A number input rewrites the value in the browser's locale and can lose digits. |
-| F2 | Each record stores its own currency. The currency select defaults to the space's base currency (the profile's `base_currency`). | A record can be paid in another currency, for example a SEK subscription, so the currency belongs to the record. |
-| F3 | The base-currency equivalent of a record is shown under its original amount, marked "About" (screen readers) and "≈" (sight). Totals are in the base currency only. When there is no rate, a list row shows the original amount only (no guess), and the dashboard hint says how many amounts are left out. Base amounts come from the API (Q1). | Keeps the original visible, and makes clear which total a record is in. |
+| F2 | Removed (SEK only, HEM-024). Records are in SEK; the server sets `currency`. | |
+| F3 | Removed (SEK only, HEM-024). No converted amounts, no `base_amount`. | |
 | F4 | Every finance page has a `SpaceBadge` next to its title. Every form shows the badge in its header. "Applies to" appears only in a household space. | `app-shell.md` 2.4 and 5. The user always knows whose money it is. |
 | F5 | Contracts default to the **Active** filter. Filters sit in a sheet on phone and in a row above the table from `md`. | Cancelled contracts are rarely wanted, and a filter row would crowd a 375 px screen. |
 | F6 | Due-date thresholds (3.8): a payment or renewal within 7 days shows a warning chip. A notice deadline within 30 days shows "Notice deadline soon". A notice date already passed is neutral text, not an alarm. | Warnings that come too early become noise. The 7 and 30 day values are confirmed (Q3). |
@@ -45,13 +47,13 @@ These decisions let HEM-021, HEM-022 and HEM-023 start without a design round tr
 | F12 | Marking a contract as cancelled is reversible. The detail page offers "Make active again" when it is cancelled. Deleting a contract is not reversible and is confirmed. Linked expenses stay when a contract is deleted, and lose the link (the API sets `contract_id` to null). | Matches HEM-018 and HEM-019. The copy must say what happens to linked records. |
 | F13 | Income shows a `+` sign and the word "Income" in meta text. Expenses show no sign and the word "Expense" where a label is needed. Colour is not used for direction. | `design-system.md` 5, rule 6. |
 | F14 | An income source is paused with its "Active" checkbox, not deleted. A paused source stays in the list with a "Paused" badge. Deleting a source keeps its received payments, which lose the link (`source_id` null). | Income often stops and starts. Deleting history by accident would be costly. |
-| F15 | Dashboard totals are in the base currency: "Spent this month", "Recurring cost" (monthly equivalent) and "Income this month". A hint appears when `unconverted_count` is above 0. | HEM-023. The totals must say what they leave out. |
+| F15 | Dashboard totals are in SEK: "Spent this month", "Recurring cost" (monthly equivalent) and "Income this month". The unconverted hint is Removed (SEK only, HEM-024). | HEM-023. |
 | F16 | The dashboard first run (no contracts, expenses or income) is one page-variant empty state, with no zero totals. Zero totals would look like a broken page. | `app-shell.md` 6. |
 | F17 | The dashboard's page header action is "Add an expense". On the first run the header has no action, because the empty state holds the actions. | Expenses are the most frequent record. Only one place shows the same button (`app-shell.md` 6). Confirmed (Q9). |
 | F18 | A dialog with unsaved changes asks before it closes (Escape, outside tap or Cancel). | Stops an accidental loss of a long contract form. |
 | F19 | Quick add pre-selects the category last used in this space by this user. The memory is a per-viewer convenience kept in `localStorage`, and it falls back to an empty placeholder. Date defaults to today in the user's time zone. | Saves a tap. The value is never shared or read back by the server. |
-| F20 | Currency is shown as a symbol when it equals the base currency, and as a code when it differs (`design-system.md` 5.4, rule 4). | Multi-currency lists need the code to be readable. |
-| F21 | The converted amount uses the code and the currency's minor units: "≈ SEK 1,234.00", not "≈ 1,234 SEK". | The design system asks for `Intl.NumberFormat` output, never client rounding, and a code prefix matches `MoneyText` with `showCode`. The ticket's example is illustrative. This format is confirmed (Q8). |
+| F20 | Removed (SEK only, HEM-024). Amounts show as "1 234,50 kr". | |
+| F21 | Removed (SEK only, HEM-024). | |
 | F22 | Contract rows show the frequency in words ("EUR 4,350.00 a year"). The browser does not compute a per-contract monthly amount. The only monthly total is the API's `recurring_monthly`. | One source of truth for money totals. |
 | F23 | Lists are read in order, newest date first. Each item is one row or card. Rows are not drag-sortable, and no bulk select is offered in this phase. | Keeps the screens calm and the scope small. |
 
@@ -60,6 +62,8 @@ These decisions let HEM-021, HEM-022 and HEM-023 start without a design round tr
 ## 3. Shared building blocks
 
 ### 3.1 Money input (`AmountInput`)
+
+**Changed (SEK only, HEM-024).** The currency select and `currencyError` are Removed. `AmountInput` is one text field with a "kr" suffix. It accepts "12,50", "12.50" and "12", and also digit groups separated by spaces ("1 234,50"). It rejects a second decimal mark, more than 2 decimals, letters and signs, with the hint "Use a comma before the öre, like 12,50." The value sent to the API is always dot-decimal ("12.50"). The paragraphs below that mention the currency select, the locale decimal mark or per-currency decimals are superseded.
 
 `AmountInput` (`web/src/components/ui/amount-input.tsx`) is an amount text field and a currency select on one row. The currency select sits to the right of the amount and has its own visible label, "Currency". The component always takes the full width of its form section (B4): it is never placed in a half-width column. The amount and currency stay side by side at every width. The currency select is 9 rem (144 px) and the amount takes the rest.
 
@@ -131,6 +135,8 @@ Rules:
 - Never colour an amount for good or bad. `warning` tone is only for a due date chip, not the amount itself.
 
 ### 3.3 Converted amount (`ConvertedAmount`)
+
+Removed (SEK only, HEM-024). The component and every `base_amount` use are gone. The text below is kept for history only.
 
 Shown under the original amount in list rows, detail views and the dashboard hint. Only when the record's currency differs from the base currency.
 
@@ -1123,7 +1129,7 @@ At 768, row 2 has Income on the left and the Upcoming card on the right. The Upc
 **Totals rules.**
 - Each total is a `StatCard`. The figure is `MoneyText size="lg"`, in the currency of its Money object. The hint line names the month from `month` (for example "November 2026").
 - "Recurring cost" uses the phrase "a month" next to the figure, and the hint says "Contracts, as a monthly amount". The API computes the monthly figure (HEM-023).
-- The unconverted hint appears when `unconverted_count` is above 0. Copy for 1: "1 amount is not in {base}, because no rate was found for its date. Totals leave it out." For more than 1: "{n} amounts are not in {base}, because no rate was found for their dates. Totals leave them out." It uses `Intl.PluralRules` (or the two strings above).
+- Removed (SEK only, HEM-024): the unconverted hint. (Was: it appeared when `unconverted_count` is above 0.) Copy for 1: "1 amount is not in {base}, because no rate was found for its date. Totals leave it out." For more than 1: "{n} amounts are not in {base}, because no rate was found for their dates. Totals leave them out." It uses `Intl.PluralRules` (or the two strings above).
 - A zero total is a value: "€0.00", with the hint "No expenses this month yet. Record one to see it here." (the zero copy is per card: expenses, income).
 
 **Upcoming list rules.**
@@ -1282,7 +1288,7 @@ Records keep flat `amount` and `currency`. On expenses and income entries, `base
 | `name` | Name | string, required |
 | `provider` | Provider (optional) | string, nullable |
 | `amount` | `AmountInput` | Decimal string (`"4350.00"`), required, above 0 |
-| `currency` | `AmountInput` currency | ISO-4217, required |
+| `currency` | Removed (SEK only, HEM-024) | Not an input. The server sets "SEK"; responses still carry it. |
 | `frequency` | Billed (`FrequencySelect`) | `weekly`, `monthly`, `quarterly`, `semiannual`, `annual` |
 | `start_date` | Starts | date, required |
 | `end_date` | Ends (optional) | date, nullable, on or after `start_date` |
@@ -1327,7 +1333,7 @@ Filters: `status`, `category`, `member_user_id`. Pagination: `items` and `next_c
 | `merchant` | Merchant (optional, max 80) | nullable |
 | `contract_id` | Linked contract (optional) | uuid, nullable. Same space. `SET NULL` on delete. |
 | `member_user_id` | Applies to | uuid, nullable |
-| `base_amount` (Q1) | `ConvertedAmount` | Money or null. The caller's base currency, at the record's date. Null hides the line. Added by HEM-019 once HEM-020 exists. |
+| `base_amount` (Q1) | Removed (SEK only, HEM-024) | |
 
 Filters: `from`, `to` (inclusive), `category`, `member_user_id`, `contract_id`. Order: newest date first. `spent_on` may be at most one day in the future (Q10).
 
@@ -1357,7 +1363,7 @@ Filters: `from`, `to` (inclusive), `category`, `member_user_id`, `contract_id`. 
 | `received_on` | Received on | date, required |
 | `description` | Description (optional) | nullable |
 | `member_user_id` | Applies to | uuid, nullable |
-| `base_amount` (Q1) | `ConvertedAmount` | as for expenses (Money or null) |
+| `base_amount` (Q1) | Removed (SEK only, HEM-024) | |
 
 Filters: `from`, `to` (inclusive), `source_id`. Order: newest date first. `received_on` may be at most one day in the future (Q10).
 
@@ -1372,12 +1378,12 @@ Filters: `from`, `to` (inclusive), `source_id`. Order: newest date first. `recei
 | API field | UI | Notes |
 |---|---|---|
 | `month` (Q2) | the hint month, "November 2026" | `YYYY-MM`, echoed back from the request. |
-| `base_currency` (Q2) | currency of the unconverted hint | ISO-4217 string, not Money. The Money values below carry their own currency. |
+| `base_currency` (Q2) | Removed (SEK only, HEM-024) | |
 | `spent_this_month` | "Spent this month" | Money |
 | `recurring_monthly` | "Recurring cost" | Money, a monthly amount |
 | `income_this_month` | "Income this month" | Money |
 | `upcoming` | "Next 30 days" | Up to 10 events, the 11.3 shape: `date`, `type`, `contract_id`, `contract_name`, `amount` (Money or null) |
-| `unconverted_count` | the hint in 7.1 | int, 0 or more |
+| `unconverted_count` | Removed (SEK only, HEM-024) | Totals are plain sums in SEK; rows in another stored currency are left out. |
 
 ### 11.8 Members (HEM-012)
 
@@ -1411,8 +1417,8 @@ Each takes props only, has no data fetching, and contains no business logic. Eac
 
 | File | Component | Purpose | Key props |
 |---|---|---|---|
-| `amount-input.tsx` | `AmountInput` | Amount text field with a currency select, full row (3.1) | `id`, `name`, `label`, `value`, `onValueChange`, `currency`, `currencyOptions` (code as `label`), `onCurrencyChange`, `decimalSeparator`, `fractionDigits`, `placeholder`, `hint`, `error` (amount), `currencyError`, `required` (amount, `aria-required`), `disabled`, `autoFocus` |
-| `converted-amount.tsx` | `ConvertedAmount` | Base-currency equivalent in muted text, or nothing (3.3) | `originalCurrency`, `baseCurrency`, `converted` (Money or null; null renders nothing, Q13), `locale` |
+| `amount-input.tsx` | `AmountInput` | Amount text field with a "kr" suffix (3.1, changed HEM-024) | `id`, `name`, `label`, `value`, `onValueChange`, `placeholder`, `hint`, `error`, `required`, `disabled`, `autoFocus` |
+| `converted-amount.tsx` | `ConvertedAmount` | Removed (SEK only, HEM-024) | |
 | `category-select.tsx` | `CategorySelect` | Grouped native select (3.4) | `id`, `name`, `label`, `groups`, `value`, `onValueChange`, `emptyLabel`, `emptyDisabled`, `required` (`aria-required`), `hint`, `error` |
 | `frequency-select.tsx` | `FrequencySelect` (plus `FREQUENCY_LABEL` and `FREQUENCY_PHRASE`) | Frequency picker and amount phrases (3.5). `FREQUENCY_PHRASE.irregular` is empty. | `id`, `name` (default `frequency`), `label`, `value`, `onValueChange`, `includeIrregular`, `required` (`aria-required`), `hint`, `error` |
 | `applies-to-select.tsx` | `AppliesToSelect` | "Applies to" picker (3.7) | `id`, `name` (default `member_user_id`), `label`, `options`, `value` (`""` is the whole household), `onValueChange`, `wholeLabel`, `hint`, `error` |

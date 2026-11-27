@@ -34,7 +34,7 @@ class Expense(Base):
     )
     category_id: Mapped[UUID] = mapped_column(ForeignKey(f"{APP_SCHEMA}.categories.id"))
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 4))
-    currency: Mapped[str] = mapped_column(String(3))
+    currency: Mapped[str] = mapped_column(String(3), server_default="SEK")
     spent_on: Mapped[date] = mapped_column(Date)
     description: Mapped[str | None] = mapped_column(Text)
     merchant: Mapped[str | None] = mapped_column(Text)

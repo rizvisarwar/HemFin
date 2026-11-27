@@ -1,4 +1,4 @@
-import type { BrowserContext } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
 
 export const MOCK = `http://127.0.0.1:${process.env.MOCK_PORT ?? 3199}`;
 export const APP = "http://127.0.0.1:3100";
@@ -62,7 +62,6 @@ export function seedHouseholds(who: { email: string }, households: SeedHousehold
 
 export interface SeedDashboard {
   month: string;
-  base_currency: string;
   spent_this_month: { amount: string; currency: string };
   recurring_monthly: { amount: string; currency: string };
   income_this_month: { amount: string; currency: string };
@@ -74,7 +73,6 @@ export interface SeedDashboard {
     amount: { amount: string; currency: string } | null;
   }[];
   has_records: boolean;
-  unconverted_count: number;
 }
 
 /** Seeds the dashboard summary the mock API returns for a user, or makes it fail with a 500. */
@@ -247,6 +245,30 @@ export function failContracts(who: { email: string }, flags: { list?: boolean; s
   return post<void>("/__test/contracts-fail", { email: who.email, ...flags });
 }
 
+/**
+ * Makes the browser's POSTs to an API path answer 422 on one field, like the API's validation error,
+ * until `unroute` is called. The forms post from the browser, so `page.route` can intercept them.
+ * Used to check how a server error on `amount` lands under the field (the mock accepts what the form allows).
+ */
+export async function refuseSaves(page: Page, pathGlob: string, field: string, message: string) {
+  const handler = (route: import("@playwright/test").Route) =>
+    route.request().method() === "POST"
+      ? route.fulfill({
+          status: 422,
+          contentType: "application/problem+json",
+          body: JSON.stringify({
+            type: "about:blank",
+            title: "Validation Error",
+            status: 422,
+            detail: "Request validation failed.",
+            errors: [{ loc: ["body", field], msg: `Value error, ${message}`, type: "value_error" }],
+          }),
+        })
+      : route.fallback();
+  await page.route(pathGlob, handler);
+  return () => page.unroute(pathGlob, handler);
+}
+
 /** Selects a space the way the switcher does: by writing the cookie the server reads. */
 export async function selectSpace(context: BrowserContext, spaceId: string) {
   await context.addCookies([{ name: "hemfin-space", value: spaceId, url: APP, httpOnly: true, sameSite: "Lax" }]);
@@ -264,8 +286,6 @@ export interface SeedExpense {
   merchant?: string | null;
   contract_id?: string | null;
   member_user_id?: string | null;
-  /** The base-currency amount the real API would add, set by the test (the mock has no rates). */
-  base_amount?: { amount: string; currency: string } | null;
 }
 
 export interface SeedSource {
@@ -285,7 +305,6 @@ export interface SeedEntry {
   source_id?: string | null;
   description?: string | null;
   member_user_id?: string | null;
-  base_amount?: { amount: string; currency: string } | null;
 }
 
 type FinanceKind = "expenses" | "sources" | "entries";

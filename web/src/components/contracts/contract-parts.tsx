@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useFormat } from "@/components/format-provider";
 import { DueChip } from "@/components/ui/due-chip";
 import { FREQUENCY_PHRASE } from "@/components/ui/frequency-select";
 import { MoneyText } from "@/components/ui/money-text";
@@ -9,18 +8,11 @@ import { cn } from "@/lib/utils";
 import type { ContractResponse } from "@/lib/api";
 import { noticeChip, paymentChip, renewalChip, type Chip } from "@/lib/contracts/contracts";
 
-/** "EUR 4,350.00 a year": the amount in its own currency (a code when it is not the base currency) and the frequency in words. */
+/** "4 350,00 kr" and the frequency in words. */
 export function ContractAmount({ contract, align = "right" }: { contract: ContractResponse; align?: "left" | "right" }) {
-  const { prefs } = useFormat();
   return (
     <span className={cn("inline-flex shrink-0 flex-col whitespace-nowrap", align === "right" ? "items-end text-right" : "items-start")}>
-      <MoneyText
-        amount={contract.amount}
-        currency={contract.currency}
-        locale={prefs.locale}
-        showCode={contract.currency !== prefs.currency}
-        size="md"
-      />
+      <MoneyText amount={contract.amount} currency={contract.currency} size="md" />
       <span className="text-small text-muted-foreground">{FREQUENCY_PHRASE[contract.frequency]}</span>
     </span>
   );

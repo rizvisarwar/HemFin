@@ -22,7 +22,7 @@ _422: dict[int | str, dict[str, Any]] = {422: {"description": "Validation error"
 
 @router.get(
     "",
-    summary="Month totals and the next 30 days, in the caller's base currency",
+    summary="Month totals and the next 30 days, in SEK",
     description=(
         "`upcoming` covers today through today + 30 days inclusive (31 calendar days), at most "
         "10 events. `recurring_monthly` counts active contracts that pay in the month. "

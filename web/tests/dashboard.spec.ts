@@ -2,7 +2,7 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { seed, seedDashboard, seedHouseholds, signInAs, uniqueUser, type SeedDashboard } from "./support/auth";
 
 // HEM-023: the dashboard in its four states, at 375, 768 and 1280 px (the three projects).
-// Screenshots land in test-results/screenshots/hem023/<project>/<state>-<light|dark>.png.
+// Screenshots land in test-results/screenshots/hem024/<project>/<state>-<light|dark>.png.
 
 test.describe.configure({ timeout: 120_000 });
 
@@ -19,23 +19,21 @@ function thisMonth() {
   return { key: now.toISOString().slice(0, 7), label: `${MONTHS[now.getUTCMonth()]} ${now.getUTCFullYear()}` };
 }
 
-const eur = (amount: string) => ({ amount, currency: "EUR" });
+const sek = (amount: string) => ({ amount, currency: "SEK" });
 
 function populated(overrides: Partial<SeedDashboard> = {}): SeedDashboard {
   return {
     month: thisMonth().key,
-    base_currency: "EUR",
-    spent_this_month: eur("812.40"),
-    recurring_monthly: eur("1043.00"),
-    income_this_month: eur("2850.00"),
+    spent_this_month: sek("812.40"),
+    recurring_monthly: sek("1043.00"),
+    income_this_month: sek("2850.00"),
     upcoming: [
       { type: "notice_deadline", date: iso(5), contract_id: "11111111-1111-4111-8111-111111111111", contract_name: "Car insurance", amount: null },
-      { type: "payment", date: iso(6), contract_id: "11111111-1111-4111-8111-111111111111", contract_name: "Car insurance", amount: eur("362.50") },
+      { type: "payment", date: iso(6), contract_id: "11111111-1111-4111-8111-111111111111", contract_name: "Car insurance", amount: sek("362.50") },
       { type: "renewal", date: iso(6), contract_id: "22222222-2222-4222-8222-222222222222", contract_name: "Music streaming with a rather long contract name that must wrap", amount: { amount: "11.99", currency: "USD" } },
-      { type: "payment", date: iso(20), contract_id: "33333333-3333-4333-8333-333333333333", contract_name: "Gym", amount: eur("29.00") },
+      { type: "payment", date: iso(20), contract_id: "33333333-3333-4333-8333-333333333333", contract_name: "Gym", amount: sek("29.00") },
     ],
     has_records: true,
-    unconverted_count: 0,
     ...overrides,
   };
 }
@@ -45,7 +43,7 @@ async function snap(page: Page, info: TestInfo, name: string) {
     await page.emulateMedia({ colorScheme: scheme });
     await page.mouse.move(0, 0);
     await page.screenshot({
-      path: `test-results/screenshots/hem023/${info.project.name}/${name}-${scheme}.png`,
+      path: `test-results/screenshots/hem024/${info.project.name}/${name}-${scheme}.png`,
       fullPage: true,
       animations: "disabled",
     });
@@ -84,22 +82,21 @@ test.describe("dashboard", () => {
     await expect(page.getByTestId("dashboard")).toBeVisible();
     await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Add an expense" })).toBeVisible();
-    await expect(page.getByText("€812.40")).toBeVisible();
-    await expect(page.getByText("€1,043.00")).toBeVisible();
+    await expect(page.getByText("812,40 kr")).toBeVisible();
+    await expect(page.getByText("1 043,00 kr")).toBeVisible();
     await expect(page.getByText("a month", { exact: true })).toBeVisible();
-    await expect(page.getByText("+€2,850.00")).toBeVisible();
+    await expect(page.getByText("+2 850,00 kr")).toBeVisible();
     await expect(page.getByText(thisMonth().label, { exact: true })).toBeVisible();
     await expect(page.getByText(`Received in ${thisMonth().label}`)).toBeVisible();
-    await expect(page.getByTestId("unconverted-hint")).toHaveCount(0);
     const events = page.getByTestId("upcoming-event");
     await expect(events).toHaveCount(4);
     await expect(events.nth(0)).toContainText("Notice deadline");
     await expect(events.nth(0)).toContainText("Notice deadline soon, in 5 days");
-    await expect(events.nth(0)).not.toContainText("€");
+    await expect(events.nth(0)).not.toContainText("kr");
     await expect(events.nth(1)).toContainText("Due in 6 days");
-    await expect(events.nth(1)).toContainText("€362.50");
+    await expect(events.nth(1)).toContainText("362,50 kr");
     await expect(events.nth(2)).toContainText("Renews in 6 days");
-    await expect(events.nth(2)).toContainText("USD"); // another currency shows its code
+    await expect(events.nth(2)).toContainText("11,99 USD"); // a row stored in another currency shows its own code
     await expect(events.nth(3)).not.toContainText("Due in"); // more than 7 days away: the date only
     await expect(page.getByRole("link", { name: "Gym" })).toHaveAttribute("href", "/contracts/33333333-3333-4333-8333-333333333333");
     await checkLayout(page);
@@ -115,7 +112,7 @@ test.describe("dashboard", () => {
     await expect(page.getByRole("button", { name: "Add a contract" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Record an expense instead" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Add an expense" })).toHaveCount(0); // no header action (F17)
-    await expect(page.getByText("€0.00")).toHaveCount(0); // no zero totals
+    await expect(page.getByText("0,00 kr")).toHaveCount(0); // no zero totals
     await checkLayout(page);
     await snap(page, info, "first-run");
   });
@@ -124,9 +121,9 @@ test.describe("dashboard", () => {
     const me = await open(page, context, info);
     await seedDashboard(me, {
       dashboard: populated({
-        spent_this_month: eur("0.00"),
-        recurring_monthly: eur("0.00"),
-        income_this_month: eur("0.00"),
+        spent_this_month: sek("0.00"),
+        recurring_monthly: sek("0.00"),
+        income_this_month: sek("0.00"),
         upcoming: [],
         has_records: true,
       }),
@@ -160,7 +157,7 @@ test.describe("dashboard", () => {
     const long = "Comprehensive household contents and liability insurance with a very long contract name that goes on and on and on and on and on and on and on";
     await seedDashboard(me, {
       dashboard: populated({
-        upcoming: [{ type: "payment", date: iso(3), contract_id: "44444444-4444-4444-8444-444444444444", contract_name: long, amount: eur("9.00") }],
+        upcoming: [{ type: "payment", date: iso(3), contract_id: "44444444-4444-4444-8444-444444444444", contract_name: long, amount: sek("9.00") }],
       }),
     });
     await page.reload();
@@ -175,7 +172,7 @@ test.describe("dashboard", () => {
   test("partial: zero hints and empty upcoming", async ({ page, context }, info) => {
     const me = await open(page, context, info);
     await seedDashboard(me, {
-      dashboard: populated({ spent_this_month: eur("0.00"), income_this_month: eur("0.00"), upcoming: [] }),
+      dashboard: populated({ spent_this_month: sek("0.00"), income_this_month: sek("0.00"), upcoming: [] }),
     });
     await page.goto("/dashboard");
     await expect(page.getByTestId("dashboard")).toBeVisible();
@@ -186,32 +183,18 @@ test.describe("dashboard", () => {
     await snap(page, info, "partial");
   });
 
-  test("unconverted hint", async ({ page, context }, info) => {
-    const me = await open(page, context, info);
-    await seedDashboard(me, { dashboard: populated({ unconverted_count: 1 }) });
-    await page.goto("/dashboard");
-    const hint = page.getByTestId("unconverted-hint");
-    await expect(hint).toContainText("1 amount is not in EUR, because no rate was found for its date. Totals leave it out.");
-    await checkLayout(page);
-    await snap(page, info, "unconverted-one");
-
-    await seedDashboard(me, { dashboard: populated({ unconverted_count: 3 }) });
-    await page.reload();
-    await expect(page.getByTestId("unconverted-hint")).toContainText("3 amounts are not in EUR, because no rate was found for their dates. Totals leave them out.");
-  });
-
   test("error with retry", async ({ page, context }, info) => {
     const me = await open(page, context, info);
     await seedDashboard(me, { dashboard: populated(), fail: true });
     await page.goto("/dashboard");
     await expect(page.getByTestId("dashboard-error")).toContainText("We could not load your summary just now.");
-    await expect(page.getByText("€812.40")).toHaveCount(0); // the totals are replaced by the error
+    await expect(page.getByText("812,40 kr")).toHaveCount(0); // the totals are replaced by the error
     await checkLayout(page);
     await snap(page, info, "error");
 
     await seedDashboard(me, { fail: false });
     await page.getByRole("button", { name: "Retry" }).click();
     await expect(page.getByTestId("dashboard")).toBeVisible();
-    await expect(page.getByText("€812.40")).toBeVisible();
+    await expect(page.getByText("812,40 kr")).toBeVisible();
   });
 });

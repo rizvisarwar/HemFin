@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
-import { failLists, isoIn, seed, seedContracts, seedHouseholds, selectSpace, signInAs, uniqueUser, userIdFor, type SeedContract } from "./support/auth";
+import { failLists, isoIn, refuseSaves, seed, seedContracts, seedHouseholds, selectSpace, signInAs, uniqueUser, userIdFor, type SeedContract } from "./support/auth";
 
 // HEM-021 review round 1: races, the space switch on the detail page, focus, dates, the form header
 // and error scrolling, announcements, and names that wait for their data.
@@ -104,10 +104,10 @@ test("dates read day, month, year", async ({ page, context }, info) => {
     { ...CAR, start_date: "2026-01-05", schedule: { next_payment_date: "2099-12-03", renewal_date: "2099-01-01", notice_deadline: null } },
   ]);
   await page.goto("/contracts");
-  await expect(rowsOf(page)).toContainText(isPhone(page) ? "Renews 1 Jan 2099" : "3 Dec 2099");
+  await expect(rowsOf(page)).toContainText(isPhone(page) ? "Renews 1 jan. 2099" : "3 dec. 2099");
   await page.goto(`/contracts/${ids[0]}`);
-  await expect(page.getByTestId("schedule-card")).toContainText("3 Dec 2099");
-  await expect(page.getByTestId("details-card")).toContainText("5 Jan 2026");
+  await expect(page.getByTestId("schedule-card")).toContainText("3 dec. 2099");
+  await expect(page.getByTestId("details-card")).toContainText("5 jan. 2026");
 });
 
 test("the space badge is in the form header at every width, under the title; the close icon is 44 px", async ({ page, context }, info) => {
@@ -143,9 +143,9 @@ test("a server error is scrolled into view above the footer", async ({ page, con
   await dlg.getByLabel("Name", { exact: true }).fill("Electricity");
   await dlg.getByLabel("Category").selectOption({ label: "Electricity" });
   await dlg.getByLabel("Amount").fill("89.90");
-  await dlg.getByLabel("Currency").selectOption("AED");
+  await refuseSaves(page, "**/api/v1/spaces/*/contracts", "amount", "Amount is too large.");
   await dlg.getByRole("button", { name: "Save contract" }).click();
-  const message = dlg.getByText("Unsupported currency.");
+  const message = dlg.getByText("Amount is too large.");
   await expect(message).toBeVisible();
   const footer = await dlg.getByRole("button", { name: "Save contract" }).boundingBox();
   const m = await message.boundingBox();

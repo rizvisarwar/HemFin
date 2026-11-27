@@ -2,7 +2,7 @@
  * Display and form rules for contracts (docs/design/finance.md section 4). The schedule itself is
  * computed by the API; nothing here works out a payment or renewal date.
  */
-import { parseAmount, type DecimalMark } from "../finance/amount.ts";
+import { parseAmount } from "../finance/amount.ts";
 import { appliesToQuery, daysBetween } from "../finance/common.ts";
 
 /** A payment or renewal this close shows a warning chip, a notice deadline within `NOTICE_SOON_DAYS` (finance.md F6). */
@@ -97,7 +97,6 @@ export interface ContractFormValues {
   category_id: string;
   /** The amount as typed, parsed on submit. */
   amount: string;
-  currency: string;
   frequency: Frequency;
   start_date: string;
   end_date: string;
@@ -119,7 +118,6 @@ export interface ContractPayload {
   name: string;
   provider: string | null;
   amount: string;
-  currency: string;
   frequency: Frequency;
   start_date: string;
   end_date: string | null;
@@ -134,20 +132,12 @@ export const NAME_MAX = 80;
 export const NOTES_MAX = 500;
 const WHOLE = /^\d+$/;
 
-export interface ValidateOptions {
-  mark: DecimalMark;
-  digits: number;
-}
-
 /** Checks the form the way finance.md 4.3 says. Returns the errors, and the API body when there are none. */
-export function validateContract(
-  v: ContractFormValues,
-  opts: ValidateOptions,
-): { errors: ContractFormErrors; payload?: ContractPayload } {
+export function validateContract(v: ContractFormValues): { errors: ContractFormErrors; payload?: ContractPayload } {
   const errors: ContractFormErrors = {};
   if (v.name.trim() === "") errors.name = "Enter a name for the contract.";
   if (v.category_id === "") errors.category_id = "Choose a category.";
-  const amount = parseAmount(v.amount, { mark: opts.mark, digits: opts.digits, currency: v.currency });
+  const amount = parseAmount(v.amount);
   if (!amount.ok) errors.amount = amount.message;
   if (v.start_date === "") errors.start_date = "Enter the start date.";
   if (v.end_date !== "" && v.start_date !== "" && v.end_date < v.start_date) {
@@ -173,7 +163,6 @@ export function validateContract(
       name: v.name.trim(),
       provider: v.provider.trim() || null,
       amount: amount.value,
-      currency: v.currency,
       frequency: v.frequency,
       start_date: v.start_date,
       end_date: v.end_date || null,

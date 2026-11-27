@@ -59,7 +59,6 @@ def _body(cat: str, **kw: Any) -> dict[str, Any]:
         "name": "Home insurance",
         "provider": "Acme",
         "amount": "42.50",
-        "currency": "eur",
         "frequency": "monthly",
         "start_date": "2026-01-31",
         **kw,
@@ -186,7 +185,7 @@ async def test_contract_crud_and_schedule(aclient: httpx.AsyncClient, key: TestK
     space = await _household(aclient, h)
     cat = await _cat(aclient, h, space, "insurance.home")
     c = await _make(aclient, h, space, cat, notes="n")
-    assert c["amount"] == "42.50" and c["currency"] == "EUR"
+    assert c["amount"] == "42.50" and c["currency"] == "SEK"
     assert c["category"] == "insurance.home" and c["status"] == "active"
     assert c["created_by"] == str(uid)
     # started Jan 31; as_of Nov 27 -> the next payment clamps to Nov 30
@@ -224,8 +223,8 @@ async def test_amounts_are_strings_never_floats(aclient: httpx.AsyncClient, key:
     _, h = await _user(aclient, key)
     space = await _household(aclient, h)
     cat = await _cat(aclient, h, space, "housing.rent")
-    jpy = await _make(aclient, h, space, cat, currency="JPY", amount="1200")
-    assert jpy["amount"] == "1200"
+    whole = await _make(aclient, h, space, cat, amount="1200")
+    assert whole["amount"] == "1200.00"
     page = (await aclient.get(f"{API}/{space}/contracts", headers=h)).json()
     assert all(isinstance(i["amount"], str) for i in page["items"])
 
@@ -236,8 +235,6 @@ async def test_amounts_are_strings_never_floats(aclient: httpx.AsyncClient, key:
         {"amount": "0"},
         {"amount": "-5"},
         {"amount": "1.234"},
-        {"currency": "JPY"},  # existing amount 42.50 has decimals JPY forbids
-        {"currency": "ZZZ"},
         {"end_date": "2026-01-01"},
         {"start_date": "2027-01-01", "end_date": "2026-12-31"},
         {"name": None},
@@ -263,8 +260,7 @@ async def test_patch_validation_is_problem_json(
     [
         {"amount": "0"},
         {"amount": "12.345"},
-        {"amount": 12.5, "currency": "JPY"},
-        {"currency": "XYZ"},
+        {"amount": 12.5},
         {"end_date": "2025-01-01"},
         {"category_id": str(uuid4())},
         {"member_user_id": str(uuid4())},
@@ -359,14 +355,14 @@ async def test_amount_must_be_a_string_and_keep_precision(
     for bad in (12.5, 12):
         r = await aclient.post(url, json=_body(cat, amount=bad), headers=h)
         assert r.status_code == 422, bad
-    precise = _body(cat, amount="100.0000000000000000000000000001", currency="JPY")
+    precise = _body(cat, amount="100.0000000000000000000000000001")
     assert (await aclient.post(url, json=precise, headers=h)).status_code == 422
     c = await _make(aclient, h, space, cat)
     r = await aclient.patch(f"{url}/{c['id']}", json={"amount": 9.99}, headers=h)
     assert r.status_code == 422
     r = await aclient.patch(
         f"{url}/{c['id']}",
-        json={"amount": "10.0000000000000000000000000001", "currency": "EUR"},
+        json={"amount": "10.0000000000000000000000000001"},
         headers=h,
     )
     assert r.status_code == 422
@@ -476,7 +472,6 @@ async def test_upcoming(aclient: httpx.AsyncClient, key: TestKey) -> None:
         start_date="2026-01-05",
         auto_renew=True,
         notice_period_days=30,
-        currency="USD",
         amount="99",
     )
     cancelled = await _make(aclient, h, space, cat, name="Gone")
@@ -496,9 +491,9 @@ async def test_upcoming(aclient: httpx.AsyncClient, key: TestKey) -> None:
         ("2027-01-05", "renewal", "Annual"),
     ]  # Stream's Jan 31 payment is beyond `until`
     first = body["items"][0]
-    assert first["amount"] == {"amount": "42.50", "currency": "EUR"} and first["contract_id"]
-    usd = next(i for i in body["items"] if i["contract_name"] == "Annual")
-    assert usd["amount"] == {"amount": "99.00", "currency": "USD"}
+    assert first["amount"] == {"amount": "42.50", "currency": "SEK"} and first["contract_id"]
+    annual = next(i for i in body["items"] if i["contract_name"] == "Annual")
+    assert annual["amount"] == {"amount": "99.00", "currency": "SEK"}
 
 
 @pytest.mark.parametrize("days", [0, 367, -1, "x"])
@@ -563,3 +558,16 @@ async def test_contract_id_from_another_space_is_404(
 async def test_unauthenticated_is_401(aclient: httpx.AsyncClient) -> None:
     r = await aclient.get(f"{API}/{uuid4()}/contracts")
     assert r.status_code == 401
+
+
+async def test_currency_is_not_an_input(aclient: httpx.AsyncClient, key: TestKey) -> None:
+    """The server always writes SEK; a client-sent currency is ignored (on create and patch)."""
+    _, h = await _user(aclient, key)
+    space = await _household(aclient, h)
+    cat = await _cat(aclient, h, space, "insurance.car")
+    c = await _make(aclient, h, space, cat, currency="EUR")
+    assert c["currency"] == "SEK"
+    r = await aclient.patch(
+        f"{API}/{space}/contracts/{c['id']}", json={"currency": "USD", "notes": "x"}, headers=h
+    )
+    assert r.status_code == 200 and r.json()["currency"] == "SEK"

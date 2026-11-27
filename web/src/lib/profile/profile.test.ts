@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { addressLines, addressPayload, validateAddress, type AddressValues } from "./address.ts";
 import { COUNTRIES, countryByCode, countryForDial, countryOptions } from "./countries.ts";
-import { CURRENCY_CODES, currencyOptions } from "./currencies.ts";
 import { isUsableLocale, localeOptionsWith } from "./locales.ts";
 import { buildPhone, phoneDefaults, regionOfLocale, splitPhone } from "./phone.ts";
 import { ADDRESS_LIMIT_MESSAGE, parseProblem } from "./problem.ts";
@@ -58,7 +57,7 @@ describe("phone", () => {
   });
 });
 
-describe("country, currency and locale lists", () => {
+describe("country and locale lists", () => {
   it("has unique alpha-2 codes and numeric calling codes", () => {
     const codes = COUNTRIES.map((c) => c.code);
     assert.equal(new Set(codes).size, codes.length);
@@ -74,14 +73,6 @@ describe("country, currency and locale lists", () => {
     const nl = opts.find((o) => o.value === "NL");
     assert.equal(nl?.label, "Netherlands");
     assert.ok(nl?.search.includes("+31"));
-  });
-  it("has unique three-letter currencies including EUR and USD", () => {
-    assert.equal(new Set(CURRENCY_CODES).size, CURRENCY_CODES.length);
-    assert.ok(CURRENCY_CODES.every((c) => /^[A-Z]{3}$/.test(c)));
-    assert.ok(CURRENCY_CODES.includes("EUR"));
-    const eur = currencyOptions("en").find((o) => o.value === "EUR");
-    assert.equal(eur?.label, "Euro");
-    assert.ok(eur?.search.includes("euro"));
   });
   it("keeps a saved locale that is not in the list", () => {
     assert.ok(localeOptionsWith("sv-SE").some((o) => o.value === "sv-SE"));
