@@ -240,7 +240,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Payments, renewals and notice deadlines in the next N days */
+        /**
+         * Payments, renewals and notice deadlines in the next N days
+         * @description Bounded, not cursor-paginated (approved exception): the window is at most 366 days and the response holds at most `limit` events (default 50, max 200), sorted by date, type, contract name and id. `has_more` is true when events were cut off; narrow `days` to see the rest.
+         */
         get: operations["upcoming_contracts_api_v1_spaces__space_id__contracts_upcoming_get"];
         put?: never;
         post?: never;
@@ -518,8 +521,11 @@ export interface components {
         };
         /** ContractCreate */
         ContractCreate: {
-            /** Amount */
-            amount: number | string;
+            /**
+             * Amount
+             * @example 12.50
+             */
+            amount: string;
             /**
              * Auto Renew
              * @default false
@@ -555,7 +561,10 @@ export interface components {
         };
         /** ContractOut */
         ContractOut: {
-            /** Amount */
+            /**
+             * Amount
+             * @example 12.50
+             */
             amount: string;
             /** Auto Renew */
             auto_renew: boolean;
@@ -622,7 +631,7 @@ export interface components {
          */
         ContractPatch: {
             /** Amount */
-            amount?: number | string | null;
+            amount?: string | null;
             /** Auto Renew */
             auto_renew?: boolean | null;
             /** Category Id */
@@ -779,7 +788,10 @@ export interface components {
          * @description Output shape: amount as a string at the currency's minor units.
          */
         MoneyBase: {
-            /** Amount */
+            /**
+             * Amount
+             * @example 12.50
+             */
             amount: string;
             /** Currency */
             currency: string;
@@ -951,6 +963,8 @@ export interface components {
              * Format: date
              */
             as_of: string;
+            /** Has More */
+            has_more: boolean;
             /** Items */
             items: components["schemas"]["UpcomingEvent"][];
             /**
@@ -1987,6 +2001,8 @@ export interface operations {
         parameters: {
             query?: {
                 days?: number;
+                /** @description Maximum events returned. */
+                limit?: number;
             };
             header?: never;
             path: {

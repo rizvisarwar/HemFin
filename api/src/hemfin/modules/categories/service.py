@@ -1,13 +1,13 @@
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import func, or_, select
+from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hemfin.core.errors import CodedHTTPException
 from hemfin.modules.categories.models import Category
-from hemfin.modules.categories.schemas import CategoryCreate, CategoryOut
+from hemfin.modules.categories.schemas import CategoryCreate, CategoryKind, CategoryOut
 from hemfin.modules.contracts.models import Contract
 
 MAX_CUSTOM_CATEGORIES = 100
@@ -19,12 +19,12 @@ def to_out(c: Category) -> CategoryOut:
         key=c.key,
         name=c.name,
         parent_key=c.parent_key,
-        kind=c.kind,  # type: ignore[arg-type]
+        kind=CategoryKind(c.kind),
         system=c.space_id is None,
     )
 
 
-def _visible(space_id: UUID):  # type: ignore[no-untyped-def]
+def _visible(space_id: UUID) -> ColumnElement[bool]:
     return or_(Category.space_id.is_(None), Category.space_id == space_id)
 
 
@@ -66,7 +66,8 @@ async def create_category(
         raise CodedHTTPException(
             409, "category_limit", f"At most {MAX_CUSTOM_CATEGORIES} custom categories."
         )
-    assert body.key is not None  # derived by the schema
+    if body.key is None:  # the schema derives it; this keeps the type honest
+        raise CodedHTTPException(422, "invalid_key", "A category key is required.")
     cat = Category(
         space_id=space_id,
         key=body.key,

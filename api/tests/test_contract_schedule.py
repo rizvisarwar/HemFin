@@ -162,3 +162,12 @@ def test_upcoming_excludes_past_deadline_and_ends_at_end_date() -> None:
     t = terms(D(2026, 1, 10), end_date=D(2026, 3, 10), notice_period_days=30)
     ev = upcoming_events(t, D(2026, 2, 1), D(2026, 12, 31))
     assert [e.date for e in ev] == [D(2026, 2, 10), D(2026, 3, 10)]
+
+
+def test_leap_day_annual_auto_renew() -> None:
+    t = terms(D(2024, 2, 29), Frequency.annual, auto_renew=True, notice_period_days=10)
+    # First renewal is start + 12 months (clamped), then it rolls anchored on Feb 29.
+    assert compute_schedule(t, D(2024, 3, 1)).renewal_date == D(2025, 2, 28)
+    assert compute_schedule(t, D(2027, 3, 1)).renewal_date == D(2028, 2, 29)
+    assert compute_schedule(t, D(2027, 3, 1)).notice_deadline == D(2028, 2, 19)
+    assert compute_schedule(t, D(2027, 3, 1)).next_payment_date == D(2028, 2, 29)

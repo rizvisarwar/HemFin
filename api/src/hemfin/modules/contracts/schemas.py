@@ -1,11 +1,10 @@
 from datetime import date, datetime
-from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
 from pydantic import AfterValidator, BaseModel, Field, StringConstraints, model_validator
 
-from hemfin.core.money import Currency, Money, MoneyBase, validate_amount
+from hemfin.core.money import Amount, Currency, Money, MoneyBase, validate_amount
 from hemfin.modules.contracts.models import ContractStatus
 from hemfin.modules.contracts.schedule import EventType, Frequency
 
@@ -54,7 +53,7 @@ class ContractPatch(BaseModel):
     category_id: UUID | None = None
     name: Name | None = None
     provider: Provider | None = None
-    amount: Decimal | None = None
+    amount: Amount | None = None
     currency: Currency | None = None
     frequency: Frequency | None = None
     start_date: CalendarDate | None = None
@@ -132,3 +131,5 @@ class UpcomingOut(BaseModel):
     as_of: date
     until: date
     items: list[UpcomingEvent]
+    # True when more events fall in the window than `limit` allowed (the rest are cut off).
+    has_more: bool

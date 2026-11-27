@@ -113,14 +113,17 @@ def _renewals(terms: ContractTerms, lo: date) -> Iterator[date]:
     if not terms.active or not terms.auto_renew:
         return
     term = terms.renewal_term_months or DEFAULT_RENEWAL_TERM_MONTHS
-    first = terms.end_date or add_months(terms.start_date, term)
-    k = 0
-    if lo > first:
-        k = max(0, _months_between(first, lo) // term - 1)
-        while add_months(first, term * k) < lo:
+    # Every renewal is anchor + k terms (clamped from the anchor's own day, so a Feb 29 start
+    # renews Feb 28 and then Feb 29 again). The anchor is the end date, else the start date
+    # (whose k=0 is not a renewal).
+    anchor = terms.end_date or terms.start_date
+    k = 0 if terms.end_date else 1
+    if lo > anchor:
+        k = max(k, _months_between(anchor, lo) // term - 1)
+        while add_months(anchor, term * k) < lo:
             k += 1
     while True:
-        yield add_months(first, term * k)
+        yield add_months(anchor, term * k)
         k += 1
 
 
@@ -154,5 +157,5 @@ def upcoming_events(terms: ContractTerms, as_of: date, until: date) -> list[Sche
             events.append(ScheduleEvent(EventType.renewal, renewal))
         if deadline is not None and as_of <= deadline <= until:
             events.append(ScheduleEvent(EventType.notice_deadline, deadline))
-    order = {EventType.notice_deadline: 0, EventType.payment: 1, EventType.renewal: 2}
-    return sorted(events, key=lambda e: (e.date, order[e.type]))
+    # Same order the service uses: (date, type value); notice_deadline < payment < renewal.
+    return sorted(events, key=lambda e: (e.date, e.type.value))

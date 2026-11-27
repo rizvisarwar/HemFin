@@ -10,6 +10,7 @@ from hemfin.core.errors import CodedHTTPException
 from hemfin.core.money import MoneyBase, validate_amount
 from hemfin.core.pagination import decode_cursor, encode_cursor
 from hemfin.modules.categories.models import Category
+from hemfin.modules.categories.schemas import CategoryKind
 from hemfin.modules.categories.service import get_visible
 from hemfin.modules.contracts.models import Contract, ContractStatus
 from hemfin.modules.contracts.schedule import (
@@ -82,8 +83,11 @@ async def _check_refs(
     session: AsyncSession, space_id: UUID, category_id: UUID | None, member_user_id: UUID | None
 ) -> None:
     """Ids must belong to this space. A foreign id gets the same 422 as an unknown one."""
-    if category_id is not None and await get_visible(session, space_id, category_id) is None:
-        raise _invalid("invalid_category", "Unknown category.")
+    if category_id is not None:
+        cat = await get_visible(session, space_id, category_id)
+        # Contracts are expenses: income categories are rejected like unknown ones.
+        if cat is None or cat.kind != CategoryKind.expense:
+            raise _invalid("invalid_category", "Unknown category.")
     if member_user_id is not None:
         is_member = await session.scalar(
             select(SpaceMembership.id).where(
@@ -207,8 +211,12 @@ async def update_contract(
         raise _invalid("invalid_dates", "end_date must be on or after start_date.")
     await _check_refs(session, space_id, changes.get("category_id"), changes.get("member_user_id"))
 
+    if "frequency" in changes:
+        changes["frequency"] = Frequency(changes["frequency"]).value
+    if "status" in changes:
+        changes["status"] = ContractStatus(changes["status"]).value
     for field, value in changes.items():
-        setattr(c, field, value.value if hasattr(value, "value") else value)
+        setattr(c, field, value)
     await session.commit()
     row, key = await _get_row(session, space_id, contract_id)
     return to_out(row, key, as_of)
@@ -220,8 +228,10 @@ async def delete_contract(session: AsyncSession, *, space_id: UUID, contract_id:
     await session.commit()
 
 
-async def upcoming(session: AsyncSession, *, space_id: UUID, as_of: date, days: int) -> UpcomingOut:
-    """Events in [as_of, as_of + days] across active contracts, sorted by date.
+async def upcoming(
+    session: AsyncSession, *, space_id: UUID, as_of: date, days: int, limit: int
+) -> UpcomingOut:
+    """Events in [as_of, as_of + days] across active contracts, at most `limit`, sorted.
 
     Phase 5 notifications reuse this.
     """
@@ -243,5 +253,7 @@ async def upcoming(session: AsyncSession, *, space_id: UUID, as_of: date, days: 
                     amount=MoneyBase(amount=c.amount, currency=c.currency),
                 )
             )
-    events.sort(key=lambda e: (e.date, e.contract_name, str(e.contract_id)))
-    return UpcomingOut(as_of=as_of, until=until, items=events)
+    # One deterministic order: (date, type, contract name, id). The type values sort as
+    # notice_deadline < payment < renewal, matching schedule.upcoming_events.
+    events.sort(key=lambda e: (e.date, e.type.value, e.contract_name, str(e.contract_id)))
+    return UpcomingOut(as_of=as_of, until=until, items=events[:limit], has_more=len(events) > limit)

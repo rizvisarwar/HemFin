@@ -298,6 +298,105 @@ async def test_member_user_must_belong_to_space(aclient: httpx.AsyncClient, key:
     assert r.status_code == 201 and r.json()["member_user_id"] == str(other)
 
 
+async def test_member_of_another_space_is_rejected(
+    aclient: httpx.AsyncClient, key: TestKey
+) -> None:
+    """Bob really is a member, but of space B only: space A must not accept him."""
+    _, ha = await _user(aclient, key)
+    bob, hb = await _user(aclient, key)
+    sa, sb = await _household(aclient, ha), await _household(aclient, hb)
+    cat = await _cat(aclient, ha, sa, "insurance.car")
+    url = f"{API}/{sa}/contracts"
+    r = await aclient.post(url, json=_body(cat, member_user_id=str(bob)), headers=ha)
+    assert r.status_code == 422 and r.json()["code"] == "invalid_member"
+    c = await _make(aclient, ha, sa, cat)
+    r = await aclient.patch(f"{url}/{c['id']}", json={"member_user_id": str(bob)}, headers=ha)
+    assert r.status_code == 422 and r.json()["code"] == "invalid_member"
+    # control: Bob is accepted in his own space
+    own = await _cat(aclient, hb, sb, "insurance.car")
+    r = await aclient.post(
+        f"{API}/{sb}/contracts", json=_body(own, member_user_id=str(bob)), headers=hb
+    )
+    assert r.status_code == 201
+
+
+async def test_foreign_category_on_patch_is_422(aclient: httpx.AsyncClient, key: TestKey) -> None:
+    _, ha = await _user(aclient, key)
+    _, hb = await _user(aclient, key)
+    sa, sb = await _household(aclient, ha), await _household(aclient, hb)
+    foreign = (
+        await aclient.post(
+            f"{API}/{sb}/categories", json={"name": "Secret", "kind": "expense"}, headers=hb
+        )
+    ).json()["id"]
+    c = await _make(aclient, ha, sa, await _cat(aclient, ha, sa, "insurance.car"))
+    url = f"{API}/{sa}/contracts/{c['id']}"
+    r = await aclient.patch(url, json={"category_id": foreign}, headers=ha)
+    assert r.status_code == 422 and r.json()["code"] == "invalid_category"
+
+
+async def test_income_category_is_rejected_for_contracts(
+    aclient: httpx.AsyncClient, key: TestKey
+) -> None:
+    _, h = await _user(aclient, key)
+    space = await _household(aclient, h)
+    income = await _cat(aclient, h, space, "income.salary")
+    r = await aclient.post(f"{API}/{space}/contracts", json=_body(income), headers=h)
+    assert r.status_code == 422 and r.json()["code"] == "invalid_category"
+    c = await _make(aclient, h, space, await _cat(aclient, h, space, "insurance.car"))
+    url = f"{API}/{space}/contracts/{c['id']}"
+    r = await aclient.patch(url, json={"category_id": income}, headers=h)
+    assert r.status_code == 422 and r.json()["code"] == "invalid_category"
+
+
+async def test_amount_must_be_a_string_and_keep_precision(
+    aclient: httpx.AsyncClient, key: TestKey
+) -> None:
+    _, h = await _user(aclient, key)
+    space = await _household(aclient, h)
+    cat = await _cat(aclient, h, space, "insurance.car")
+    url = f"{API}/{space}/contracts"
+    for bad in (12.5, 12):
+        r = await aclient.post(url, json=_body(cat, amount=bad), headers=h)
+        assert r.status_code == 422, bad
+    precise = _body(cat, amount="100.0000000000000000000000000001", currency="JPY")
+    assert (await aclient.post(url, json=precise, headers=h)).status_code == 422
+    c = await _make(aclient, h, space, cat)
+    r = await aclient.patch(f"{url}/{c['id']}", json={"amount": 9.99}, headers=h)
+    assert r.status_code == 422
+    r = await aclient.patch(
+        f"{url}/{c['id']}",
+        json={"amount": "10.0000000000000000000000000001", "currency": "EUR"},
+        headers=h,
+    )
+    assert r.status_code == 422
+
+
+async def test_derived_key_prefix_and_collision(aclient: httpx.AsyncClient, key: TestKey) -> None:
+    _, h = await _user(aclient, key)
+    space = await _household(aclient, h)
+    url = f"{API}/{space}/categories"
+    r = await aclient.post(url, json={"name": "3D printing", "kind": "expense"}, headers=h)
+    assert r.status_code == 201 and r.json()["key"] == "c_3d_printing"
+    # "Food" derives the system key `food`
+    r = await aclient.post(url, json={"name": "Food", "kind": "expense"}, headers=h)
+    assert r.status_code == 409 and r.json()["code"] == "category_exists"
+
+
+async def test_upcoming_limit_and_has_more(aclient: httpx.AsyncClient, key: TestKey) -> None:
+    _, h = await _user(aclient, key)
+    space = await _household(aclient, h)
+    cat = await _cat(aclient, h, space, "utility.gas")
+    await _make(aclient, h, space, cat, name="Weekly", frequency="weekly", start_date="2026-01-01")
+    url = f"{API}/{space}/contracts/upcoming"
+    r = (await aclient.get(url, params={"days": 60, "limit": 3}, headers=h)).json()
+    assert len(r["items"]) == 3 and r["has_more"] is True
+    r = (await aclient.get(url, params={"days": 7}, headers=h)).json()
+    assert len(r["items"]) <= 2 and r["has_more"] is False
+    for bad in (0, 201):
+        assert (await aclient.get(url, params={"limit": bad}, headers=h)).status_code == 422
+
+
 async def test_any_member_can_read_and_write(aclient: httpx.AsyncClient, key: TestKey) -> None:
     _, ha = await _user(aclient, key)
     bob, hb = await _user(aclient, key)

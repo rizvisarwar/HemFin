@@ -12,8 +12,10 @@ import pycountry
 from pydantic import (
     AfterValidator,
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     StringConstraints,
+    WithJsonSchema,
     field_serializer,
     model_validator,
 )
@@ -64,6 +66,21 @@ Currency = Annotated[
 ]
 
 
+def _string_or_decimal(v: object) -> object:
+    """Amounts travel as strings. JSON numbers (float or int) are rejected, never rounded."""
+    if isinstance(v, str | Decimal):
+        return v
+    raise ValueError('Amount must be a string, for example "12.50".')
+
+
+# String-only in the OpenAPI input schema too, so generated clients type it as `string`.
+Amount = Annotated[
+    Decimal,
+    BeforeValidator(_string_or_decimal),
+    WithJsonSchema({"type": "string", "pattern": r"^\d+(\.\d+)?$", "examples": ["12.50"]}),
+]
+
+
 def minor_units(currency: str) -> int:
     """Decimal places of the currency's minor unit (JPY 0, EUR 2, KWD 3)."""
     return _MINOR_UNITS.get(currency.upper(), DEFAULT_MINOR_UNITS)
@@ -78,9 +95,12 @@ def validate_amount(amount: Decimal, currency: str) -> Decimal:
     if amount > MAX_AMOUNT:
         raise ValueError("Amount is too large.")
     places = minor_units(currency)
-    exponent = amount.normalize().as_tuple().exponent
+    # Strip trailing zeros from the digit tuple. `normalize()` would round to the context
+    # precision and could hide excess decimals (100.000...0001 JPY).
+    _, digits, exponent = amount.as_tuple()
     assert isinstance(exponent, int)
-    if exponent < -places:
+    trailing = len(digits) - len("".join(map(str, digits)).rstrip("0"))
+    if exponent + trailing < -places:
         raise ValueError(f"{currency.upper()} allows at most {places} decimal places.")
     return amount
 
@@ -90,7 +110,7 @@ class MoneyBase(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    amount: Decimal
+    amount: Amount
     currency: Currency
 
     @field_serializer("amount")

@@ -90,4 +90,23 @@ PR: https://github.com/rizvisarwar/HemFin/pull/27 (branch `hem-018-api-contracts
 - HEM-020 also adds a migration; PM to order revisions at merge.
 - Minor-units table is hand-maintained (ISO-4217 exceptions); revisit if exotic currencies matter.
 
+### 2026-11-27 Engineer, review round 1 fixes
+1. Minor-unit bypass: `validate_amount` now strips trailing zeros from the digit tuple (no `normalize()`, no rounding). Both bypass strings are in `test_money.py::test_invalid`; POST and PATCH paths are covered in `test_contracts_db.py`.
+2. Cross-space member: new test with Bob as a real member of space B only; POST and PATCH on space A both give 422 `invalid_member` (control: accepted in his own space). Also PATCH with a real foreign category id gives 422 `invalid_category` (nit 12).
+3. `GET /contracts/upcoming` is a PM-approved bounded exception to cursor pagination: `days` 1..366 plus new `limit` (default 50, 1..200). The response has `has_more`; events are cut off after sorting. Documented in the route description. Test added.
+4. Amounts are string-only on input: JSON numbers get 422, and the OpenAPI/TS input type is now `string` (client regenerated).
+5. Categories stay unpaginated (accepted, bounded).
+6. Accepted: no renewal or notice event without auto_renew. Phase 5 follow-up: add an "ends" event for contracts with an end_date.
+7. Contracts require an expense-kind category; an income category gives 422 `invalid_category` (test added).
+8. `update_contract` converts `frequency` and `status` explicitly with `.value`.
+9. One sort, `(date, type value, contract name, id)`, in both paths (`schedule.upcoming_events` sorts by `(date, type value)`; notice_deadline < payment < renewal).
+10. `_visible` returns `ColumnElement[bool]`, `to_out` uses `CategoryKind(...)`, and the production assert is an explicit 422 guard.
+11. Seed left as is (migrations run once).
+12. Added tests: leap-day annual auto-renew, the `c_` prefix derivation, a derived slug colliding with a system key (409). While doing this I changed renewal rolling to anchor on the end date (or the start date), so a Feb 29 start renews Feb 28 2025 and then Feb 29 2028 instead of drifting to the 28th for good.
+13. Phase 5 follow-up: `get_today` is the UTC date; notifications need user-local day boundaries.
+14. Phase 5 follow-up (tracked): clear `contracts.member_user_id` when a member leaves a space.
+
 ## Review
+
+### Round 1: CHANGES_REQUESTED (PR comment 7215389574)
+Blocking items 1 to 3 and nits 4 to 14, as sent by the PM. See the Handoff log entry dated 2026-11-27 (round 1 fixes) for how each was addressed.

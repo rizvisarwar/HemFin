@@ -68,6 +68,12 @@ async def list_contracts(
 @router.get(
     "/upcoming",
     summary="Payments, renewals and notice deadlines in the next N days",
+    description=(
+        "Bounded, not cursor-paginated (approved exception): the window is at most 366 days "
+        "and the response holds at most `limit` events (default 50, max 200), sorted by "
+        "date, type, contract name and id. `has_more` is true when events were cut off; "
+        "narrow `days` to see the rest."
+    ),
     responses={**_404, **_422},
 )
 async def upcoming_contracts(
@@ -75,8 +81,11 @@ async def upcoming_contracts(
     session: Session,
     today: Today,
     days: Annotated[int, Query(ge=1, le=service.MAX_UPCOMING_DAYS)] = 30,
+    limit: Annotated[int, Query(ge=1, le=200, description="Maximum events returned.")] = 50,
 ) -> UpcomingOut:
-    return await service.upcoming(session, space_id=access.space_id, as_of=today, days=days)
+    return await service.upcoming(
+        session, space_id=access.space_id, as_of=today, days=days, limit=limit
+    )
 
 
 @router.post("", status_code=201, summary="Create a contract", responses={**_404, **_422})

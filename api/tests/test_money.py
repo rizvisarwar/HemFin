@@ -32,6 +32,9 @@ def test_valid(amount: str, currency: str) -> None:
         ("NaN", "EUR"),
         ("Infinity", "EUR"),
         ("100000000000000", "EUR"),
+        # Excess decimals beyond the 28-digit default context must not be rounded away.
+        ("100.0000000000000000000000000001", "JPY"),
+        ("10.0000000000000000000000000001", "EUR"),
     ],
 )
 def test_invalid(amount: str, currency: str) -> None:
@@ -88,3 +91,22 @@ def test_contract_patch_rules() -> None:
     for bad in ({"name": None}, {"amount": None}, {"amount": "1.234", "currency": "EUR"}):
         with pytest.raises(ValidationError):
             ContractPatch.model_validate(bad)
+
+
+@pytest.mark.parametrize("bad", [12.5, 12, True])
+def test_amount_rejects_json_numbers(bad: object) -> None:
+    with pytest.raises(ValidationError):
+        Money.model_validate({"amount": bad, "currency": "EUR"})
+    with pytest.raises(ValidationError):
+        ContractPatch.model_validate({"amount": bad})
+
+
+def test_amount_openapi_input_is_string_only() -> None:
+    assert Money.model_json_schema()["properties"]["amount"]["type"] == "string"
+
+
+def test_patch_amount_precision_bypass_rejected() -> None:
+    with pytest.raises(ValidationError):
+        ContractPatch.model_validate(
+            {"amount": "10.0000000000000000000000000001", "currency": "EUR"}
+        )
