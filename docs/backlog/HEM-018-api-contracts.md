@@ -60,4 +60,34 @@ A space member can record contracts (insurance, utilities, subscriptions, member
 
 ## Handoff log
 
+### 2026-11-27 Engineer
+PR: https://github.com/rizvisarwar/HemFin/pull/27 (branch `hem-018-api-contracts`).
+
+**PM scope additions (HEM-017 design, finance.md section 11), done in this PR**
+1. Categories have a display `name` column and response field. System rows are seeded with English names (insurance.home = "Home insurance"). Custom categories take `name` (trimmed, 1..60) on POST; `key` is optional and derived from the name (`Pet care & vets` -> `pet_care_vets`).
+2. Upcoming events: `date`, `type`, `contract_id`, `contract_name`, `amount`.
+3. Shared Money response shape `{"amount": "<decimal string>", "currency": "XXX"}` (`MoneyBase` in `core/money.py`). Event `amount` uses it nested. Contract responses and requests keep `amount` and `currency` flat, as the ticket specifies (they inherit `Money`/`MoneyBase`).
+
+**What was done**
+- `core/money.py`: `Currency` (moved from profile, re-exported there), `minor_units`, `validate_amount`, `MoneyBase`, `Money`.
+- Migration 0006 (down 0005): `categories` (stable uuid5 seed ids, partial unique indexes per scope), `contracts` (checks, FKs).
+- `modules/categories`, `modules/contracts` (models, schemas, service, router, `schedule.py`). Schedule is pure and takes `as_of`; the router gets today from a `get_today` dependency (tests pin it).
+- Client regenerated with `npm run gen:api`.
+
+**How to verify**: see the PR body. API: `uv run pytest` with `DATABASE_URL` set (281 passed locally against postgres:16, including the migration roundtrip).
+
+**Decisions**
+- Category `GET` returns `Page` with all items and `next_cursor: null` (bounded list: seed plus at most 100 custom per space).
+- `category` list filter takes a key; a group key (`insurance`) includes its children.
+- Renewals exist only with `auto_renew`. First renewal = `end_date` if set, else start + term (default 12 months); then rolls by term. With auto-renew, payments continue past `end_date`.
+- `notice_deadline` in `schedule` is for the next renewal and may be in the past; `upcoming` only lists deadlines inside the window.
+- `upcoming` returns `{as_of, until, items}` and includes only active contracts; a weekly contract yields several payment events.
+- Deleting a custom category that is a parent of another custom category is 409 `category_in_use`.
+- Validation errors from the service carry stable `code`s (invalid_category, invalid_member, invalid_amount, invalid_dates).
+
+**Limitations and follow-ups**
+- If a member leaves a space, `member_user_id` on contracts is not cleared (follow-up).
+- HEM-020 also adds a migration; PM to order revisions at merge.
+- Minor-units table is hand-maintained (ISO-4217 exceptions); revisit if exotic currencies matter.
+
 ## Review
