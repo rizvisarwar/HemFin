@@ -1,6 +1,6 @@
 # Core finance: contracts, expenses, income and dashboard (HEM-017)
 
-Status: v1 (HEM-017). Owner: Designer. Built by: HEM-021 (contracts), HEM-022 (expenses and income), HEM-023 (dashboard).
+Status: v1 (HEM-017), PM decisions applied. Owner: Designer. Built by: HEM-021 (contracts), HEM-022 (expenses and income), HEM-023 (dashboard).
 Related: `design-system.md` (tokens, type, money rules in section 5, dialogs and states), `app-shell.md` (shell, page header, empty-state pattern, space badge), `households.md` (form, dialog and section-link patterns, the `Field` and `FormMessage` usage).
 API source: HEM-018 (categories, contracts, schedule), HEM-019 (expenses, income), HEM-020 (FX), HEM-023 (dashboard). Field names are in section 11.
 
@@ -21,23 +21,23 @@ HemFin's core money screens: a user records what they pay (contracts and one-off
 
 Shared building blocks are in section 3: money input and display, converted amounts, category, frequency and "applies to" pickers, dates, due-date chips, and the form and confirmation patterns.
 
-Out of scope for this spec: reports (a later phase), documents attached to records, FX rate management (an internal job, HEM-020), notifications (Phase 5), and the category management screen (see open question Q4).
+Out of scope for this spec: reports (a later phase), documents attached to records, FX rate management (an internal job, HEM-020), notifications (Phase 5), and the category management screen (a board follow-up, see Q4 in section 13).
 
 ---
 
 ## 2. Decisions in this spec
 
-These decisions let HEM-021, HEM-022 and HEM-023 start without a design round trip. Open points for the PM are in section 13.
+These decisions let HEM-021, HEM-022 and HEM-023 start without a design round trip. The PM's decisions on the open questions are in section 13.
 
 | # | Decision | Why |
 |---|---|---|
 | F1 | Amounts are decimal strings from the API and stay strings in the UI. Amount inputs are `type="text"` with `inputMode="decimal"`, never `type="number"`. The text is parsed on submit (3.1). | `design-system.md` 5, rules 1 and 2. A number input rewrites the value in the browser's locale and can lose digits. |
 | F2 | Each record stores its own currency. The currency select defaults to the space's base currency (the profile's `base_currency`). | A record can be paid in another currency, for example a SEK subscription, so the currency belongs to the record. |
-| F3 | The base-currency equivalent of a record is shown under its original amount, marked "About" (screen readers) and "≈" (sight). Totals are in the base currency only. When there is no rate, the screen says so and does not guess. | Keeps the original visible, and makes clear which total a record is in. |
+| F3 | The base-currency equivalent of a record is shown under its original amount, marked "About" (screen readers) and "≈" (sight). Totals are in the base currency only. When there is no rate, a list row shows the original amount only (no guess), and the dashboard hint says how many amounts are left out. Base amounts come from the API (Q1). | Keeps the original visible, and makes clear which total a record is in. |
 | F4 | Every finance page has a `SpaceBadge` next to its title. Every form shows the badge in its header. "Applies to" appears only in a household space. | `app-shell.md` 2.4 and 5. The user always knows whose money it is. |
 | F5 | Contracts default to the **Active** filter. Filters sit in a sheet on phone and in a row above the table from `md`. | Cancelled contracts are rarely wanted, and a filter row would crowd a 375 px screen. |
-| F6 | Due-date thresholds (3.8): a payment or renewal within 7 days shows a warning chip. A notice deadline within 30 days shows "Notice deadline soon". A notice date already passed is neutral text, not an alarm. | Warnings that come too early become noise. The 7 and 30 day values are a proposal (Q3). |
-| F7 | Create and edit forms use `ResponsiveDialog`: a bottom sheet on phone, a centred dialog from `md`. The body scrolls and the footer is pinned. They are not separate pages. | Keeps the list in view, matches `households.md` and `profile.md`. The long contract form scrolls inside the dialog. |
+| F6 | Due-date thresholds (3.8): a payment or renewal within 7 days shows a warning chip. A notice deadline within 30 days shows "Notice deadline soon". A notice date already passed is neutral text, not an alarm. | Warnings that come too early become noise. The 7 and 30 day values are confirmed (Q3). |
+| F7 | Create and edit forms use `ResponsiveDialog`: a bottom sheet on phone, a centred dialog from `md`. The body scrolls and the footer is pinned. They are not separate pages. | Keeps the list in view, matches `households.md` and `profile.md`. The long contract form scrolls inside the dialog. Confirmed for the contract form (Q7). |
 | F8 | Form field `name` and `id` equal the API field name (`end_date`, `category_id`). Server errors from problem+json map back to fields by that name. | Field-level server validation needs no lookup table. |
 | F9 | Quick add (expenses) shows four fields first: amount, category, date and the save button. Description and merchant are under "More details", collapsed. | "A few taps" on a phone. |
 | F10 | Expense and income lists group by calendar month, using the date string (no time zone conversion). A month header shows the number of items. It shows a total only when the API returns one. The browser does not add up money. | Dates are calendar dates (HEM-018 design notes). Summing money in the browser would be business logic, and a sum over a page is wrong when the list is paged. |
@@ -47,11 +47,11 @@ These decisions let HEM-021, HEM-022 and HEM-023 start without a design round tr
 | F14 | An income source is paused with its "Active" checkbox, not deleted. A paused source stays in the list with a "Paused" badge. Deleting a source keeps its received payments, which lose the link (`source_id` null). | Income often stops and starts. Deleting history by accident would be costly. |
 | F15 | Dashboard totals are in the base currency: "Spent this month", "Recurring cost" (monthly equivalent) and "Income this month". A hint appears when `unconverted_count` is above 0. | HEM-023. The totals must say what they leave out. |
 | F16 | The dashboard first run (no contracts, expenses or income) is one page-variant empty state, with no zero totals. Zero totals would look like a broken page. | `app-shell.md` 6. |
-| F17 | The dashboard's page header action is "Add an expense". On the first run the header has no action, because the empty state holds the actions. | Expenses are the most frequent record. Only one place shows the same button (`app-shell.md` 6). |
+| F17 | The dashboard's page header action is "Add an expense". On the first run the header has no action, because the empty state holds the actions. | Expenses are the most frequent record. Only one place shows the same button (`app-shell.md` 6). Confirmed (Q9). |
 | F18 | A dialog with unsaved changes asks before it closes (Escape, outside tap or Cancel). | Stops an accidental loss of a long contract form. |
 | F19 | Quick add pre-selects the category last used in this space by this user. The memory is a per-viewer convenience kept in `localStorage`, and it falls back to an empty placeholder. Date defaults to today in the user's time zone. | Saves a tap. The value is never shared or read back by the server. |
 | F20 | Currency is shown as a symbol when it equals the base currency, and as a code when it differs (`design-system.md` 5.4, rule 4). | Multi-currency lists need the code to be readable. |
-| F21 | The converted amount uses the code and the currency's minor units: "≈ SEK 1,234.00", not "≈ 1,234 SEK". | The design system asks for `Intl.NumberFormat` output, never client rounding, and a code prefix matches `MoneyText` with `showCode`. The ticket's example is illustrative (Q8). |
+| F21 | The converted amount uses the code and the currency's minor units: "≈ SEK 1,234.00", not "≈ 1,234 SEK". | The design system asks for `Intl.NumberFormat` output, never client rounding, and a code prefix matches `MoneyText` with `showCode`. The ticket's example is illustrative. This format is confirmed (Q8). |
 | F22 | Contract rows show the frequency in words ("EUR 4,350.00 a year"). The browser does not compute a per-contract monthly amount. The only monthly total is the API's `recurring_monthly`. | One source of truth for money totals. |
 | F23 | Lists are read in order, newest date first. Each item is one row or card. Rows are not drag-sortable, and no bulk select is offered in this phase. | Keeps the screens calm and the scope small. |
 
@@ -104,7 +104,7 @@ Rules:
 | Negative (not expected in this scope, but the rule holds) | the Intl minus sign, plus text | `-€12.00` with the word "Refund" in meta text |
 
 Rules:
-- Pass `currency` and `locale` explicitly in list rows. The context fallback in `MoneyText` is for the dashboard totals only.
+- Pass `currency` and `locale` explicitly on every screen in this spec, including the dashboard totals. Each Money value from the API carries its own currency (section 11), so the context fallback in `MoneyText` is not used here.
 - A zero is a value, not a dash. Show "€0.00" and a short meta line that says why.
 - Amounts are `tabular-nums` and right-aligned in tables and in card lists (the amount sits on the right edge of the card).
 - Never colour an amount for good or bad. `warning` tone is only for a due date chip, not the amount itself.
@@ -118,21 +118,21 @@ Shown under the original amount in list rows, detail views and the dashboard hin
   Transport · 9 Nov 2026           ≈ EUR 48.11       <- converted, text-small, muted
 
   Coffee subscription              USD 9.00
-  Subscriptions · 12 Nov 2026      No USD to EUR rate for 12 Nov 2026.
-                                   Not in the EUR total.   <- no rate, muted, with icon
+  Subscriptions · 12 Nov 2026      (nothing: no rate, so no line)
+                                   <- no line when base_amount is null
 ```
 
 | State | What the user sees | Copy |
 |---|---|---|
 | Converted | `≈` (hidden from screen readers, which hear "About") and the base amount with its code. | "About EUR 48.11" |
-| No rate | An icon (`CircleHelp`) and neutral text. The record stays in the list and its original amount shows. | "No USD to EUR rate for 12 Nov 2026. Not in the EUR total." |
+| Null (`base_amount` is null) | Nothing under the original amount. The record stays in the list. This covers a missing rate and FX not yet built (Q1). | none |
 | Same currency | Nothing is rendered. | none |
 | Loading | No placeholder. The base line appears with the record, because the API returns it with the record. | none |
 
 Rules:
 - The converted line is always smaller and muted, so the original amount stays the main figure.
-- "No rate" is not an error. It uses neutral text and an icon, not red.
-- The rate date shown is the date of the record (`spent_on` or `received_on`), in the same format as the rest of the screen.
+- A null `base_amount` is not an error, so it gets no text. The browser never guesses a rate.
+- The dashboard hint for unconverted amounts (7.1) is the only place that says which amounts are left out of the totals.
 
 ### 3.4 Category picker (`CategorySelect`)
 
@@ -147,8 +147,8 @@ A native select with one `optgroup` per parent category. The native picker is th
 Income sources do not use categories. Their `type` (Salary, Business, Other) is a plain native select with three options, labelled "Type", default Salary. Income entries have no category.
 
 Rules:
-- Each option shows its display name. The API returns category `key` (for example `insurance.home`), and the label comes from the category list (see Q5).
-- "Your categories" holds the space's own categories. It appears only when the space has any.
+- Each option shows the category's `name` from the API (Q5). The UI keeps no label table. The API also returns `key` (for example `insurance.home`), which decides the group.
+- "Your categories" holds the space's own categories. It appears only when the space has any. No screen in Phase 3 creates or renames a category (Q4), so the group only lists categories that already exist.
 - The field is required in forms and shows "Choose a category." on a failed submit (see 3.10).
 - Subcategories such as `insurance.home` and `insurance.car` appear under the parent group "Insurance", labelled "Home insurance" and "Car insurance".
 
@@ -169,7 +169,7 @@ Default for a new contract: Monthly. Default for a new income source: Monthly.
 
 ### 3.6 Date fields
 
-Use the existing `Field` (`web/src/components/auth/form-parts.tsx`) with `type="date"`. It gives a visible label, a hint and an error, with the correct `aria-describedby`. The browser's date picker is used on every platform.
+Use `Field` with `type="date"`. `Field` and `FieldError` move to `web/src/components/ui/` in HEM-021 (Q6). It gives a visible label, a hint and an error, with the correct `aria-describedby`. The browser's date picker is used on every platform.
 
 | Field | Default | Rules | Message |
 |---|---|---|---|
@@ -178,6 +178,8 @@ Use the existing `Field` (`web/src/components/auth/form-parts.tsx`) with `type="
 | Spent on (expense) | today | required | "Enter the date you paid." |
 | Received on (income entry) | today | required | "Enter the date you received it." |
 | From and To (filters) | empty | From on or before To | "The From date must be before the To date." |
+
+Dates may be at most one day in the future. A later date gets "The date cannot be more than a day in the future." The API checks the same rule (HEM-019, Q10).
 
 Dates are calendar dates. They are shown with `Intl.DateTimeFormat` as "3 Dec 2026" (`design-system.md` 5, rule 8). No time zone is involved, so a date never moves a day.
 
@@ -664,11 +666,11 @@ Expenses sits under More on phone (`app-shell.md` 3.1). A "Expenses" link on the
 | Meta | category label, `merchant`, "For {member}" (household), "Linked to {contract name}" when `contract_id` is set | `text-small`, muted, joined with " · " |
 | Date | `spent_on` | "12 Nov 2026" |
 | Amount | `amount` and `currency` | `MoneyText md`, right-aligned; `showCode` when not the base currency |
-| Converted | `base_amount` (Q1) | `ConvertedAmount`, under the amount |
+| Converted | `base_amount` (Money or null) | `ConvertedAmount`, under the amount. Hidden when null. |
 
 The whole card (or row, on the title) is one button that opens the edit dialog. Its accessible name: "Groceries, EUR 64.20, 12 Nov 2026".
 
-**Month headers (F10).** `MonthHeader` with the title "November 2026" (`Intl.DateTimeFormat` with `month: "long"`, `year: "numeric"`) and a summary "5 expenses" (or "1 expense"). A month that continues on the next page does not repeat its header. A total appears only if the API returns one (Q2).
+**Month headers (F10).** `MonthHeader` with the title "November 2026" (`Intl.DateTimeFormat` with `month: "long"`, `year: "numeric"`) and a summary "5 expenses" (or "1 expense"). A month that continues on the next page does not repeat its header. A total appears only if the API returns one. This phase's API does not return one (F10).
 
 **Filters.**
 
@@ -733,9 +735,9 @@ Opened by "Add an expense" (or `/expenses?new=1`). Title "Add an expense". The f
 - "Save and add another" saves, keeps the dialog open, clears the amount and keeps the category, date and currency. The amount field is focused again. A toast says "Expense added. Add another."
 - "Save expense" saves and closes. Toast "Expense added."
 - The category has a default only from F19. If none, it shows "Choose a category" (disabled) and the save button still works after a choice.
-- The date defaults to today in the user's time zone. The date can be changed; it must not be in the future more than one day (proposal, Q10).
+- The date defaults to today in the user's time zone. The date can be changed. It may be at most one day in the future (Q10), and the API rejects a later date.
 
-**Validation.** Amount (3.1.1), category "Choose a category.", date "Enter the date you paid.".
+**Validation.** Amount (3.1.1), category "Choose a category.", date "Enter the date you paid.", and the future-date message in 3.6.
 
 **States.** Idle, busy ("Saving…" on both buttons, one busy at a time), validation errors, server errors (`FormMessage` at the top, values kept), success (toast, close or reset).
 
@@ -807,7 +809,7 @@ The ConvertedAmount line on income reads "About EUR 552.10" (no extra plus sign;
 | Meta | "Income", the source's type label (Salary, Business, Other), or "No source", and "For {member}" (household) | `text-small` |
 | Date | `received_on` | |
 | Amount | `amount` and `currency` | `+` sign (`signDisplay="always"`), right-aligned, `MoneyText md` |
-| Converted | `base_amount` (Q1) | `ConvertedAmount`, "About {base}" |
+| Converted | `base_amount` (Money or null) | `ConvertedAmount`, "About {base}". Hidden when null. |
 
 **Filters.** From, To (inclusive), Source (`source_id`, "All sources" or each source), Applies to (household). Filter sheet on phone, row on desktop.
 
@@ -833,7 +835,7 @@ Title "Add income" or "Edit income". Fields in this order:
 | Field (UI label) | `name` | Type | Required | Notes |
 |---|---|---|---|---|
 | Amount and currency | `amount`, `currency` | `AmountInput` | yes | 3.1.1 |
-| Received on | `received_on` | date | yes | Default today. Error "Enter the date you received it." |
+| Received on | `received_on` | date | yes | Default today. Error "Enter the date you received it." A date more than one day ahead: "The date cannot be more than a day in the future." (Q10) |
 | From source (optional) | `source_id` | select: "No source" and the space's sources | no | Sources with `active` false are listed under "Paused" in the option text, for example "Salary (paused)". |
 | Description (optional) | `description` | text, max 120 | no | |
 | Applies to | `member_user_id` | `AppliesToSelect` | no | Household only. |
@@ -932,7 +934,7 @@ Validation messages: name ("Enter a name for the source."), type ("Choose a type
 | +----------------------------------------------+ |
 | | Spent this month                             | |  StatCard (section, h2)
 | | €812.40                                      | |  MoneyText lg
-| | 1 to 27 Nov 2026                             | |  hint: period
+| | November 2026                                | |  hint: month
 | +----------------------------------------------+ |
 | +----------------------------------------------+ |
 | | Recurring cost                               | |
@@ -942,7 +944,7 @@ Validation messages: name ("Enter a name for the source."), type ("Choose a type
 | +----------------------------------------------+ |
 | | Income this month                            | |
 | | +€2,850.00                                   | |
-| | Income received 1 to 27 Nov 2026             | |
+| | Income for November 2026                     | |
 | +----------------------------------------------+ |
 | (i) 1 amount is not in EUR, because no rate     |  hint, text-small, muted, icon
 |     was found for its date. Totals leave it out.|
@@ -978,7 +980,7 @@ The "Notice deadline" event has no amount (a notice date is not a payment). It s
 | +------------------------+ +------------------------+ +------------------------+        |
 | | Spent this month       | | Recurring cost         | | Income this month      |        |
 | | €812.40                | | €1,043.00 a month      | | +€2,850.00             |        |
-| | 1 to 27 Nov 2026       | | Contracts, monthly     | | Received 1 to 27 Nov   |        |
+| | November 2026          | | Contracts, monthly     | | Received November 2026 |        |
 | +------------------------+ +------------------------+ +------------------------+        |
 |  (i) 1 amount is not in EUR. No rate for its date. Totals leave it out.                  |
 |                                                                                          |
@@ -1000,10 +1002,10 @@ The "Notice deadline" event has no amount (a notice date is not a payment). It s
 
 Hmm: at 768 row 2 has Income left and Upcoming right. Upcoming is a card with up to 10 events, which is tall on a 768 screen, and that is acceptable.
 
-**Components.** `PageHeader` (`SpaceBadge`, primary action "Add an expense"), `StatCard` (x3), `MoneyText` (`lg`, base currency via the context fallback), `DueChip`, `HemCard`, `EmptyState` (`page` for first run, `inline` for the upcoming list), `FormMessage` (info, for the unconverted hint, icon `CircleHelp`), `Skeleton`, `Button`, `Badge` (for "Paused" elsewhere).
+**Components.** `PageHeader` (`SpaceBadge`, primary action "Add an expense"), `StatCard` (x3), `MoneyText` (`lg`, currency from the Money object), `DueChip`, `HemCard`, `EmptyState` (`page` for first run, `inline` for the upcoming list), `FormMessage` (info, for the unconverted hint, icon `CircleHelp`), `Skeleton`, `Button`, `Badge` (for "Paused" elsewhere).
 
 **Totals rules.**
-- Each total is a `StatCard`. The figure is `MoneyText size="lg"` in the base currency. The hint line gives the period.
+- Each total is a `StatCard`. The figure is `MoneyText size="lg"`, in the currency of its Money object. The hint line names the month from `month` (for example "November 2026").
 - "Recurring cost" uses the phrase "a month" next to the figure, and the hint says "Contracts, as a monthly amount". The API computes the monthly figure (HEM-023).
 - The unconverted hint appears when `unconverted_count` is above 0. Copy for 1: "1 amount is not in {base}, because no rate was found for its date. Totals leave it out." For more than 1: "{n} amounts are not in {base}, because no rate was found for their dates. Totals leave them out." It uses `Intl.PluralRules` (or the two strings above).
 - A zero total is a value: "€0.00", with the hint "No expenses this month yet. Record one to see it here." (the zero copy is per card: expenses, income).
@@ -1092,7 +1094,7 @@ Tone rules: plain words, short sentences, "you" for the user, the household name
 - **Focus.** The global 2 px `--ring` outline with a 2 px offset, on `:focus-visible` only, in both themes (`design-system.md` 4.5). Dialogs trap focus and return it to the trigger.
 - **Labels.** Every input and select has a visible label. Hints and errors are linked with `aria-describedby`. Invalid fields have `aria-invalid="true"`.
 - **Money.** A screen reader hears the amount with its currency code or symbol. "About" is read for a converted amount. Income rows carry the word "Income" in their meta text, so the direction is not read from the `+` sign alone.
-- **Status by text and icon.** Due chips, paused and active badges, cancelled badges, and the no-rate line all carry text and an icon. Colour is never the only signal.
+- **Status by text and icon.** Due chips, paused and active badges, and cancelled badges all carry text and an icon. Colour is never the only signal.
 - **Headings.** One `h1` per page. Month groups and card sections are `h2`. Card titles inside a section are `h3`.
 - **Live regions.** Success messages are `role="status"`. Errors use `FormMessage` (`role="alert"`). Field errors are polite. The count of results for filters is announced once, after the list settles.
 - **Reduced motion.** Dialogs and sheets fade only. Skeletons do not pulse. Transitions drop to 0 ms.
@@ -1132,7 +1134,7 @@ Rules:
 
 ## 11. API field list (check against HEM-018 to HEM-023)
 
-Field names are the API's. The UI field and its control are given so the engineer can map them. "Proposal" means the field is not in the tickets yet and the spec needs it (section 13).
+Field names are the API's. The UI field and its control are given so the engineer can map them. Fields marked (Q1, Q2, Q5, Q10) were decided in section 13 and must be added to the ticket named there. Money means `{amount, currency}`, with `amount` as a decimal string (Q2). Records keep flat `amount` and `currency` fields, because the forms post them that way. Money objects are used for computed values: `base_amount`, the upcoming event amount and the dashboard totals.
 
 ### 11.1 Categories (HEM-018)
 
@@ -1143,7 +1145,7 @@ Field names are the API's. The UI field and its control are given so the enginee
 | `parent_key` | string, nullable | group heading | |
 | `kind` | `expense` or `income` | which picker lists it | |
 | `space_id` | uuid, nullable | "Your categories" group when set | null for system categories |
-| `name` (proposal, Q5) | string | the option label | Not in HEM-018. Without it the web keeps a label table, which cannot label custom categories. |
+| `name` (Q5) | string, required | the option label | Add to HEM-018. System names are seeded. Custom names are required on create. |
 
 ### 11.2 Contracts (HEM-018)
 
@@ -1178,11 +1180,11 @@ Filters: `status`, `category`, `member_user_id`. Pagination: `items` and `next_c
 
 | API field | UI | Notes |
 |---|---|---|
+| `date` (Q2) | date | Calendar date. The due chip (3.8) is computed from it. |
 | `type` | `payment`, `renewal` or `notice_deadline` | Label and icon (6.3, 7.1). |
-| `contract_id` | contract link | |
-| `name` | contract name | |
-| `amount`, `currency` | amount on the right | Not shown for `notice_deadline`. |
-| `date` (name to confirm, Q2) | date | The ticket does not name the field. |
+| `contract_id` | contract link | uuid |
+| `contract_name` (Q2) | contract name | string |
+| `amount` (Q2) | amount on the right | Money `{amount, currency}`, or null for `notice_deadline`. Not shown when null. |
 
 ### 11.4 Expenses (HEM-019)
 
@@ -1196,9 +1198,9 @@ Filters: `status`, `category`, `member_user_id`. Pagination: `items` and `next_c
 | `merchant` | Merchant (optional, max 80) | nullable |
 | `contract_id` | Linked contract (optional) | uuid, nullable. Same space. `SET NULL` on delete. |
 | `member_user_id` | Applies to | uuid, nullable |
-| `base_amount` (proposal, Q1) | `ConvertedAmount` | `{amount, currency}` in the base currency, or null when there is no rate. |
+| `base_amount` (Q1) | `ConvertedAmount` | Money or null. The caller's base currency, at the record's date. Null hides the line. Added by HEM-019 once HEM-020 exists. |
 
-Filters: `from`, `to` (inclusive), `category`, `member_user_id`, `contract_id`. Order: newest date first.
+Filters: `from`, `to` (inclusive), `category`, `member_user_id`, `contract_id`. Order: newest date first. `spent_on` may be at most one day in the future (Q10).
 
 ### 11.5 Income sources (HEM-019)
 
@@ -1222,9 +1224,9 @@ Filters: `from`, `to` (inclusive), `category`, `member_user_id`, `contract_id`. 
 | `received_on` | Received on | date, required |
 | `description` | Description (optional) | nullable |
 | `member_user_id` | Applies to | uuid, nullable |
-| `base_amount` (proposal, Q1) | `ConvertedAmount` | as for expenses |
+| `base_amount` (Q1) | `ConvertedAmount` | as for expenses (Money or null) |
 
-Filters: `from`, `to` (inclusive), `source_id`. Order: newest date first.
+Filters: `from`, `to` (inclusive), `source_id`. Order: newest date first. `received_on` may be at most one day in the future (Q10).
 
 ### 11.7 Dashboard (HEM-023)
 
@@ -1232,13 +1234,13 @@ Filters: `from`, `to` (inclusive), `source_id`. Order: newest date first.
 
 | API field | UI | Notes |
 |---|---|---|
-| `base_currency` (proposal, Q2) | currency of every total | HEM-023 says "the caller's base currency" but names no field. |
-| `spent_this_month` | "Spent this month" | Money (shape to confirm, Q2) |
+| `month` (Q2) | the hint month, "November 2026" | `YYYY-MM`, echoed back from the request. |
+| `base_currency` (Q2) | currency of the unconverted hint | ISO-4217. The Money values below carry their own currency. |
+| `spent_this_month` | "Spent this month" | Money |
 | `recurring_monthly` | "Recurring cost" | Money, a monthly amount |
 | `income_this_month` | "Income this month" | Money |
 | `upcoming` | "Next 30 days" | Up to 10 events, same shape as 11.3 |
 | `unconverted_count` | the hint in 7.1 | int, 0 or more |
-| period (`month` echoed back, proposal) | the hint line "1 to 27 Nov 2026" | The first and last day come from the month the request asked for. |
 
 ### 11.8 Members (HEM-012)
 
@@ -1261,7 +1263,7 @@ Used only for the "Applies to" options: the member's user id and display name. N
 | `EmptyState` | empty states | `page` and `inline` |
 | `Skeleton` | loading | same dimensions as the content |
 | `FormMessage` | errors, success, the unconverted hint (`info`) | |
-| `Field` (`auth/form-parts.tsx`) | text and date fields | see Q6 |
+| `Field` | text and date fields | Moves to `components/ui/` in HEM-021 (Q6). |
 | `Button`, `Input`, `Label`, `NativeSelect` | controls | |
 | `Badge` | "Cancelled", "Paused" (outline) | |
 | `DropdownMenu` | detail page "..." menu | items at least 44 px |
@@ -1273,7 +1275,7 @@ Each takes props only, has no data fetching, and contains no business logic. Eac
 | File | Component | Purpose | Key props |
 |---|---|---|---|
 | `amount-input.tsx` | `AmountInput` | Amount text field with a currency select (3.1) | `id`, `name`, `value`, `onValueChange`, `currency`, `currencyOptions`, `onCurrencyChange`, `decimalSeparator`, `fractionDigits`, `error`, `hint` |
-| `converted-amount.tsx` | `ConvertedAmount` | Base-currency equivalent, or the no-rate note (3.3) | `originalCurrency`, `baseCurrency`, `dateLabel`, `converted` (null for no rate), `locale` |
+| `converted-amount.tsx` | `ConvertedAmount` | Base-currency equivalent in muted text, or nothing (3.3) | `originalCurrency`, `baseCurrency`, `converted` (Money or null; null renders nothing), `locale` |
 | `category-select.tsx` | `CategorySelect` | Grouped native select (3.4) | `groups`, `value`, `emptyLabel`, `emptyDisabled`, `error` |
 | `frequency-select.tsx` | `FrequencySelect` (plus `FREQUENCY_LABEL` and `FREQUENCY_PHRASE`) | Frequency picker and amount phrases (3.5) | `value`, `includeIrregular`, `error` |
 | `applies-to-select.tsx` | `AppliesToSelect` | "Applies to" picker (3.7) | `options`, `value` (`""` is the whole household), `wholeLabel` |
@@ -1284,29 +1286,35 @@ Each takes props only, has no data fetching, and contains no business logic. Eac
 | `checkbox-row.tsx` | `CheckboxRow` | Native checkbox with a 44 px label row (4.3, 6.3) | `id`, `name`, `checked`, `onCheckedChange`, `label`, `description` |
 
 Notes:
-- `MoneyText` already exists. It reads the base currency and locale from `FormatProvider` when the props are missing. This is kept. List rows pass the currency explicitly.
+- `MoneyText` already exists. It reads the base currency and locale from `FormatProvider` when the props are missing. This is kept for other screens. The finance screens pass `currency` and `locale` explicitly (3.2).
 - Textarea (Notes) is not in `ui/` yet. Style it like `Input` (`min-h-22`, 16 px text, `--input` border). A shared `Textarea` is a later change.
-- The three error blocks in the pickers repeat the markup of `FieldError`. Q6 proposes one shared component.
+- The pickers repeat the error markup for now. Once HEM-021 moves `FieldError` to `components/ui/`, they use it (Q6).
 
 ---
 
-## 13. Open questions for the PM
+## 13. PM decisions
 
-Each question has a proposed answer. The engineers can start with the proposal, and it can change in one place.
+The PM answered the questions raised while writing this spec. The decisions are applied in sections 2 to 12 and are final for HEM-021 to HEM-023 unless the PM changes them.
 
-| # | Question | Proposal | Affects |
+| # | Question | Decision | Applied in |
 |---|---|---|---|
-| Q1 | **Converted amounts in list responses.** HEM-019 does not return a base-currency equivalent with each expense or income entry, and the UI needs one for "About EUR 48.11". | Add `base_amount` (`{amount, currency}` or null when there is no rate) to expense and income responses, computed by the FX service (HEM-020) for the record's date. | 3.3, 5.1, 6.1, 11.4, 11.6 |
-| Q2 | **Field names not in the tickets.** The upcoming event date field, the shape of the dashboard totals (`{amount, currency}` objects or flat fields), the base currency field in the dashboard response, and the month total for headers. | Money as `{amount, currency}` objects in the dashboard. The event date is `date`. The dashboard returns `base_currency` and `period` (`from`, `to`). Month totals are not returned (F10). | 7.1, 11.3, 11.7 |
-| Q3 | **Due-date thresholds.** Is "soon" 7 days for payments and renewals, and 30 days for notice deadlines? | Yes, as in 3.8. | 3.8, 4.1, 4.2, 7.1 |
-| Q4 | **Custom categories.** Where does a user create or rename a category? HEM-018 has the API but no screen in this ticket. | Out of scope here. A Settings screen (later ticket) owns it. Until then, the pickers show "Your categories" when there are any. | 3.4 |
-| Q5 | **Category names.** HEM-018's category fields have no display name, so the web cannot label a custom category, and labels for system categories would live in a hard-coded table. | Add `name` to categories in HEM-018 (system names seeded, custom names required on create). | 3.4, 11.1 |
-| Q6 | **Shared `FieldError` and `Field`.** Like `FormMessage` (`households.md` D22), should `FieldError` and `Field` move to `components/ui/` so the new pickers can use them? | Yes, in HEM-022, not in this ticket. Until then the new components repeat the error markup. | 3.6, 12.2 |
-| Q7 | **Contract form as a dialog.** The ticket allows a page or a dialog on desktop. This spec picks a dialog (F7). | Keep the dialog. Say so if you want a page on desktop for the contract form (it has about 12 fields). | 4.3 |
-| Q8 | **Currency display format.** The ticket example is "≈ 1,234 SEK". This spec uses "≈ SEK 1,234.00" (F21) to match `MoneyText` with `showCode`. | Keep the spec's format. It is one change in `ConvertedAmount` if you prefer the suffix form. | 3.3 |
-| Q9 | **Dashboard header action.** "Add an expense" (F17), or "Add a contract", the app-shell example. | "Add an expense". Expenses are the most frequent record. | 7.1 |
-| Q10 | **Expense future dates.** Can a user record an expense dated tomorrow? | Allow today and up to one day ahead, to cover time zones. Reject later dates with "The date cannot be more than a day in the future." | 5.2 |
-| Q11 | **Test coverage for the new components.** The components are presentational. Should HEM-021 to HEM-023 add Playwright screenshots (375, 768, 1280) for the states above, as the CLAUDE.md rule asks? | Yes. The reviewer checks the screenshots against sections 4 to 7. | 13 |
+| Q1 | **Converted amounts in list responses.** The UI needs a base-currency equivalent for "About EUR 48.11". | **Accepted.** Expense and income-entry responses get `base_amount`, which is Money or null, in the caller's base currency at the record's date. HEM-019 adds it once the FX service from HEM-020 exists. Until then the UI hides the "About …" line when it is null. | F3, 3.3, 5.1, 6.1, 11.4, 11.6 |
+| Q2 | **Field names not in the tickets.** | **Field names.** Upcoming events have `date`, `type` (`payment`, `renewal`, `notice_deadline`), `contract_id`, `contract_name` and `amount` (Money). Money is `{amount, currency}`, with `amount` as a decimal string. The dashboard response has `month` (YYYY-MM), `base_currency`, `spent_this_month`, `recurring_monthly` and `income_this_month` (each Money), `upcoming[]` and `unconverted_count`. Month totals are not returned (F10). | 3.2, 7.1, 11 |
+| Q3 | Due-date thresholds: 7 days for payments and renewals, 30 days for notice deadlines. | **Confirmed.** | F6, 3.8 |
+| Q4 | Custom categories: where does a user create or rename one? | **No UI in Phase 3.** The category picker shows the system categories plus the space's existing custom categories. Creating custom categories is a board follow-up. | 1, 3.4 |
+| Q5 | Category names. | **Accepted.** Categories have a `name` field. | 3.4, 11.1 |
+| Q6 | Shared `FieldError` and `Field`. | **Accepted.** Move `Field` and `FieldError` to `components/ui/` in HEM-021, the first web ticket. | 3.6, 12.1, 12.2 |
+| Q7 | Contract form as a dialog or a page on desktop. | **Accepted.** Keep the contract form as a dialog (sheet on phone, centred dialog from `md`). | F7, 4.3 |
+| Q8 | Currency display format for converted amounts. | **Confirmed:** "≈ SEK 1,234.00". | F21, 3.3 |
+| Q9 | Dashboard header action. | **Confirmed:** "Add an expense". | F17, 7.1 |
+| Q10 | Expense future dates. | **Accepted.** Expense and income dates may be at most one day in the future. The API validates this in HEM-019. A later date shows "The date cannot be more than a day in the future." | 3.6, 5.2, 6.2, 11.4, 11.6 |
+| Q11 | Playwright screenshots for the new components. | **Yes.** HEM-021 to HEM-023 attach Playwright screenshots at 375, 768 and 1280 px for the states in sections 4 to 7. The reviewer checks them against those sections. | 14 |
+
+**Board follow-ups from these decisions**
+- HEM-018: `name` on categories (Q5), and the upcoming event fields (Q2).
+- HEM-019: `base_amount` once HEM-020 exists (Q1), and the one-day future limit (Q10).
+- HEM-023: the dashboard fields (Q2).
+- A category creation screen, later (Q4).
 
 ---
 
@@ -1320,9 +1328,10 @@ Each question has a proposed answer. The engineers can start with the proposal, 
 - [ ] The space badge is on every finance page header and form header, and matches the 2 px accent line.
 - [ ] Every list has an empty state, a loading state and an error state (section 4 to 7). Each empty state has one next action, or none when the header already offers it.
 - [ ] Amounts use the API's decimal strings, `MoneyText`, `tabular-nums`, and the right alignment.
-- [ ] Converted amounts show "About" for screen readers, and "no rate" in neutral text.
+- [ ] Converted amounts show "About" for screen readers, and nothing when `base_amount` is null.
 - [ ] Every destructive action has a confirmation with the action's name on the button, and "Keep" as the dismiss (3.11).
 - [ ] Field names in the forms equal the API field names (section 11), so server errors map to fields.
-- [ ] Contrast of warning chips, muted text and the no-rate note passes 4.5:1 in both themes.
+- [ ] Contrast of warning chips and muted text passes 4.5:1 in both themes.
 - [ ] Focus rings are visible in both themes.
 - [ ] The page works with reduced motion (no slides, no pulsing).
+- [ ] Playwright screenshots at 375, 768 and 1280 px are attached to HEM-021 to HEM-023 (Q11).

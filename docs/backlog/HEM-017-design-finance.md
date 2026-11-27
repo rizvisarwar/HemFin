@@ -73,4 +73,24 @@ A written spec in `docs/design/finance.md`, plus any presentational components, 
 - `npm install` rewrote one line of `package-lock.json` (npm version normalisation of `openapi-fetch`). It is reverted and not in this commit.
 - No tests were added. The components are presentational and no screen uses them yet. Q11 proposes Playwright screenshots in HEM-021 to HEM-023.
 
+### 2026-11-27 · Designer (Haiku 5.5) · PM decisions applied
+**Done**
+- `docs/design/finance.md`: section 13 is now "PM decisions" (Q1 to Q11, all answered). The decisions are applied to sections 2 (F3, F6, F7, F17, F21), 3.2, 3.3, 3.4, 3.6, 5.1, 5.2, 6.1, 6.2, 7.1, 9, 11, 12 and 14.
+- Section 11 field list: `base_amount` is Money or null. Upcoming events have `date`, `type`, `contract_id`, `contract_name` and `amount` (Money). The dashboard has `month`, `base_currency`, Money totals, `upcoming[]` and `unconverted_count`. The `period` field is removed. Categories have `name`.
+- Expense and income dates may be at most one day in the future (Q10).
+- Contract form stays a dialog (Q7). `Field` and `FieldError` move to `components/ui/` in HEM-021 (Q6).
+
+**Consequences to check**
+- Money here means `{amount, currency}`. Records keep flat `amount` and `currency` because the forms post them flat. Money objects are used only for computed values. This is my reading of Q2, so confirm it, or say if records should move to Money too.
+- List rows show no "no rate" note. A null `base_amount` hides the line, and the dashboard hint is the only place that says amounts are left out of the totals.
+- The dashboard hint names the month ("November 2026") instead of a date range, because the response has `month` and no period.
+
+**Left**
+- Nothing for design on this ticket. HEM-021 starts with the `Field` move (Q6) and the Playwright screenshots (Q11).
+- API tickets: HEM-018 (`name` on categories, upcoming event fields), HEM-019 (`base_amount` after HEM-020, one-day future limit), HEM-023 (dashboard fields).
+
+**How to verify**
+- `docs/design/finance.md` section 13 lists each decision and where it applies.
+- Check section 11 against HEM-018, HEM-019 and HEM-023 once they are updated.
+
 ## Review
