@@ -47,6 +47,8 @@ Built the FX table, the `POST /internal/jobs/fx` job, `modules/fx` (service, rou
 
 How to verify: `cd api; uv run pytest tests/test_fx.py`; with `DATABASE_URL` set also `tests/test_fx_db.py`. After deploy, run the "Scheduled jobs" workflow manually with job `fx`.
 
+CI status after the fix commit: `api` and `docker` pass (db tests ran in CI). `gitleaks` fails on one false positive in history (commit `4cd20c7`, `api/tests/test_fx.py:229`, a feed-URL test setting; the line is already reworded). It needs the exact-fingerprint line `4cd20c73e019b48b6b97dd9f8ac36f11149b34fd:api/tests/test_fx.py:generic-api-key:229` appended to `.gitleaksignore`; my attempt to commit that was refused by the permission check, so I did not add it. `web` fails on `tests/invitations-screens.spec.ts:249` (accept page F/H), a web test this ticket does not touch.
+
 Known limits and follow-ups:
 - The `db`-marked tests (`tests/test_fx_db.py`, 4 tests, plus all existing db tests) cannot run locally (no Postgres); CI runs them.
 - Follow-up: `jobs-cron.yml` has no way to alert on repeated 502s from the ECB; GitHub's failed-run emails are the only signal.
