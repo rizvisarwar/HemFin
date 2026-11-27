@@ -9,7 +9,6 @@ export type SourceFrequency = "weekly" | "monthly" | "quarterly" | "semiannual" 
 
 export const SOURCE_TYPE_LABEL: Record<SourceType, string> = { salary: "Salary", business: "Business", other: "Other" };
 
-export const DESCRIPTION_MAX = 120;
 export const SOURCE_NAME_MAX = 80;
 
 // ---- Entries: filters --------------------------------------------------------------------------

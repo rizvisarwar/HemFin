@@ -8,7 +8,7 @@ export interface ContractPage {
 }
 
 /** One page of a space's contracts (cursor pagination). */
-export function listContracts(spaceId: string, filters: ContractFilters, cursor?: string) {
+export function listContracts(spaceId: string, cursor: string | undefined, filters: ContractFilters) {
   return call<ContractPage>((api) =>
     api.GET("/api/v1/spaces/{space_id}/contracts", {
       params: { path: { space_id: spaceId }, query: { ...filtersToQuery(filters), limit: 25, cursor } },

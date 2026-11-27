@@ -21,7 +21,6 @@ import { cn } from "@/lib/utils";
 import type { ExpenseResponse } from "@/lib/api";
 import { createExpense, deleteExpense, updateExpense } from "@/lib/expenses/client";
 import {
-  DESCRIPTION_MAX,
   MERCHANT_MAX,
   readLastCategory,
   validateExpense,
@@ -30,7 +29,7 @@ import {
   type ExpenseFormValues,
 } from "@/lib/expenses/expenses";
 import { amountToInput, decimalMark, fractionDigits } from "@/lib/finance/amount";
-import { categoryGroups, todayIso } from "@/lib/finance/common";
+import { categoryGroups, DESCRIPTION_MAX, todayIso } from "@/lib/finance/common";
 
 const FIELDS: ExpenseFormField[] = ["amount", "currency", "category_id", "spent_on", "description", "merchant", "contract_id", "member_user_id"];
 const FORM_ID = "expense-form";
@@ -115,7 +114,7 @@ function LoadedExpenseForm({ open, onOpenChange, spaceId, expense, reference, on
     writeLastCategory(spaceId, result.payload.category_id);
     if (again) {
       // Keep the category, date, currency and who it applies to; start the next one empty and ready to type.
-      f.setValues((v) => ({ ...v, amount: "", description: "", merchant: "", contract_id: "" }));
+      f.rebase({ ...values, amount: "", description: "", merchant: "", contract_id: "" });
       requestAnimationFrame(() => document.getElementById("amount")?.focus());
     }
     onSaved(res.data, again);

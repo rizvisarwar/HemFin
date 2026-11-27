@@ -267,7 +267,7 @@ Used by every create and edit dialog in this spec.
 
 **Unsaved changes (F18).** If the form is dirty and the user closes it (Escape, outside tap, Cancel, the close button), an alert asks: title "Discard changes?", body "Your changes to this contract are not saved.", buttons "Discard changes" (destructive) and "Keep editing" (focused first). If the form is not dirty, it closes at once.
 
-**Success.** The dialog closes, the list updates, and a toast (16 px above the bottom nav on phone) says "Contract saved", "Expense added", "Income added" or "Source saved". Focus returns to the element that opened the dialog.
+**Success.** The dialog closes, the list updates, and a toast (16 px above the bottom nav on phone) says "Contract saved", "Expense added", "Income added" or "Source saved". On the contract screens focus returns to the element that opened the dialog. On the expenses, income and sources screens it goes to the list heading (section 9). A toast sits below any open dialog or alert in the stacking order, so it never covers an action.
 
 ### 3.11 Destructive confirmations
 
@@ -802,7 +802,7 @@ Opened by "Add an expense" (or `/expenses?new=1`). Title "Add an expense". The f
 **Expanded "More details"** shows: Description (optional, max 120), Merchant (optional, max 80), Applies to (optional, household only), and Linked contract (optional, a select of the space's active contracts). Under the contract select, the hint reads: "If the contract is deleted, this expense stays and loses the link."
 
 **Rules.**
-- "Save and add another" saves, keeps the dialog open, clears the amount and keeps the category, date and currency. The amount field is focused again. A toast says "Expense added. Add another."
+- "Save and add another" saves, keeps the dialog open, clears the amount, the description, the merchant and the contract link, and keeps the category, date, currency and "Applies to". The amount field is focused again. A toast says "Expense added. Add another."
 - "Save expense" saves and closes. Toast "Expense added."
 - The category has a default only from F19. If none, it shows "Choose a category" (disabled) and the save button still works after a choice.
 - The date defaults to today in the user's time zone. The date can be changed. It may be at most one day in the future (Q10), and the API rejects a later date.
@@ -1210,14 +1210,14 @@ Tone rules: plain words, short sentences, "you" for the user, the household name
 
 - **Tap targets.** Every button, link, filter, row or card, menu item and checkbox row is at least 44 × 44 px. Cards are one link or one button of at least 56 px height.
 - **Contrast.** Text uses `--foreground` or `--muted-foreground` on `--card` or `--background` (both pass 4.5:1, `design-system.md` 2.3). Warning chips use `--warning` on `--warning-subtle` (4.8:1 light, 7.2:1 dark). Destructive text uses `--destructive` on `--background` (6.5:1 light, 6.3:1 dark, `design-system.md` 2.3). Input borders use `--input` (3.7:1).
-- **Focus.** The global 2 px `--ring` outline with a 2 px offset, on `:focus-visible` only, in both themes (`design-system.md` 4.5). Dialogs trap focus and return it to the trigger.
+- **Focus.** The global 2 px `--ring` outline with a 2 px offset, on `:focus-visible` only, in both themes (`design-system.md` 4.5). Dialogs trap focus and return it to the trigger. One exception: the dismiss button of an alert ("Keep expense", "Keep editing") takes focus by script when the alert opens, after a mouse click on what opened it, and a browser does not count that as keyboard focus, so `:focus-visible` would draw no ring. It uses `:focus` for its outline (`DISMISS_FOCUS_CLASS`).
 - **Labels.** Every input and select has a visible label. Hints and errors are linked with `aria-describedby`. Invalid fields have `aria-invalid="true"`. Required fields have `aria-required="true"` (3.10).
 - **Money.** A screen reader hears the amount with its currency code or symbol. "About" is read for a converted amount. Income rows carry the word "Income" in their meta text, so the direction is not read from the `+` sign alone.
 - **Status by text and icon.** Due chips, paused and active badges, and cancelled badges all carry text and an icon. Colour is never the only signal.
 - **Headings.** One `h1` per page. Month groups and card sections are `h2`. Card titles inside a section are `h3`.
 - **Live regions.** Success messages are `role="status"`. Errors use `FormMessage` (`role="alert"`). Field errors are polite. The count of results for filters is announced once, after the list settles.
 - **Reduced motion.** Dialogs and sheets fade only. Skeletons do not pulse. Transitions drop to 0 ms.
-- **Focus after actions.** After a delete, focus moves to the list heading (not to the removed row). After closing a dialog, focus returns to the element that opened it.
+- **Focus after actions.** After any save or delete on the expenses, income and sources screens, focus moves to the list heading. The list reloads behind the dialog, so the row that opened an edit, and the empty state's button on a first add, no longer exist. After closing a dialog without saving, focus returns to the element that opened it.
 - **Accessible names.** Row buttons include the name, amount and date. Icon-only controls have an `aria-label`. Links that look like buttons name their action ("Edit contract").
 
 Focus order summary:

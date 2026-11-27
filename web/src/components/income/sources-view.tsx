@@ -67,10 +67,10 @@ function SpaceSources({ spaceId, household }: { spaceId: string; household: bool
   const hydrated = useHydrated();
   const { money, prefs } = useFormat();
   const ref = useReferenceData(spaceId, household, { categories: false });
-  const { list, refresh, loadMore, moreBusy, moreError } = usePagedList(spaceId, null, listSources);
+  const { list, refresh, loadMore, moreBusy, moreError } = usePagedList(spaceId, undefined, listSources);
   const [form, setForm] = React.useState<Form>({ open: false, key: 0, source: null });
   const { ref: heading } = useListHeading();
-  // Set after a save or delete of an existing source: its row is gone, so when the dialog closes focus goes to the list heading.
+  // Set after any save or delete: the row or the empty-state button that opened the dialog may be gone, so when the dialog closes focus goes to the list heading.
   const focusAfterClose = React.useRef(false);
   const finalFocus = React.useCallback(() => {
     if (!focusAfterClose.current) return null;
@@ -199,16 +199,15 @@ function SpaceSources({ spaceId, household }: { spaceId: string; household: bool
         reference={ref}
         finalFocus={finalFocus}
         onSaved={() => {
-          const edited = form.source !== null;
+          focusAfterClose.current = true;
           closeForm();
           toast("Source saved.");
-          if (edited) focusAfterClose.current = true;
           refresh();
         }}
         onDeleted={() => {
+          focusAfterClose.current = true;
           closeForm();
           toast("Source deleted.");
-          focusAfterClose.current = true;
           refresh();
         }}
       />

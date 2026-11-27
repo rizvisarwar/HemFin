@@ -8,8 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from hemfin.core.db import get_session
 from hemfin.core.deps import SpaceAccess, require_space_member
 from hemfin.core.errors import PROBLEM_JSON
+from hemfin.core.filters import parse_member_filter
 from hemfin.core.pagination import DEFAULT_LIMIT, CursorParam, LimitParam, Page
-from hemfin.modules.contracts.router import get_today, parse_member_filter
+from hemfin.modules.contracts.router import get_today
 from hemfin.modules.expenses import service
 from hemfin.modules.expenses.schemas import ExpenseCreate, ExpenseOut, ExpensePatch
 

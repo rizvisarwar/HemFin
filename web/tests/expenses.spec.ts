@@ -140,6 +140,19 @@ test.describe("expense list", () => {
     await expect(page.getByRole("button", { name: /Show more expenses|Loading/ })).toHaveCount(0);
   });
 
+  test("focus goes to the list heading after the first add from an empty list", async ({ page, context }, info) => {
+    await setup(context, info);
+    await page.goto("/expenses");
+    await page.getByRole("button", { name: "Add an expense" }).click(); // the empty state's button: it unmounts after the save
+    const dlg = dialogOf(page, "Add an expense");
+    await dlg.getByLabel("Amount", { exact: true }).fill("8");
+    await dlg.getByLabel("Category", { exact: true }).selectOption({ label: "Food" });
+    await dlg.getByRole("button", { name: "Save expense" }).click();
+    await expect(dlg).toHaveCount(0);
+    await expect(rowsOf(page)).toHaveCount(1);
+    await expect(page.getByRole("heading", { name: "Your expenses" })).toBeFocused();
+  });
+
   test("empty: one add button, in the empty state and not in the header", async ({ page, context }, info) => {
     await setup(context, info);
     await page.goto("/expenses");
@@ -292,13 +305,41 @@ test.describe("expense filters", () => {
     await expect(rowsOf(page)).toHaveCount(1);
     await expect(rowsOf(page)).toContainText("Premium");
     const chip = page.getByTestId("contract-chip");
-    await expect(chip).toHaveText("Car insurance");
-    await expect(chip).toHaveAttribute("aria-label", "Remove filter: linked to Car insurance");
+    await expect(chip).toContainText("Car insurance");
+    const remove = page.getByRole("button", { name: "Remove filter: Car insurance" });
+    await expect(remove).toBeVisible();
+    // The chip and its remove control each have a 44 px hit area.
     expect((await chip.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    const removeBox = (await remove.boundingBox())!;
+    expect(removeBox.height).toBeGreaterThanOrEqual(44);
+    expect(removeBox.width).toBeGreaterThanOrEqual(44);
     await snap(page, info, "list-contract-chip");
-    await chip.click();
+    await remove.click();
     await expect(rowsOf(page)).toHaveCount(3);
     await expect(chip).toHaveCount(0);
+  });
+
+  test("tap targets at 375 px, measured: Add an expense, Filters, the contract chip and its remove control", async ({ page, context }, info) => {
+    test.skip(!isPhone(page), "375 px is the phone layout");
+    const { spaceId } = await setup(context, info);
+    const { ids } = await seedContracts(spaceId, [{ name: "Car insurance", category: "insurance.car" }]);
+    await seedExpenses(spaceId, [{ ...GROCERIES, contract_id: ids[0] }]);
+    await page.goto(`/expenses?contract_id=${ids[0]}`);
+    await expect(rowsOf(page)).toHaveCount(1);
+    expect(page.viewportSize()!.width).toBe(375);
+    const heights = await page.evaluate(() => {
+      const h = (el: Element | null) => (el ? el.getBoundingClientRect().height : 0);
+      const w = (el: Element | null) => (el ? el.getBoundingClientRect().width : 0);
+      const q = (s: string) => document.querySelector(s);
+      return {
+        add: h(q('[data-testid="add-expense"]')),
+        filters: h(q('[data-testid="filters-button"]')),
+        chip: h(q('[data-testid="contract-chip"]')),
+        removeH: h(q('[data-testid="contract-chip-remove"]')),
+        removeW: w(q('[data-testid="contract-chip-remove"]')),
+      };
+    });
+    for (const [name, value] of Object.entries(heights)) expect(value, name).toBeGreaterThanOrEqual(44);
   });
 
   test("no match: an inline message with Clear filters", async ({ page, context }, info) => {
@@ -309,7 +350,11 @@ test.describe("expense filters", () => {
     await expect(page.getByTestId("no-match")).toContainText("No matching expenses");
     await expect(page.getByRole("button", { name: "Add an expense" })).toHaveCount(1); // the header's: no second one in the card
     await snap(page, info, "list-no-match");
-    await page.getByTestId("no-match").getByRole("button", { name: "Clear filters" }).click();
+    // "Clear filters" is a text button (ghost), at least 44 px tall.
+    const clear = page.getByTestId("no-match").getByRole("button", { name: "Clear filters" });
+    expect((await clear.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    expect(await clear.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
+    await clear.click();
     await expect(rowsOf(page)).toHaveCount(1);
   });
 
@@ -485,6 +530,47 @@ test.describe("add an expense", () => {
     await dlg.getByRole("button", { name: "Save expense" }).click();
     await expect(dlg).toHaveCount(0);
     expect(await storedFinance(spaceId, "expenses")).toHaveLength(1);
+  });
+
+  test("after Save and add another, Cancel closes at once: saved work is not unsaved changes", async ({ page, context }, info) => {
+    await setup(context, info);
+    await page.goto("/expenses");
+    await page.getByRole("button", { name: "Add an expense" }).click();
+    const dlg = dialogOf(page, "Add an expense");
+    await dlg.getByLabel("Amount", { exact: true }).fill("3.40");
+    await dlg.getByLabel("Category", { exact: true }).selectOption({ label: "Transport" });
+    await dlg.getByRole("button", { name: "Save and add another" }).click();
+    await expect(dlg.getByLabel("Amount", { exact: true })).toHaveValue("");
+    await dlg.getByRole("button", { name: "Cancel" }).click();
+    await expect(dlg).toHaveCount(0);
+    await expect(page.getByRole("alertdialog")).toHaveCount(0);
+    // Typing something new after a save is unsaved again.
+    await page.getByTestId("add-expense").click();
+    await dlg.getByLabel("Amount", { exact: true }).fill("1");
+    await dlg.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByRole("alertdialog", { name: "Discard changes?" })).toBeVisible();
+  });
+
+  test("a toast never covers an open confirmation", async ({ page, context }, info) => {
+    const { spaceId } = await setup(context, info);
+    await seedExpenses(spaceId, [GROCERIES, TRAIN]);
+    await page.goto("/expenses");
+    await page.getByRole("button", { name: "Groceries, €64.20, 12 Nov 2026" }).click();
+    const dlg = dialogOf(page, "Edit expense");
+    await dlg.getByLabel("Merchant (optional)").fill("Corner Shop");
+    await dlg.getByRole("button", { name: "Save changes" }).click();
+    await expect(toastText(page)).toContainText("Expense saved.");
+    await page.getByRole("button", { name: "Train tickets, SEK 540.00, 9 Nov 2026" }).click();
+    await dialogOf(page, "Edit expense").getByRole("button", { name: "Delete expense" }).click();
+    const alert = page.getByRole("alertdialog", { name: "Delete this expense?" });
+    await expect(toastText(page)).toBeVisible(); // still on screen, behind the dialog
+    const confirm = alert.getByRole("button", { name: "Delete expense" });
+    const box = (await confirm.boundingBox())!;
+    const top = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('[role="alertdialog"]') !== null, [box.x + box.width / 2, box.y + box.height / 2]);
+    expect(top).toBe(true);
+    // The toast keeps its place 16 px above the phone bottom nav (or the screen edge from md).
+    const region = (await page.getByTestId("toast-region").boundingBox())!;
+    expect(region.y + region.height).toBeLessThanOrEqual(page.viewportSize()!.height - 16);
   });
 
   test("unsaved changes ask before closing; a clean form closes at once", async ({ page, context }, info) => {

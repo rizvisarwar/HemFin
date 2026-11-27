@@ -4,6 +4,9 @@
  * (docs/design/finance.md sections 3, 4.1, 5 and 6). Pure functions, no browser APIs.
  */
 
+/** Longest description of an expense or an income entry (finance.md 5.2, 6.2). */
+export const DESCRIPTION_MAX = 120;
+
 // ---- Dates -------------------------------------------------------------------------------------
 
 /** Today as a calendar date in the browser's time zone ("2026-12-03"). */

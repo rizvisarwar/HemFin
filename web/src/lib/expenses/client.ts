@@ -8,7 +8,7 @@ export interface ExpensePage {
 }
 
 /** One page of a space's expenses, newest first (cursor pagination). */
-export function listExpenses(spaceId: string, filters: ExpenseFilters, cursor?: string) {
+export function listExpenses(spaceId: string, cursor: string | undefined, filters: ExpenseFilters) {
   return call<ExpensePage>((api) =>
     api.GET("/api/v1/spaces/{space_id}/expenses", {
       params: { path: { space_id: spaceId }, query: { ...expenseFiltersToQuery(filters), limit: 25, cursor } },

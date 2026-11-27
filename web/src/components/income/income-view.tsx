@@ -47,7 +47,7 @@ function SpaceIncome({ spaceId, household }: { spaceId: string; household: boole
   const { filters, list, applyFilters, refresh, loadMore, moreBusy, moreError } = usePagedList(spaceId, DEFAULT_ENTRY_FILTERS, listEntries);
   const [form, setForm] = React.useState<Form>({ open: search.get("new") === "1", key: 0, entry: null });
   const { ref: heading } = useListHeading();
-  // Set after a save or delete of an existing entry: its row is gone, so when the dialog closes focus goes to the list heading.
+  // Set after any save or delete: the row or the empty-state button that opened the dialog may be gone, so when the dialog closes focus goes to the list heading.
   const focusAfterClose = React.useRef(false);
   const finalFocus = React.useCallback(() => {
     if (!focusAfterClose.current) return null;
@@ -150,7 +150,7 @@ function SpaceIncome({ spaceId, household }: { spaceId: string; household: boole
             titleAs="h3"
             title="No matching income"
             description="Change or clear the filters to see more."
-            primaryAction={{ label: "Clear filters", onClick: () => applyFilters(DEFAULT_ENTRY_FILTERS) }}
+            primaryAction={{ label: "Clear filters", onClick: () => applyFilters(DEFAULT_ENTRY_FILTERS), ghost: true }}
           />
         </HemCard>
       ) : (
@@ -232,15 +232,15 @@ function SpaceIncome({ spaceId, household }: { spaceId: string; household: boole
         finalFocus={finalFocus}
         onSaved={() => {
           const edited = form.entry !== null;
+          focusAfterClose.current = true;
           closeForm();
           toast(edited ? "Income saved." : "Income added.");
-          if (edited) focusAfterClose.current = true;
           refresh();
         }}
         onDeleted={() => {
+          focusAfterClose.current = true;
           closeForm();
           toast("Income deleted.");
-          focusAfterClose.current = true;
           refresh();
         }}
       />

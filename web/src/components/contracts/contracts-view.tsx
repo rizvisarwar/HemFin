@@ -146,7 +146,7 @@ function SpaceContracts({ spaceId, household }: { spaceId: string; household: bo
             titleAs="h3"
             title="No matching contracts"
             description="Change or clear the filters to see more."
-            primaryAction={{ label: "Clear filters", onClick: () => applyFilters(DEFAULT_FILTERS) }}
+            primaryAction={{ label: "Clear filters", onClick: () => applyFilters(DEFAULT_FILTERS), ghost: true }}
           />
         </HemCard>
       ) : (

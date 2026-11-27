@@ -13,7 +13,7 @@ export function useFormState<V extends object>(initial: () => V, fields: readonl
   type Field = keyof V & string;
   type Errors = Partial<Record<Field, string>>;
 
-  const [start] = React.useState(initial);
+  const [start, setStart] = React.useState(initial);
   const [values, setValues] = React.useState<V>(start);
   const [errors, setErrors] = React.useState<Errors>({});
   const [formError, setFormError] = React.useState<string>();
@@ -63,6 +63,12 @@ export function useFormState<V extends object>(initial: () => V, fields: readonl
     setAttempt((n) => n + 1);
   }
 
+  /** After a save that keeps the form open: `next` becomes both the values and the baseline, so saved work is not "unsaved changes". */
+  function rebase(next: V) {
+    setStart(next);
+    setValues(next);
+  }
+
   /** Close now when nothing changed, otherwise ask first. A busy form never closes. */
   function requestClose(close: () => void) {
     if (busy) return;
@@ -70,5 +76,5 @@ export function useFormState<V extends object>(initial: () => V, fields: readonl
     else close();
   }
 
-  return { values, setValues, set, blur, errors, setErrors, invalid, refused, formError, setFormError, busy, setBusy, discard, setDiscard, dirty, requestClose };
+  return { values, setValues, set, blur, errors, setErrors, invalid, refused, formError, setFormError, busy, setBusy, discard, setDiscard, dirty, rebase, requestClose };
 }

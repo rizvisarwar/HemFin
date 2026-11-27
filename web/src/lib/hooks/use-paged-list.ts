@@ -8,10 +8,11 @@ export type PagedList<T> =
   | { status: "error" }
   | { status: "ready"; items: T[]; next: string | null };
 
+/** Filters come last, so a list without filters is just `(spaceId, cursor)`. */
 export type FetchPage<F, T> = (
   spaceId: string,
+  cursor: string | undefined,
   filters: F,
-  cursor?: string,
 ) => Promise<Result<{ items: T[]; next_cursor?: string | null }>>;
 
 /**
@@ -32,7 +33,7 @@ export function usePagedList<F, T>(spaceId: string, initialFilters: F, fetchPage
 
   React.useEffect(() => {
     let live = true;
-    fetchPage(spaceId, filters).then((res) => {
+    fetchPage(spaceId, undefined, filters).then((res) => {
       if (!live) return;
       setList(res.ok ? { status: "ready", items: res.data.items, next: res.data.next_cursor ?? null } : { status: "error" });
     });
@@ -64,7 +65,7 @@ export function usePagedList<F, T>(spaceId: string, initialFilters: F, fetchPage
     const started = epoch.current;
     setMoreBusy(true);
     setMoreError(false);
-    const res = await fetchPage(spaceId, filters, list.next);
+    const res = await fetchPage(spaceId, list.next, filters);
     if (started !== epoch.current) return; // the list was replaced meanwhile: this page belongs to the old one
     setMoreBusy(false);
     if (!res.ok) return setMoreError(true);

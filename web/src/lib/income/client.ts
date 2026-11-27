@@ -8,7 +8,7 @@ export interface EntryPage {
 }
 
 /** One page of a space's income entries, newest first (cursor pagination). */
-export function listEntries(spaceId: string, filters: EntryFilters, cursor?: string) {
+export function listEntries(spaceId: string, cursor: string | undefined, filters: EntryFilters) {
   return call<EntryPage>((api) =>
     api.GET("/api/v1/spaces/{space_id}/income-entries", {
       params: { path: { space_id: spaceId }, query: { ...entryFiltersToQuery(filters), limit: 25, cursor } },
@@ -40,7 +40,7 @@ export function deleteEntry(spaceId: string, entryId: string) {
 }
 
 /** One page of a space's income sources (cursor pagination). */
-export function listSources(spaceId: string, _filters: null, cursor?: string) {
+export function listSources(spaceId: string, cursor?: string) {
   return call<{ items: SourceResponse[]; next_cursor?: string | null }>((api) =>
     api.GET("/api/v1/spaces/{space_id}/income-sources", { params: { path: { space_id: spaceId }, query: { limit: 25, cursor } } }),
   );

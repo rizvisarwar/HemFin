@@ -17,9 +17,9 @@ import { SelectField } from "@/components/ui/select-field";
 import { SpaceBadge } from "@/components/ui/space-badge";
 import type { IncomeEntryResponse } from "@/lib/api";
 import { amountToInput, decimalMark, fractionDigits } from "@/lib/finance/amount";
-import { todayIso } from "@/lib/finance/common";
+import { DESCRIPTION_MAX, todayIso } from "@/lib/finance/common";
 import { createEntry, deleteEntry, updateEntry } from "@/lib/income/client";
-import { DESCRIPTION_MAX, sourceOptionLabel, validateEntry, type EntryFormField, type EntryFormValues } from "@/lib/income/income";
+import { sourceOptionLabel, validateEntry, type EntryFormField, type EntryFormValues } from "@/lib/income/income";
 
 const FIELDS: EntryFormField[] = ["amount", "currency", "received_on", "source_id", "description", "member_user_id"];
 const FORM_ID = "entry-form";

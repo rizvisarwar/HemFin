@@ -76,7 +76,6 @@ export interface ExpensePayload {
   member_user_id: string | null;
 }
 
-export const DESCRIPTION_MAX = 120;
 export const MERCHANT_MAX = 80;
 
 export interface ExpenseValidateOptions {

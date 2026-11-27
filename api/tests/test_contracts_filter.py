@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from hemfin.core.errors import CodedHTTPException
-from hemfin.modules.contracts.router import parse_member_filter
+from hemfin.core.filters import parse_member_filter
 
 
 def test_member_filter_values() -> None:
@@ -18,3 +18,4 @@ def test_member_filter_rejects_other_text() -> None:
     with pytest.raises(CodedHTTPException) as exc:
         parse_member_filter("someone")
     assert exc.value.status_code == 422
+    assert exc.value.code == "invalid_member_filter"

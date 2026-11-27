@@ -63,7 +63,7 @@ function SpaceExpenses({ spaceId, household }: { spaceId: string; household: boo
   const { filters, list, applyFilters, refresh, loadMore, moreBusy, moreError } = usePagedList(spaceId, initial, listExpenses);
   const [form, setForm] = React.useState<Form>({ open: search.get("new") === "1", key: 0, expense: null });
   const { ref: heading } = useListHeading();
-  // Set after a save or delete of an existing expense: its row is gone, so when the dialog closes focus goes to the list heading.
+  // Set after any save or delete: the row or the empty-state button that opened the dialog may be gone, so when the dialog closes focus goes to the list heading.
   const focusAfterClose = React.useRef(false);
   const finalFocus = React.useCallback(() => {
     if (!focusAfterClose.current) return null;
@@ -153,16 +153,20 @@ function SpaceExpenses({ spaceId, household }: { spaceId: string; household: boo
           </FilterBar>
           {filters.contract_id ? (
             <div className="mb-4">
-              <Button
-                type="button"
-                variant="outline"
-                aria-label={`Remove filter: linked to ${contractLabel(ref, filters.contract_id) || "this contract"}`}
-                onClick={() => applyFilters({ ...filters, contract_id: "" })}
-                data-testid="contract-chip"
-              >
-                {contractLabel(ref, filters.contract_id) || "Contract"}
-                <X aria-hidden="true" />
-              </Button>
+              {/* The chip is its label plus a remove button with its own 44 px hit area (finance.md 5.1, 9). */}
+              <span className="inline-flex min-h-11 items-center rounded-md border border-border bg-background pl-3" data-testid="contract-chip">
+                <span className="text-body">{contractLabel(ref, filters.contract_id) || "Contract"}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Remove filter: ${contractLabel(ref, filters.contract_id) || "this contract"}`}
+                  onClick={() => applyFilters({ ...filters, contract_id: "" })}
+                  data-testid="contract-chip-remove"
+                >
+                  <X aria-hidden="true" />
+                </Button>
+              </span>
             </div>
           ) : null}
         </>
@@ -193,7 +197,7 @@ function SpaceExpenses({ spaceId, household }: { spaceId: string; household: boo
             titleAs="h3"
             title="No matching expenses"
             description="Change or clear the filters to see more."
-            primaryAction={{ label: "Clear filters", onClick: () => applyFilters(DEFAULT_FILTERS) }}
+            primaryAction={{ label: "Clear filters", onClick: () => applyFilters(DEFAULT_FILTERS), ghost: true }}
           />
         </HemCard>
       ) : (
@@ -276,15 +280,18 @@ function SpaceExpenses({ spaceId, household }: { spaceId: string; household: boo
         finalFocus={finalFocus}
         onSaved={(saved, again) => {
           const edited = form.expense !== null;
-          if (!again) closeForm();
+          // The opener may be gone after the reload (the empty state's button), so focus goes to the list heading.
+          if (!again) {
+            focusAfterClose.current = true;
+            closeForm();
+          }
           toast(edited ? "Expense saved." : again ? "Expense added. Add another." : "Expense added.");
-          if (edited) focusAfterClose.current = true;
           refresh();
         }}
         onDeleted={() => {
+          focusAfterClose.current = true;
           closeForm();
           toast("Expense deleted.");
-          focusAfterClose.current = true;
           refresh();
         }}
       />

@@ -80,6 +80,34 @@ test.describe("income sources", () => {
     await expectNoHorizontalScroll(page);
   });
 
+  test("focus goes to the list heading after the first add from an empty list", async ({ page, context }, info) => {
+    await setup(context, info);
+    await page.goto("/income/sources");
+    await page.getByRole("button", { name: "Add a source" }).click();
+    const dlg = dialogOf(page, "Add a source");
+    await dlg.getByLabel("Name", { exact: true }).fill("Side job");
+    await dlg.getByLabel("Amount", { exact: true }).fill("300");
+    await dlg.getByRole("button", { name: "Save source" }).click();
+    await expect(dlg).toHaveCount(0);
+    await expect(sourcesOf(page)).toHaveCount(1);
+    await expect(page.getByRole("heading", { name: "Your income sources" })).toBeFocused();
+  });
+
+  test("switching space shows the skeleton, then only the new space's sources", async ({ page, context }, info) => {
+    const { me, spaceId, personalId } = await setup(context, info, { household: true });
+    await seedSources(personalId, [{ ...SALARY, name: "Personal job" }]);
+    await seedSources(spaceId, [{ ...SALARY, name: "Household job" }]);
+    await page.goto("/income/sources");
+    await expect(sourcesOf(page)).toContainText("Household job");
+    await failLists(me, { delay_ms: 2500 });
+    await page.getByRole("button", { name: /^Active space/ }).click();
+    await page.getByRole("menuitemradio", { name: /Personal/ }).click();
+    await expect(page.getByTestId("sources-loading")).toBeVisible();
+    await expect(page.getByText("Household job")).toHaveCount(0);
+    await expect(sourcesOf(page)).toContainText("Personal job", { timeout: 15_000 });
+    await expect(sourcesOf(page)).toHaveCount(1);
+  });
+
   test("the list: type and frequency, an irregular source says 'typical amount', a paused one says Paused", async ({ page, context }, info) => {
     const { spaceId } = await setup(context, info);
     await seedSources(spaceId, [SALARY, DESIGN]);
@@ -184,6 +212,33 @@ test.describe("income sources", () => {
 });
 
 test.describe("income entries", () => {
+  test("focus goes to the list heading after the first add from an empty list", async ({ page, context }, info) => {
+    await setup(context, info);
+    await page.goto("/income");
+    await page.getByRole("button", { name: "Add income" }).click();
+    const dlg = dialogOf(page, "Add income");
+    await dlg.getByLabel("Amount", { exact: true }).fill("40");
+    await dlg.getByRole("button", { name: "Save income" }).click();
+    await expect(dlg).toHaveCount(0);
+    await expect(entriesOf(page)).toHaveCount(1);
+    await expect(page.getByRole("heading", { name: "Your income" })).toBeFocused();
+  });
+
+  test("switching space shows the skeleton, then only the new space's income", async ({ page, context }, info) => {
+    const { me, spaceId, personalId } = await setup(context, info, { household: true });
+    await seedEntries(personalId, [{ ...PAY, description: "Personal pay" }]);
+    await seedEntries(spaceId, [{ ...PAY, description: "Household pay" }]);
+    await page.goto("/income");
+    await expect(entriesOf(page)).toContainText("Household pay");
+    await failLists(me, { delay_ms: 2500 });
+    await page.getByRole("button", { name: /^Active space/ }).click();
+    await page.getByRole("menuitemradio", { name: /Personal/ }).click();
+    await expect(page.getByTestId("income-loading")).toBeVisible();
+    await expect(page.getByText("Household pay")).toHaveCount(0);
+    await expect(entriesOf(page)).toContainText("Personal pay", { timeout: 15_000 });
+    await expect(entriesOf(page)).toHaveCount(1);
+  });
+
   test("empty state with the secondary link, then add a payment linked to a source", async ({ page, context }, info) => {
     const { spaceId } = await setup(context, info);
     const { ids } = await seedSources(spaceId, [SALARY, DESIGN]);
