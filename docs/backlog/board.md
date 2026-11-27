@@ -8,12 +8,12 @@ Full scope of each phase: `docs/PROJECT_PLAN.md`, section 4.
 | 0 | Foundations & team setup | **Done** (HEM-001 to HEM-007). The first real deploy is waiting for the user's Supabase, Render and Vercel accounts (`docs/deploy.md`). |
 | 1 | Auth & Profile | **Done** (HEM-008 to HEM-011; PRs #15, #17, #18, #19). |
 | 2 | Households & Invitations | **Built** (HEM-012 to HEM-016; PRs #20 to #24). **Done.** The live invitation demo passed on 2026-11-27. |
-| 3 | Core Finance | Next. Starts in a new session when the user gives the go-ahead. |
-| 4 | Documents | Not started |
+| 3 | Core Finance | **In progress** (HEM-017 to HEM-023). The user approved the start on 2026-11-27. |
+| 4 | Documents | **Dropped for the POC** (user, 2026-11-27): no document storage; manual entry instead. |
 | 5 | Notifications | Not started |
 | 6 | Reports & Forecast | Not started |
 | 7 | Agent platform + Savings Agent | Not started |
-| 8 | Contract Analysis Agent | Not started |
+| 8 | Contract Analysis Agent | Later. The file is processed in memory and never stored; only approved fields are saved. |
 | 9 | Finance Assistant chat | Not started |
 | 10 | Hardening & later items | Not started |
 
@@ -49,7 +49,25 @@ Deferred (not planned yet): native mobile app, WhatsApp notifications, push noti
 | HEM-015 | Web: households, members, switcher | Engineer | Done | #23 |
 | HEM-016 | Web: invitations and accept page (PM security review) | Engineer | Done | #24 |
 
+## Phase 3 tickets
+
+Order: HEM-017, HEM-018 and HEM-020 run in parallel. HEM-019 follows HEM-018. The web tickets follow the spec and their APIs. HEM-023 comes last.
+
+| Ticket | Title | Owner | Status | PR |
+|---|---|---|---|---|
+| HEM-017 | Design spec: core finance | Designer | Done | #26 |
+| HEM-018 | API: categories, contracts, schedule service | Engineer | Done | #27 |
+| HEM-019 | API: expenses and income | Engineer | In Review | #28 |
+| HEM-020 | API: exchange rates and FX job | Engineer | Done | #25 |
+| HEM-021 | Web: contracts | Engineer | In Progress | |
+| HEM-022 | Web: expenses and income | Engineer | Todo | |
+| HEM-023 | Dashboard summary (API and web) | Engineer | Todo | |
+
 ## Follow-ups (not yet ticketed)
+- Custom categories UI: creating and deleting a space's own categories. The API exists from HEM-018; there is no screen in Phase 3 (HEM-017 Q4).
+- FX follow-ups (from the HEM-020 review): stream the ECB feed and stop past the size cap instead of buffering it; a missed weekday run leaves that date's rates absent (consider fetching the 90-day feed each run); no alerting on repeated ECB 502s beyond GitHub failed-run emails.
+- Phase 5 follow-ups (from HEM-018): add an "ends" event for contracts with an end_date and no auto-renew; use user-local day boundaries instead of the UTC `get_today`; clear `contracts.member_user_id` (and on expenses and income) when a member leaves a space.
+- Small cleanups (from HEM-019): move `get_today` from `contracts.router` to `core/`; fetch FX rates for a page in one bulk query.
 - Phase 2 (space switcher with real households): the phone switcher sheet gets the SpaceBadge heading row from spec 4.2, and long household names stay readable (from the HEM-003 design review).
 - Test hardening: assert the `hemfin-space` cookie attributes (httpOnly, sameSite, path) in the smoke tests (from the HEM-003 code review).
 - Manual verification with Docker (from HEM-005): `supabase start`, `aspire run` (check that API traces reach the dashboard and which OTLP protocol Aspire injects), and `docker compose up --build`.

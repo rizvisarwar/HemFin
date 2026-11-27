@@ -13,6 +13,7 @@ HemFin is a new, API-first app for managing personal and family finances. The re
 - **Dev team:** The work is built by a team of Claude agents.
 - **Ticket tracking:** Tickets are Markdown files in the repo (no Jira yet).
 - **Approvals:** The PM merges PRs; you approve each phase before it starts.
+- **POC first (2026-11-27):** Keep it simple and improve the product iteratively. Users enter data by hand. Contract documents are not stored. AI extraction comes later and saves only the extracted fields.
 - **Repo:** GitHub repo `rizvisarwar/HemFin`. It isn't added as a remote locally yet.
 
 ---
@@ -129,11 +130,11 @@ Each phase ships the API with tests, regenerates the TS client, adds the matchin
 | 1 | **Auth & Profile** | Supabase Auth (email/password, verification, reset, Google) with Resend SMTP and branded templates. JWT verification in the API. User and personal-space setup on first request. Profile with E.164 phone, addresses, base currency. Web pages for login, sign-up, reset and profile. |
 | 2 | **Households & Invitations** | Household CRUD and roles. Invitations with a hashed token and 7-day expiry, emailed via Resend. On the accept page, a logged-out user signs in or signs up with the token kept, and their email must match the invite. Decline, resend and revoke. Household switcher in the web app. |
 | 3 | **Core Finance** | Contracts, expenses, income and categories. Schedule service for next payment, renewal and notice deadline. Multi-currency with an FX cron job. Web dashboard and forms. |
-| 4 | **Documents** | Signed upload URLs into the private Supabase Storage bucket, validated by type and size. Documents can be linked to contracts. Signed download URLs. |
+| 4 | **Documents** | **Dropped for the POC (user decision 2026-11-27).** HemFin does not store contract documents. Users enter contracts and expenses by hand (Phase 3). |
 | 5 | **Notifications** | Daily cron finds expiries, notice deadlines and upcoming payments, with deduplication via an idempotency key. `NotificationChannel` with in-app and email. Bell icon, notification centre, preferences. |
 | 6 | **Reports & Forecast** | Spending by date range, grouped by category, month or contract. Income vs. expense, comparison with the previous period, CSV export. Forecast from contract schedules and income, plus a smoothed trend for variable spending with confidence bands. Charts (Recharts). |
 | 7 | **Agent platform + Savings Agent** | Runtime, tool registry, `AgentRun` and `PendingAction` with approval UI, budgets, flags. Rules engine plus the Savings Agent, shown as suggestion cards. |
-| 8 | **Contract Analysis Agent** | The pipeline from §3, a review-and-apply UI for extracted fields, and the consent step. |
+| 8 | **Contract Analysis Agent** | Later iteration. The uploaded file is processed in memory and never stored. Only the extracted fields the user reviews and approves are saved. Includes the consent step and the GDPR items (health data in insurance contracts, Anthropic DPA, privacy notice). |
 | 9 | **Finance Assistant chat** | Streaming chat UI and read/write tools with approval. |
 | 10 | **Hardening & later items** | GDPR export and account deletion. Audit log. Security review. PWA manifest so the site can be added to a phone's home screen. Onboarding Agent and MCP server. |
 
