@@ -19,6 +19,7 @@ from hemfin.core.logging import RequestIdMiddleware, configure_logging
 from hemfin.core.telemetry import setup_telemetry
 from hemfin.modules.categories import router as categories_router
 from hemfin.modules.contracts import router as contracts_router
+from hemfin.modules.dashboard import router as dashboard_router
 from hemfin.modules.expenses import router as expenses_router
 from hemfin.modules.fx import router as fx_router
 from hemfin.modules.income import router as income_router
@@ -99,6 +100,7 @@ def create_app() -> FastAPI:
     api_v1.include_router(invitations_router.token_router)
     api_v1.include_router(categories_router.router)
     api_v1.include_router(contracts_router.router)
+    api_v1.include_router(dashboard_router.router)
     api_v1.include_router(expenses_router.router)
     api_v1.include_router(income_router.sources_router)
     api_v1.include_router(income_router.entries_router)

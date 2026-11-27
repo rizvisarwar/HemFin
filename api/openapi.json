@@ -845,6 +845,89 @@
         "title": "ContractStatus",
         "type": "string"
       },
+      "DashboardEvent": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyBase"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contract_id": {
+            "format": "uuid",
+            "title": "Contract Id",
+            "type": "string"
+          },
+          "contract_name": {
+            "title": "Contract Name",
+            "type": "string"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/EventType"
+          }
+        },
+        "required": [
+          "type",
+          "date",
+          "contract_id",
+          "contract_name",
+          "amount"
+        ],
+        "title": "DashboardEvent",
+        "type": "object"
+      },
+      "DashboardOut": {
+        "properties": {
+          "base_currency": {
+            "title": "Base Currency",
+            "type": "string"
+          },
+          "income_this_month": {
+            "$ref": "#/components/schemas/MoneyBase"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "recurring_monthly": {
+            "$ref": "#/components/schemas/MoneyBase"
+          },
+          "spent_this_month": {
+            "$ref": "#/components/schemas/MoneyBase"
+          },
+          "unconverted_count": {
+            "title": "Unconverted Count",
+            "type": "integer"
+          },
+          "upcoming": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardEvent"
+            },
+            "title": "Upcoming",
+            "type": "array"
+          }
+        },
+        "required": [
+          "month",
+          "base_currency",
+          "spent_this_month",
+          "recurring_monthly",
+          "income_this_month",
+          "upcoming",
+          "unconverted_count"
+        ],
+        "title": "DashboardOut",
+        "type": "object"
+      },
       "EntryCreate": {
         "properties": {
           "amount": {
@@ -4254,6 +4337,75 @@
         "summary": "Update a contract",
         "tags": [
           "contracts"
+        ]
+      }
+    },
+    "/api/v1/spaces/{space_id}/dashboard": {
+      "get": {
+        "operationId": "get_dashboard_api_v1_spaces__space_id__dashboard_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "space_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Space Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "YYYY-MM. Defaults to the current UTC month.",
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(19|20)\\d\\d-(0[1-9]|1[0-2])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "YYYY-MM. Defaults to the current UTC month.",
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Not a member"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Month totals and the next 30 days, in the caller's base currency",
+        "tags": [
+          "dashboard"
         ]
       }
     },

@@ -289,6 +289,23 @@ export interface paths {
         patch: operations["update_contract_api_v1_spaces__space_id__contracts__contract_id__patch"];
         trace?: never;
     };
+    "/api/v1/spaces/{space_id}/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Month totals and the next 30 days, in the caller's base currency */
+        get: operations["get_dashboard_api_v1_spaces__space_id__dashboard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/spaces/{space_id}/expenses": {
         parameters: {
             query?: never;
@@ -790,6 +807,37 @@ export interface components {
          * @enum {string}
          */
         ContractStatus: "active" | "cancelled";
+        /** DashboardEvent */
+        DashboardEvent: {
+            amount: components["schemas"]["MoneyBase"] | null;
+            /**
+             * Contract Id
+             * Format: uuid
+             */
+            contract_id: string;
+            /** Contract Name */
+            contract_name: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            type: components["schemas"]["EventType"];
+        };
+        /** DashboardOut */
+        DashboardOut: {
+            /** Base Currency */
+            base_currency: string;
+            income_this_month: components["schemas"]["MoneyBase"];
+            /** Month */
+            month: string;
+            recurring_monthly: components["schemas"]["MoneyBase"];
+            spent_this_month: components["schemas"]["MoneyBase"];
+            /** Unconverted Count */
+            unconverted_count: number;
+            /** Upcoming */
+            upcoming: components["schemas"]["DashboardEvent"][];
+        };
         /** EntryCreate */
         EntryCreate: {
             /**
@@ -2651,6 +2699,49 @@ export interface operations {
                 };
             };
             /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+        };
+    };
+    get_dashboard_api_v1_spaces__space_id__dashboard_get: {
+        parameters: {
+            query?: {
+                /** @description YYYY-MM. Defaults to the current UTC month. */
+                month?: string | null;
+            };
+            header?: never;
+            path: {
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardOut"];
+                };
+            };
+            /** @description Not a member */
             404: {
                 headers: {
                     [name: string]: unknown;
