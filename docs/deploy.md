@@ -114,6 +114,19 @@ The web app is `web/`, an npm workspace of the root `package.json` (workspaces `
 
 ## 5. Resend
 
+### Test mode without a domain (verified 2026-11-27)
+
+You can test invitations before buying a domain:
+
+1. Sign up at resend.com **with the email address you want to invite** (the test invitee). In test mode Resend only delivers to the account owner's address.
+2. Create an API key (**Sending access**). It is a secret: paste it only into Render as `RESEND_API_KEY`.
+3. In Render set `EMAIL_FROM` = `HemFin <onboarding@resend.dev>` and `WEB_BASE_URL` = your Vercel URL, then redeploy.
+4. Create the invitee's HemFin account in Supabase (Authentication > Users > Add user, with **Auto Confirm User**), or add that address as a Supabase team member so the built-in mailer can send its sign-up confirmation.
+
+Limits: only that one address receives invitations (others get the 503 `email_not_sent` message); mail comes from `onboarding@resend.dev` and may land in spam. Verified end to end on 2026-11-27: invite, email, accept and household access all worked on the live site.
+
+### With your own domain
+
 1. Create an account at resend.com. Free tier at the time of writing: 3,000 emails per month, 100 per day (UNVERIFIED, check Resend's current limits).
 2. **Domains > Add Domain.** Use a sending subdomain such as `mail.<your-domain>` so mail reputation stays separate from your main domain. Resend then lists DNS records to add at your DNS host:
    - **SPF**: a `TXT` record (on a `send` subdomain of the sending domain) with `v=spf1 include:amazonses.com ~all`, plus an `MX` record for bounce handling. Use exactly the values Resend shows.

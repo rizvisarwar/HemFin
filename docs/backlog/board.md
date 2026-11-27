@@ -7,8 +7,8 @@ Full scope of each phase: `docs/PROJECT_PLAN.md`, section 4.
 |---|---|---|
 | 0 | Foundations & team setup | **Done** (HEM-001 to HEM-007). The first real deploy is waiting for the user's Supabase, Render and Vercel accounts (`docs/deploy.md`). |
 | 1 | Auth & Profile | **Done** (HEM-008 to HEM-011; PRs #15, #17, #18, #19). |
-| 2 | Households & Invitations | **Built** (HEM-012 to HEM-016; PRs #20 to #24). Waiting for the user's live invitation test (demo) and approval of Phase 3. |
-| 3 | Core Finance | Not started |
+| 2 | Households & Invitations | **Built** (HEM-012 to HEM-016; PRs #20 to #24). **Done.** The live invitation demo passed on 2026-11-27. |
+| 3 | Core Finance | Next. Starts in a new session when the user gives the go-ahead. |
 | 4 | Documents | Not started |
 | 5 | Notifications | Not started |
 | 6 | Reports & Forecast | Not started |
