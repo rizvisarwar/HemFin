@@ -11,7 +11,7 @@ import {
   type SourceFormValues,
 } from "./income.ts";
 
-const opts = { mark: "." as const, digits: 2, today: "2026-11-27" };
+const opts = { today: "2026-11-27" };
 
 describe("entry filters", () => {
   it("send only what is set, and not a reversed range", () => {
@@ -30,11 +30,10 @@ describe("entry filters", () => {
 });
 
 describe("validateEntry", () => {
-  const v: EntryFormValues = { amount: "2850", currency: "EUR", received_on: "2026-11-27", source_id: "", description: " ", member_user_id: "" };
+  const v: EntryFormValues = { amount: "2850", received_on: "2026-11-27", source_id: "", description: " ", member_user_id: "" };
   it("builds the payload with nulls for the optional fields", () => {
     assert.deepEqual(validateEntry(v, opts).payload, {
       amount: "2850",
-      currency: "EUR",
       received_on: "2026-11-27",
       source_id: null,
       description: null,
@@ -52,26 +51,25 @@ describe("validateEntry", () => {
 });
 
 describe("validateSource", () => {
-  const v: SourceFormValues = { name: " Salary ", type: "salary", amount: "2850.00", currency: "EUR", frequency: "monthly", member_user_id: "", active: true };
+  const v: SourceFormValues = { name: " Salary ", type: "salary", amount: "2850.00", frequency: "monthly", member_user_id: "", active: true };
   it("builds the payload", () => {
-    assert.deepEqual(validateSource(v, { mark: ".", digits: 2 }).payload, {
+    assert.deepEqual(validateSource(v).payload, {
       name: "Salary",
       type: "salary",
       amount: "2850.00",
-      currency: "EUR",
       frequency: "monthly",
       member_user_id: null,
       active: true,
     });
   });
   it("asks for a name and an amount", () => {
-    assert.deepEqual(validateSource({ ...v, name: " ", amount: "" }, { mark: ".", digits: 2 }).errors, {
+    assert.deepEqual(validateSource({ ...v, name: " ", amount: "" }).errors, {
       name: "Enter a name for the source.",
       amount: "Enter the amount.",
     });
   });
   it("keeps active false when the source is paused", () => {
-    assert.equal(validateSource({ ...v, active: false }, { mark: ".", digits: 2 }).payload?.active, false);
+    assert.equal(validateSource({ ...v, active: false }).payload?.active, false);
   });
 });
 

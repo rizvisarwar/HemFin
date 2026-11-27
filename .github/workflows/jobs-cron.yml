@@ -5,8 +5,7 @@ name: Scheduled jobs
 #   Variable API_BASE_URL, e.g. https://<your-service>.onrender.com (no trailing slash needed)
 #   Secret   JOB_SECRET, which must equal the API's JOB_SECRET
 # If either is unset the run succeeds with a notice and does nothing.
-# The API implements /internal/jobs/daily (expires old invitations) and /internal/jobs/fx
-# (stores the ECB reference rates, weekdays 16:30 UTC after the ECB publishes around 16:00 CET).
+# The API implements /internal/jobs/daily (expires old invitations).
 # /internal/jobs/weekly does not exist yet, so the weekly run returns 404 until a ticket adds it.
 # If the API's JOB_SECRET is unset the endpoints answer 503; a wrong or empty X-Job-Secret
 # answers 401.
@@ -19,11 +18,10 @@ on:
         required: true
         default: daily
         type: choice
-        options: [daily, weekly, fx]
+        options: [daily, weekly]
   schedule:
     - cron: "15 5 * * *" # daily at 05:15 UTC
     - cron: "30 6 * * 1" # weekly, Mondays 06:30 UTC
-    - cron: "30 16 * * 1-5" # fx, weekdays 16:30 UTC
 
 permissions:
   contents: read
@@ -49,12 +47,11 @@ jobs:
             case "$EVENT_SCHEDULE" in
               "15 5 * * *") name=daily ;;
               "30 6 * * 1") name=weekly ;;
-              "30 16 * * 1-5") name=fx ;;
               *) echo "::error::Unknown schedule '$EVENT_SCHEDULE'; update the case statement in jobs-cron.yml"; exit 1 ;;
             esac
           fi
           case "$name" in
-            daily|weekly|fx) ;;
+            daily|weekly) ;;
             *) echo "::error::Unknown job '$name'"; exit 1 ;;
           esac
           echo "name=$name" >> "$GITHUB_OUTPUT"
@@ -85,8 +82,7 @@ jobs:
         if: steps.cfg.outputs.configured == 'true'
         run: |
           # Free-tier Render sleeps, so the first request can take about a minute to wake it.
-          # Retry ONLY connection-level failures and 502/503/504 (a waking or restarting host, or,
-          # for the fx job, a 502 because the ECB feed was unreachable; the job is idempotent).
+          # Retry ONLY connection-level failures and 502/503/504 (a waking or restarting host).
           # Any other response, including 404 and 500, fails immediately so a job that may have
           # partly run is never repeated. The endpoints should be idempotent when they land.
           url="${API_BASE_URL%/}/internal/jobs/${JOB_NAME}"

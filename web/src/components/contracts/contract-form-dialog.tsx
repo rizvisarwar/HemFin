@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useFormat } from "@/components/format-provider";
 import { useActiveSpace } from "@/components/layout/app-shell-client";
 import { AmountInput } from "@/components/ui/amount-input";
 import { AppliesToSelect } from "@/components/ui/applies-to-select";
@@ -19,7 +18,7 @@ import { SpaceBadge } from "@/components/ui/space-badge";
 import { Textarea } from "@/components/ui/textarea";
 import type { CategoryResponse, ContractResponse, MemberResponse } from "@/lib/api";
 import { createContract, updateContract } from "@/lib/contracts/client";
-import { amountToInput, decimalMark, fractionDigits } from "@/lib/finance/amount";
+import { amountToInput } from "@/lib/finance/amount";
 import {
   NAME_MAX,
   NOTES_MAX,
@@ -28,12 +27,12 @@ import {
   type ContractFormValues,
 } from "@/lib/contracts/contracts";
 import { categoryGroups, todayIso } from "@/lib/finance/common";
-import { CURRENCY_OPTIONS, memberLabel } from "@/components/finance/finance-parts";
+import { memberLabel } from "@/components/finance/finance-parts";
 import { useFormState } from "@/components/finance/use-form-state";
 import { DiscardDialog } from "@/components/ui/discard-dialog";
 
 const FIELDS: ContractFormField[] = [
-  "name", "provider", "category_id", "amount", "currency", "frequency", "start_date", "end_date",
+  "name", "provider", "category_id", "amount", "frequency", "start_date", "end_date",
   "auto_renew", "renewal_term_months", "notice_period_days", "member_user_id", "notes",
 ];
 
@@ -61,19 +60,16 @@ export function ContractFormDialog(props: ContractFormDialogProps) {
   const { open, onOpenChange, contract, referenceStatus, onRetryReference, categories, members } = props;
   const space = useActiveSpace();
   const household = space.type === "household";
-  const { prefs } = useFormat();
-  const mark = decimalMark(prefs.locale);
 
-  const f = useFormState<ContractFormValues>(() => initialValues(contract, prefs.currency, prefs.locale), FIELDS, "contract-form");
+  const f = useFormState<ContractFormValues>(() => initialValues(contract), FIELDS, "contract-form");
   const { values, errors, formError, busy, discard } = f;
 
-  const digits = fractionDigits(values.currency, prefs.locale);
   const groups = React.useMemo(() => categoryGroups(categories, "id"), [categories]);
   const set = f.set;
 
   /** Validate on blur: only the field that was left shows its message. */
   function blur(field: ContractFormField) {
-    f.blur(field, validateContract(values, { mark, digits }).errors);
+    f.blur(field, validateContract(values).errors);
   }
 
   const requestClose = () => f.requestClose(() => onOpenChange(false));
@@ -81,7 +77,7 @@ export function ContractFormDialog(props: ContractFormDialogProps) {
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
-    const result = validateContract(values, { mark, digits });
+    const result = validateContract(values);
     if (!result.payload) return f.invalid(result.errors);
     f.setErrors({});
     f.setFormError(undefined);
@@ -191,14 +187,8 @@ export function ContractFormDialog(props: ContractFormDialogProps) {
               value={values.amount}
               onValueChange={(v) => set("amount", v)}
               onBlur={() => blur("amount")}
-              currency={values.currency}
-              currencyOptions={CURRENCY_OPTIONS}
-              onCurrencyChange={(c) => set("currency", c)}
-              decimalSeparator={mark}
-              fractionDigits={digits}
               required
               error={errors.amount}
-              currencyError={errors.currency}
             />
             <FrequencySelect
               id="frequency"
@@ -314,14 +304,13 @@ export function ContractFormDialog(props: ContractFormDialogProps) {
   );
 }
 
-function initialValues(c: ContractResponse | null, baseCurrency: string, locale: string): ContractFormValues {
+function initialValues(c: ContractResponse | null): ContractFormValues {
   if (!c) {
     return {
       name: "",
       provider: "",
       category_id: "",
       amount: "",
-      currency: baseCurrency,
       frequency: "monthly",
       start_date: todayIso(),
       end_date: "",
@@ -336,8 +325,7 @@ function initialValues(c: ContractResponse | null, baseCurrency: string, locale:
     name: c.name,
     provider: c.provider ?? "",
     category_id: c.category_id,
-    amount: amountToInput(c.amount, { mark: decimalMark(locale), digits: fractionDigits(c.currency, locale) }),
-    currency: c.currency,
+    amount: amountToInput(c.amount),
     frequency: c.frequency as ContractFormValues["frequency"],
     start_date: c.start_date,
     end_date: c.end_date ?? "",

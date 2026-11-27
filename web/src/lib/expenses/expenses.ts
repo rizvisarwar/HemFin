@@ -2,7 +2,7 @@
  * Display and form rules for expenses (docs/design/finance.md section 5). Amounts stay strings; the
  * browser never adds money up (F10).
  */
-import { parseAmount, type DecimalMark } from "../finance/amount.ts";
+import { parseAmount } from "../finance/amount.ts";
 import { appliesToQuery, futureDateError, rangeError } from "../finance/common.ts";
 
 // ---- List filters ------------------------------------------------------------------------------
@@ -50,7 +50,6 @@ export function filterButtonLabel(f: ExpenseFilters): string {
 export interface ExpenseFormValues {
   /** The amount as typed, parsed on submit. */
   amount: string;
-  currency: string;
   category_id: string;
   spent_on: string;
   description: string;
@@ -68,7 +67,6 @@ export type ExpenseFormErrors = Partial<Record<ExpenseFormField, string>>;
 export interface ExpensePayload {
   category_id: string;
   amount: string;
-  currency: string;
   spent_on: string;
   description: string | null;
   merchant: string | null;
@@ -79,8 +77,6 @@ export interface ExpensePayload {
 export const MERCHANT_MAX = 80;
 
 export interface ExpenseValidateOptions {
-  mark: DecimalMark;
-  digits: number;
   /** Today as a calendar date, for the one-day-ahead rule. */
   today: string;
 }
@@ -91,7 +87,7 @@ export function validateExpense(
   opts: ExpenseValidateOptions,
 ): { errors: ExpenseFormErrors; payload?: ExpensePayload } {
   const errors: ExpenseFormErrors = {};
-  const amount = parseAmount(v.amount, { mark: opts.mark, digits: opts.digits, currency: v.currency });
+  const amount = parseAmount(v.amount);
   if (!amount.ok) errors.amount = amount.message;
   if (v.category_id === "") errors.category_id = "Choose a category.";
   if (v.spent_on === "") errors.spent_on = "Enter the date you paid.";
@@ -105,7 +101,6 @@ export function validateExpense(
     payload: {
       category_id: v.category_id,
       amount: amount.value,
-      currency: v.currency,
       spent_on: v.spent_on,
       description: v.description.trim() || null,
       merchant: v.merchant.trim() || null,

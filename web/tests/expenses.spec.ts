@@ -23,9 +23,9 @@ import {
 // HEM-022: the expenses list, quick add, edit and delete (docs/design/finance.md section 5), against the
 // mock backend (tests/support/mock-backend.mjs). Each test signs in as its own user and seeds its own
 // spaces and records, so parallel tests never share state. Screenshots of every state land in
-// test-results/screenshots/hem022/<phone|tablet|desktop>/<state>-<light|dark>.png.
+// test-results/screenshots/hem024/<phone|tablet|desktop>/<state>-<light|dark>.png.
 
-const snap = (page: Page, info: Parameters<typeof snapTo>[1], name: string, opts: { view?: boolean } = {}) => snapTo(page, info, "hem022", name, opts);
+const snap = (page: Page, info: Parameters<typeof snapTo>[1], name: string, opts: { view?: boolean } = {}) => snapTo(page, info, "hem024", name, opts);
 const rowsOf = (page: Page) => page.getByTestId(isPhone(page) ? "expense-card" : "expense-row");
 const apply = "Show expenses";
 const filter = (page: Page, label: string, value: string) => setFilter(page, apply, label, value);
@@ -35,16 +35,14 @@ const TRAIN: SeedExpense = {
   category: "transport",
   description: "Train tickets",
   amount: "540.00",
-  currency: "SEK",
   spent_on: "2026-11-09",
-  base_amount: { amount: "48.11", currency: "EUR" },
 };
 const COFFEE: SeedExpense = { category: "subscription.streaming", description: "Coffee subscription", amount: "9.00", currency: "USD", spent_on: "2026-10-30" };
 
 test.describe.configure({ timeout: 120_000 });
 
 test.describe("expense list", () => {
-  test("grouped by month, with category, merchant, amounts, converted amounts and no overflow", async ({ page, context }, info) => {
+  test("grouped by month, with category, merchant, amounts in SEK and no overflow", async ({ page, context }, info) => {
     const { spaceId } = await setup(context, info);
     await seedExpenses(spaceId, [GROCERIES, TRAIN, COFFEE]);
     await page.goto("/expenses");
@@ -58,20 +56,17 @@ test.describe("expense list", () => {
     await expect(page.getByText("1 expense", { exact: true })).toBeVisible();
 
     const groceries = rowsOf(page).filter({ hasText: "Groceries" });
-    await expect(groceries).toContainText("€64.20");
+    await expect(groceries).toContainText("64,20 kr");
     await expect(groceries).toContainText("Corner Market");
-    await expect(groceries).not.toContainText("≈");
-    // Another currency shows its code, and the base line when the API sent one; nothing when it did not.
-    const train = rowsOf(page).filter({ hasText: "Train tickets" });
-    await expect(train).toContainText("SEK 540.00");
-    await expect(train).toContainText("About EUR 48.11");
+    await expect(rowsOf(page).filter({ hasText: "Train tickets" })).toContainText("540,00 kr");
+    // A row stored in another currency (older demo data) shows its own code, with no conversion.
     const coffee = rowsOf(page).filter({ hasText: "Coffee subscription" });
-    await expect(coffee).toContainText("USD 9.00");
+    await expect(coffee).toContainText("9,00 USD");
     await expect(coffee).not.toContainText("≈");
     if ((page.viewportSize()?.width ?? 0) !== 768) await expect(groceries).toContainText("Food");
 
     // The whole row is one button with the title, amount and date as its name.
-    await expect(page.getByRole("button", { name: "Groceries, €64.20, 12 Nov 2026" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Groceries, 64,20 kr, 12 nov. 2026" })).toBeVisible();
     await expectNoHorizontalScroll(page);
     await expectAllTapTargets(page.locator("main"));
     await snap(page, info, "list-populated");
@@ -390,7 +385,7 @@ test.describe("add an expense", () => {
     const dlg = dialogOf(page, "Add an expense");
     await expect(dlg).toBeVisible();
     await expect(dlg.getByLabel("Amount", { exact: true })).toBeFocused();
-    await expect(dlg.getByLabel("Currency")).toHaveValue("EUR");
+    await expect(dlg.getByLabel("Currency")).toHaveCount(0); // SEK only: no currency field
     await expect(dlg.getByLabel("Date", { exact: true })).toHaveValue(isoIn(0));
     await expect(dlg.getByLabel("Category", { exact: true })).toHaveValue("");
     await expect(dlg.getByLabel("Applies to (optional)")).toHaveCount(0); // personal space
@@ -399,7 +394,7 @@ test.describe("add an expense", () => {
     await expect(dlg.getByLabel("Description (optional)")).toBeHidden();
     await snap(page, info, "form-empty", { view: true });
 
-    await dlg.getByLabel("Amount", { exact: true }).fill("12.50");
+    await dlg.getByLabel("Amount", { exact: true }).fill("12,50");
     await dlg.getByLabel("Category", { exact: true }).selectOption({ label: "Food" });
     await dlg.getByRole("button", { name: "More details" }).click();
     await dlg.getByLabel("Description (optional)").fill("Lunch");
@@ -409,10 +404,10 @@ test.describe("add an expense", () => {
     await expect(dlg).toHaveCount(0);
     await expect(toastText(page)).toContainText("Expense added.");
     await expect(rowsOf(page)).toHaveCount(2);
-    await expect(rowsOf(page).filter({ hasText: "Lunch" })).toContainText("€12.50");
+    await expect(rowsOf(page).filter({ hasText: "Lunch" })).toContainText("12,50 kr");
 
     const saved = (await storedFinance<Record<string, unknown>>(spaceId, "expenses")).find((e) => e.description === "Lunch");
-    expect(saved).toMatchObject({ amount: "12.50", currency: "EUR", category: "food", merchant: "Corner Cafe", contract_id: null, member_user_id: null, spent_on: isoIn(0) });
+    expect(saved).toMatchObject({ amount: "12.50", currency: "SEK", category: "food", merchant: "Corner Cafe", contract_id: null, member_user_id: null, spent_on: isoIn(0) });
 
     // The next quick add starts with the category used last in this space (F19).
     await page.getByTestId("add-expense").click();
@@ -482,7 +477,7 @@ test.describe("add an expense", () => {
     await page.goto("/expenses");
     await page.getByRole("button", { name: "Add an expense" }).click();
     const dlg = dialogOf(page, "Add an expense");
-    await expect(dlg.locator("#amount-hint")).toHaveText("Use . before the cents.");
+    await expect(dlg.locator("#amount-hint")).toHaveText("Use a comma before the öre, like 12,50.");
     await dlg.getByLabel("Date", { exact: true }).fill("");
     await dlg.getByRole("button", { name: "Save expense" }).click();
     await expect(dlg.getByText("Enter the amount.")).toBeVisible();
@@ -495,14 +490,14 @@ test.describe("add an expense", () => {
     await expect(dlg.getByLabel("Amount", { exact: true })).toHaveAttribute("aria-describedby", "amount-error");
     await snap(page, info, "form-errors", { view: true });
 
-    await dlg.getByLabel("Amount", { exact: true }).fill("12,50");
+    await dlg.getByLabel("Amount", { exact: true }).fill("12,5,0");
     await dlg.getByLabel("Category", { exact: true }).selectOption({ label: "Food" });
     await dlg.getByLabel("Date", { exact: true }).fill(isoIn(3));
     await dlg.getByRole("button", { name: "Save expense" }).click();
-    await expect(dlg.getByText("Enter an amount like 12.50.")).toBeVisible();
+    await expect(dlg.getByText("Use a comma before the öre, like 12,50.")).toBeVisible();
     await expect(dlg.getByText("The date cannot be more than a day in the future.")).toBeVisible();
     // Tomorrow is fine (Q10).
-    await dlg.getByLabel("Amount", { exact: true }).fill("12.50");
+    await dlg.getByLabel("Amount", { exact: true }).fill("12.50"); // a dot works too
     await dlg.getByLabel("Date", { exact: true }).fill(isoIn(1));
     await dlg.getByRole("button", { name: "Save expense" }).click();
     await expect(dlg).toHaveCount(0);
@@ -514,18 +509,18 @@ test.describe("add an expense", () => {
     await page.goto("/expenses");
     await page.getByRole("button", { name: "Add an expense" }).click();
     const dlg = dialogOf(page, "Add an expense");
-    await dlg.getByLabel("Amount", { exact: true }).fill("12.50");
+    await dlg.getByLabel("Amount", { exact: true }).fill("12,50");
     await dlg.getByLabel("Category", { exact: true }).selectOption({ label: "Food" });
     await failFinance(me, { save: true });
     await dlg.getByRole("button", { name: "Save expense" }).click();
     await expect(dlg.getByTestId("form-message").first()).toContainText("Something went wrong. Try again in a moment.");
-    await expect(dlg.getByLabel("Amount", { exact: true })).toHaveValue("12.50");
+    await expect(dlg.getByLabel("Amount", { exact: true })).toHaveValue("12,50");
     await failFinance(me, { save: false });
 
     await page.route("**/api/v1/spaces/*/expenses", (route) => route.abort());
     await dlg.getByRole("button", { name: "Save expense" }).click();
     await expect(dlg.getByTestId("form-message").first()).toContainText("We could not reach the server. Check your connection and try again.");
-    await expect(dlg.getByLabel("Amount", { exact: true })).toHaveValue("12.50");
+    await expect(dlg.getByLabel("Amount", { exact: true })).toHaveValue("12,50");
     await page.unroute("**/api/v1/spaces/*/expenses");
     await dlg.getByRole("button", { name: "Save expense" }).click();
     await expect(dlg).toHaveCount(0);
@@ -555,12 +550,12 @@ test.describe("add an expense", () => {
     const { spaceId } = await setup(context, info);
     await seedExpenses(spaceId, [GROCERIES, TRAIN]);
     await page.goto("/expenses");
-    await page.getByRole("button", { name: "Groceries, €64.20, 12 Nov 2026" }).click();
+    await page.getByRole("button", { name: "Groceries, 64,20 kr, 12 nov. 2026" }).click();
     const dlg = dialogOf(page, "Edit expense");
     await dlg.getByLabel("Merchant (optional)").fill("Corner Shop");
     await dlg.getByRole("button", { name: "Save changes" }).click();
     await expect(toastText(page)).toContainText("Expense saved.");
-    await page.getByRole("button", { name: "Train tickets, SEK 540.00, 9 Nov 2026" }).click();
+    await page.getByRole("button", { name: "Train tickets, 540,00 kr, 9 nov. 2026" }).click();
     await dialogOf(page, "Edit expense").getByRole("button", { name: "Delete expense" }).click();
     const alert = page.getByRole("alertdialog", { name: "Delete this expense?" });
     await expect(toastText(page)).toBeVisible(); // still on screen, behind the dialog
@@ -621,10 +616,10 @@ test.describe("edit and delete an expense", () => {
     const { spaceId } = await setup(context, info);
     await seedExpenses(spaceId, [GROCERIES, TRAIN]);
     await page.goto("/expenses");
-    await page.getByRole("button", { name: "Groceries, €64.20, 12 Nov 2026" }).click();
+    await page.getByRole("button", { name: "Groceries, 64,20 kr, 12 nov. 2026" }).click();
     const dlg = dialogOf(page, "Edit expense");
     await expect(dlg).toBeVisible();
-    await expect(dlg.getByLabel("Amount", { exact: true })).toHaveValue("64.20");
+    await expect(dlg.getByLabel("Amount", { exact: true })).toHaveValue("64,20");
     await expect(dlg.getByLabel("Date", { exact: true })).toHaveValue("2026-11-12");
     await expect(dlg.getByRole("button", { name: "More details" })).toHaveAttribute("aria-expanded", "true"); // open when editing
     await expect(dlg.getByLabel("Description (optional)")).toHaveValue("Groceries");
@@ -637,36 +632,36 @@ test.describe("edit and delete an expense", () => {
     await dlg.getByRole("button", { name: "Save changes" }).click();
     await expect(dlg).toHaveCount(0);
     await expect(toastText(page)).toContainText("Expense saved.");
-    await expect(rowsOf(page).filter({ hasText: "Weekly groceries" })).toContainText("€70.05");
+    await expect(rowsOf(page).filter({ hasText: "Weekly groceries" })).toContainText("70,05 kr");
     await expect(rowsOf(page)).toHaveCount(2);
     await expect(page.getByRole("heading", { name: "Your expenses" })).toBeFocused();
     const saved = (await storedFinance<Record<string, unknown>>(spaceId, "expenses")).find((e) => e.description === "Weekly groceries");
-    expect(saved).toMatchObject({ amount: "70.05", currency: "EUR", merchant: "Corner Market", spent_on: "2026-11-12" });
+    expect(saved).toMatchObject({ amount: "70.05", currency: "SEK", merchant: "Corner Market", spent_on: "2026-11-12" });
   });
 
-  test("an expense in another currency keeps its currency and amount when edited", async ({ page, context }, info) => {
+  test("an expense stored in another currency keeps its currency and amount when edited", async ({ page, context }, info) => {
     const { spaceId } = await setup(context, info);
-    await seedExpenses(spaceId, [TRAIN]);
+    await seedExpenses(spaceId, [COFFEE]);
     await page.goto("/expenses");
-    await page.getByRole("button", { name: "Train tickets, SEK 540.00, 9 Nov 2026" }).click();
+    await page.getByRole("button", { name: "Coffee subscription, 9,00 USD, 30 okt. 2026" }).click();
     const dlg = dialogOf(page, "Edit expense");
-    await expect(dlg.getByLabel("Currency")).toHaveValue("SEK");
-    await expect(dlg.getByLabel("Amount", { exact: true })).toHaveValue("540.00");
+    await expect(dlg.getByLabel("Currency")).toHaveCount(0);
+    await expect(dlg.getByLabel("Amount", { exact: true })).toHaveValue("9,00");
     await dlg.getByLabel("Merchant (optional)").fill("Rail Co");
     await dlg.getByRole("button", { name: "Save changes" }).click();
     await expect(dlg).toHaveCount(0);
-    expect((await storedFinance<Record<string, unknown>>(spaceId, "expenses"))[0]).toMatchObject({ amount: "540.00", currency: "SEK", merchant: "Rail Co" });
+    expect((await storedFinance<Record<string, unknown>>(spaceId, "expenses"))[0]).toMatchObject({ amount: "9.00", currency: "USD", merchant: "Rail Co" });
   });
 
   test("delete asks first and names the expense; confirming removes it and focuses the list heading", async ({ page, context }, info) => {
     const { spaceId } = await setup(context, info);
     await seedExpenses(spaceId, [GROCERIES, TRAIN]);
     await page.goto("/expenses");
-    await page.getByRole("button", { name: "Groceries, €64.20, 12 Nov 2026" }).click();
+    await page.getByRole("button", { name: "Groceries, 64,20 kr, 12 nov. 2026" }).click();
     const dlg = dialogOf(page, "Edit expense");
     await dlg.getByRole("button", { name: "Delete expense" }).click();
     const alert = page.getByRole("alertdialog", { name: "Delete this expense?" });
-    await expect(alert).toContainText("Groceries, €64.20, 12 Nov 2026. It cannot be undone.");
+    await expect(alert).toContainText("Groceries, 64,20 kr, 12 nov. 2026. It cannot be undone.");
     await expect(alert.getByRole("button", { name: "Keep expense" })).toBeFocused();
     await snap(page, info, "confirm-delete", { view: true });
     await alert.getByRole("button", { name: "Delete expense" }).click();
@@ -683,7 +678,7 @@ test.describe("edit and delete an expense", () => {
     const { me, spaceId } = await setup(context, info);
     await seedExpenses(spaceId, [GROCERIES]);
     await page.goto("/expenses");
-    await page.getByRole("button", { name: "Groceries, €64.20, 12 Nov 2026" }).click();
+    await page.getByRole("button", { name: "Groceries, 64,20 kr, 12 nov. 2026" }).click();
     await dialogOf(page, "Edit expense").getByRole("button", { name: "Delete expense" }).click();
     const alert = page.getByRole("alertdialog", { name: "Delete this expense?" });
     await failFinance(me, { save: true });

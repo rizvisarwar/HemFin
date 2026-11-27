@@ -52,11 +52,10 @@ function StatusBadge({ active }: { active: boolean }) {
 
 /** "EUR 2,850.00 a month", or "EUR 600.00, typical amount" for an irregular source (finance.md 6.3). */
 function SourceAmount({ source, inRow }: { source: SourceResponse; inRow?: boolean }) {
-  const { prefs } = useFormat();
-  const phrase = source.frequency === "irregular" ? "typical amount" : FREQUENCY_PHRASE[source.frequency as keyof typeof FREQUENCY_PHRASE];
+const phrase = source.frequency === "irregular" ? "typical amount" : FREQUENCY_PHRASE[source.frequency as keyof typeof FREQUENCY_PHRASE];
   return (
     <span className={inRow ? "inline-flex shrink-0 flex-col items-end whitespace-nowrap text-right" : "inline-flex flex-col items-start whitespace-nowrap"}>
-      <MoneyText amount={source.amount} currency={source.currency} locale={prefs.locale} showCode={source.currency !== prefs.currency} size="md" />
+      <MoneyText amount={source.amount} currency={source.currency} size="md" />
       <span className="text-small text-muted-foreground">{phrase}</span>
     </span>
   );
@@ -65,7 +64,7 @@ function SourceAmount({ source, inRow }: { source: SourceResponse; inRow?: boole
 function SpaceSources({ spaceId, household }: { spaceId: string; household: boolean }) {
   const toast = useToast();
   const hydrated = useHydrated();
-  const { money, prefs } = useFormat();
+  const { money } = useFormat();
   const ref = useReferenceData(spaceId, household, { categories: false });
   const { list, refresh, loadMore, moreBusy, moreError } = usePagedList(spaceId, undefined, listSources);
   const [form, setForm] = React.useState<Form>({ open: false, key: 0, source: null });
@@ -91,7 +90,7 @@ function SpaceSources({ spaceId, household }: { spaceId: string; household: bool
     </Button>
   );
   const summary = (s: SourceResponse) =>
-    `${s.name}, ${money(s.amount, { currency: s.currency, code: s.currency !== prefs.currency })}, ${s.active ? "active" : "paused"}`;
+    `${s.name}, ${money(s.amount, { currency: s.currency })}, ${s.active ? "active" : "paused"}`;
 
   return (
     <>

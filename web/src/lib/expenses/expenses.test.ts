@@ -10,10 +10,9 @@ import {
   type ExpenseFormValues,
 } from "./expenses.ts";
 
-const opts = { mark: "." as const, digits: 2, today: "2026-11-27" };
+const opts = { today: "2026-11-27" };
 const values: ExpenseFormValues = {
   amount: "12.50",
-  currency: "EUR",
   category_id: "c1",
   spent_on: "2026-11-27",
   description: "  Groceries ",
@@ -60,7 +59,6 @@ describe("validateExpense", () => {
     assert.deepEqual(r.payload, {
       category_id: "c1",
       amount: "12.50",
-      currency: "EUR",
       spent_on: "2026-11-27",
       description: "Groceries",
       merchant: null,
@@ -74,8 +72,8 @@ describe("validateExpense", () => {
     assert.deepEqual(r.errors, { amount: "Enter the amount.", category_id: "Choose a category.", spent_on: "Enter the date you paid." });
   });
   it("rejects a comma in an English locale and too many decimals", () => {
-    assert.equal(validateExpense({ ...values, amount: "12,50" }, opts).errors.amount, "Enter an amount like 12.50.");
-    assert.equal(validateExpense({ ...values, amount: "1.234" }, opts).errors.amount, "EUR amounts can have up to 2 decimal places.");
+    assert.equal(validateExpense({ ...values, amount: "12,50" }, opts).errors.amount, undefined);
+    assert.match(validateExpense({ ...values, amount: "1.234" }, opts).errors.amount ?? "", /at most 2 decimals/);
   });
   it("accepts tomorrow, refuses a date two days ahead", () => {
     assert.deepEqual(validateExpense({ ...values, spent_on: "2026-11-28" }, opts).errors, {});

@@ -22,9 +22,9 @@ import {
 } from "./support/ui";
 
 // HEM-022: income sources and entries (docs/design/finance.md section 6), against the mock backend.
-// Screenshots land in test-results/screenshots/hem022/<phone|tablet|desktop>/<state>-<light|dark>.png.
+// Screenshots land in test-results/screenshots/hem024/<phone|tablet|desktop>/<state>-<light|dark>.png.
 
-const snap = (page: Page, info: Parameters<typeof snapTo>[1], name: string, opts: { view?: boolean } = {}) => snapTo(page, info, "hem022", name, opts);
+const snap = (page: Page, info: Parameters<typeof snapTo>[1], name: string, opts: { view?: boolean } = {}) => snapTo(page, info, "hem024", name, opts);
 const entriesOf = (page: Page) => page.getByTestId(isPhone(page) ? "entry-card" : "entry-row");
 const sourcesOf = (page: Page) => page.getByTestId(isPhone(page) ? "source-card" : "source-row");
 const filter = (page: Page, label: string, value: string) => setFilter(page, "Show income", label, value);
@@ -37,7 +37,6 @@ const INVOICE: SeedEntry = {
   amount: "600.00",
   currency: "USD",
   received_on: "2026-11-16",
-  base_amount: { amount: "552.10", currency: "EUR" },
 };
 
 test.describe.configure({ timeout: 120_000 });
@@ -66,17 +65,17 @@ test.describe("income sources", () => {
     await snap(page, info, "source-form-empty", { view: true });
 
     await dlg.getByLabel("Name", { exact: true }).fill("Northwind Ltd");
-    await dlg.getByLabel("Amount", { exact: true }).fill("2850.00");
+    await dlg.getByLabel("Amount", { exact: true }).fill("2850,00");
     await snap(page, info, "source-form-filled", { view: true });
     await dlg.getByRole("button", { name: "Save source" }).click();
     await expect(dlg).toHaveCount(0);
     await expect(toastText(page)).toContainText("Source saved.");
     await expect(sourcesOf(page)).toHaveCount(1);
     await expect(sourcesOf(page)).toContainText("Northwind Ltd");
-    await expect(sourcesOf(page)).toContainText("€2,850.00");
+    await expect(sourcesOf(page)).toContainText("2 850,00 kr");
     await expect(sourcesOf(page)).toContainText("a month");
     await expect(sourcesOf(page)).toContainText("Active");
-    expect((await storedFinance(spaceId, "sources"))[0]).toMatchObject({ name: "Northwind Ltd", type: "salary", amount: "2850.00", currency: "EUR", frequency: "monthly", active: true, member_user_id: null });
+    expect((await storedFinance(spaceId, "sources"))[0]).toMatchObject({ name: "Northwind Ltd", type: "salary", amount: "2850.00", currency: "SEK", frequency: "monthly", active: true, member_user_id: null });
     await expectNoHorizontalScroll(page);
   });
 
@@ -119,7 +118,7 @@ test.describe("income sources", () => {
     await expect(salary).toContainText("Active");
     await expect(design).toContainText("Business");
     await expect(design).toContainText("typical amount");
-    await expect(design).toContainText("€600.00");
+    await expect(design).toContainText("600,00 kr");
     await expect(design).toContainText("Paused");
     await expectNoHorizontalScroll(page);
     await expectAllTapTargets(page.locator("main"));
@@ -140,10 +139,10 @@ test.describe("income sources", () => {
     const { spaceId } = await setup(context, info);
     await seedSources(spaceId, [SALARY]);
     await page.goto("/income/sources");
-    await page.getByRole("button", { name: "Northwind Ltd, €2,850.00, active" }).click();
+    await page.getByRole("button", { name: "Northwind Ltd, 2 850,00 kr, active" }).click();
     const dlg = dialogOf(page, "Edit source");
     await expect(dlg.getByLabel("Name", { exact: true })).toHaveValue("Northwind Ltd");
-    await expect(dlg.getByLabel("Amount", { exact: true })).toHaveValue("2850.00");
+    await expect(dlg.getByLabel("Amount", { exact: true })).toHaveValue("2850,00");
     await expect(dlg.getByLabel("Active")).toBeChecked();
     await dlg.getByLabel("How often").selectOption("irregular");
     await expect(dlg.getByLabel("Typical amount")).toBeVisible();
@@ -177,7 +176,7 @@ test.describe("income sources", () => {
     const { ids } = await seedSources(spaceId, [SALARY, DESIGN]);
     await seedEntries(spaceId, [{ ...PAY, source_id: ids[0] }]);
     await page.goto("/income/sources");
-    await page.getByRole("button", { name: "Northwind Ltd, €2,850.00, active" }).click();
+    await page.getByRole("button", { name: "Northwind Ltd, 2 850,00 kr, active" }).click();
     await dialogOf(page, "Edit source").getByRole("button", { name: "Delete source" }).click();
     const alert = page.getByRole("alertdialog", { name: "Delete Northwind Ltd?" });
     await expect(alert).toContainText("Its received payments stay in your list, but they are no longer linked to this source.");
@@ -258,7 +257,7 @@ test.describe("income entries", () => {
     // A paused source is still offered, marked as paused (6.2).
     await expect(dlg.getByLabel("From source (optional)").locator("option")).toHaveText(["No source", "Northwind Ltd", "Freelance design (paused)"]);
     await snap(page, info, "entry-form-empty", { view: true });
-    await dlg.getByLabel("Amount", { exact: true }).fill("2850.00");
+    await dlg.getByLabel("Amount", { exact: true }).fill("2850,00");
     await dlg.getByLabel("From source (optional)").selectOption(ids[0]);
     await dlg.getByLabel("Description (optional)").fill("November pay");
     await snap(page, info, "entry-form-filled", { view: true });
@@ -267,9 +266,9 @@ test.describe("income entries", () => {
     await expect(toastText(page)).toContainText("Income added.");
     await expect(entriesOf(page)).toHaveCount(1);
     // A plus sign and the word "Income" show the direction (F13).
-    await expect(entriesOf(page)).toContainText("+€2,850.00");
+    await expect(entriesOf(page)).toContainText("+2 850,00 kr");
     await expect(entriesOf(page)).toContainText("November pay");
-    expect((await storedFinance(spaceId, "entries"))[0]).toMatchObject({ amount: "2850.00", currency: "EUR", source_id: ids[0], description: "November pay", received_on: isoIn(0) });
+    expect((await storedFinance(spaceId, "entries"))[0]).toMatchObject({ amount: "2850.00", currency: "SEK", source_id: ids[0], description: "November pay", received_on: isoIn(0) });
   });
 
   test("grouped by month; direction, source type, converted amount (no extra plus) and no overflow", async ({ page, context }, info) => {
@@ -286,16 +285,16 @@ test.describe("income entries", () => {
     await expect(page.getByRole("heading", { level: 2, name: "October 2026" })).toBeVisible();
     await expect(page.getByText("2 payments")).toBeVisible();
     const pay = entriesOf(page).filter({ hasText: "November pay" });
-    await expect(pay).toContainText("+€2,850.00");
+    await expect(pay).toContainText("+2 850,00 kr");
     await expect(pay).toContainText("Income");
     const invoice = entriesOf(page).filter({ hasText: "Invoice 14" });
-    await expect(invoice).toContainText("+USD 600.00");
-    await expect(invoice).toContainText("About EUR 552.10");
+    await expect(invoice).toContainText("+600,00 USD");
+    await expect(invoice).not.toContainText("About");
     await expect(invoice).not.toContainText("+EUR");
     // The source's type is in the meta line; from xl the Source column names the source instead.
     await expect(pay).toContainText((page.viewportSize()?.width ?? 0) >= 1280 ? "Northwind Ltd" : "Salary");
     if (isPhone(page)) await expect(entriesOf(page).filter({ hasText: "Refund" })).toContainText("No source");
-    await expect(page.getByRole("button", { name: "November pay, +€2,850.00, 28 Nov 2026" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "November pay, +2 850,00 kr, 28 nov. 2026" })).toBeVisible();
     await expectNoHorizontalScroll(page);
     await expectAllTapTargets(page.locator("main"));
     await snap(page, info, "entries-populated");
@@ -313,9 +312,9 @@ test.describe("income entries", () => {
     const { spaceId } = await setup(context, info);
     await seedEntries(spaceId, [PAY, INVOICE]);
     await page.goto("/income");
-    await page.getByRole("button", { name: "November pay, +€2,850.00, 28 Nov 2026" }).click();
+    await page.getByRole("button", { name: "November pay, +2 850,00 kr, 28 nov. 2026" }).click();
     const dlg = dialogOf(page, "Edit income");
-    await expect(dlg.getByLabel("Amount", { exact: true })).toHaveValue("2850.00");
+    await expect(dlg.getByLabel("Amount", { exact: true })).toHaveValue("2850,00");
     await expect(dlg.getByLabel("Received on")).toHaveValue("2026-11-28");
     await expect(dlg.getByLabel("Description (optional)")).toHaveValue("November pay");
     await snap(page, info, "entry-form-edit", { view: true });
@@ -323,13 +322,13 @@ test.describe("income entries", () => {
     await dlg.getByRole("button", { name: "Save income" }).click();
     await expect(dlg).toHaveCount(0);
     await expect(toastText(page)).toContainText("Income saved.");
-    await expect(entriesOf(page).filter({ hasText: "November pay" })).toContainText("+€2,900.50");
+    await expect(entriesOf(page).filter({ hasText: "November pay" })).toContainText("+2 900,50 kr");
     await expect(page.getByRole("heading", { name: "Your income" })).toBeFocused();
 
-    await page.getByRole("button", { name: "Invoice 14, +USD 600.00, 16 Nov 2026" }).click();
+    await page.getByRole("button", { name: "Invoice 14, +600,00 USD, 16 nov. 2026" }).click();
     await dialogOf(page, "Edit income").getByRole("button", { name: "Delete income" }).click();
     const alert = page.getByRole("alertdialog", { name: "Delete this income?" });
-    await expect(alert).toContainText("USD 600.00 from 16 Nov 2026. It cannot be undone.");
+    await expect(alert).toContainText("600,00 USD from 16 nov. 2026. It cannot be undone.");
     await expect(alert.getByRole("button", { name: "Keep income" })).toBeFocused();
     await snap(page, info, "entry-confirm-delete", { view: true });
     await alert.getByRole("button", { name: "Delete income" }).click();

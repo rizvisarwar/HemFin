@@ -1,29 +1,25 @@
 "use client";
 
 import * as React from "react";
-import { DEFAULT_PREFS, makeFormatter, type FormatPrefs, type Formatter } from "@/lib/format";
+import { makeFormatter, type Formatter } from "@/lib/format";
 
-const FormatContext = React.createContext<Formatter | null>(null);
+const formatter = makeFormatter();
+const FormatContext = React.createContext<Formatter>(formatter);
 
 /**
- * Makes the signed-in user's base currency and locale (from their profile) available to every
- * client component in the (app) shell. Mounted by the (app) layout, which re-reads the profile
- * after a save (router.refresh()).
+ * Makes the money and date formatters (sv-SE, SEK; HEM-024) available to every client component in
+ * the (app) shell. Mounted by the (app) layout.
  */
-export function FormatProvider({ prefs, children }: { prefs: FormatPrefs; children: React.ReactNode }) {
-  const value = React.useMemo(() => makeFormatter({ currency: prefs.currency, locale: prefs.locale }), [prefs.currency, prefs.locale]);
-  return <FormatContext.Provider value={value}>{children}</FormatContext.Provider>;
+export function FormatProvider({ children }: { children: React.ReactNode }) {
+  return <FormatContext.Provider value={formatter}>{children}</FormatContext.Provider>;
 }
 
-const FALLBACK = makeFormatter(DEFAULT_PREFS);
-
 /**
- * Money and date formatting in the user's base currency and locale:
- *   const { money, date, prefs } = useFormat();
- *   money("1240.50")                       // base currency
- *   money("5", { currency: "USD" })        // a record held in another currency
- * Outside the provider (tests, public pages) it uses the defaults (EUR, en).
+ * Money and date formatting:
+ *   const { money, date, calendarDate } = useFormat();
+ *   money("1240.50")                       // "1 240,50 kr"
+ *   money("5", { currency: "USD" })        // a record stored in another currency: "5,00 USD"
  */
 export function useFormat(): Formatter {
-  return React.useContext(FormatContext) ?? FALLBACK;
+  return React.useContext(FormatContext);
 }

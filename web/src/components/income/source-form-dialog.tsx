@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useFormat } from "@/components/format-provider";
 import { useActiveSpace } from "@/components/layout/app-shell-client";
-import { CURRENCY_OPTIONS, DeleteButton, memberLabel, PendingFormDialog, type ReferenceData } from "@/components/finance/finance-parts";
+import { DeleteButton, memberLabel, PendingFormDialog, type ReferenceData } from "@/components/finance/finance-parts";
 import { useFormState } from "@/components/finance/use-form-state";
 import { AmountInput } from "@/components/ui/amount-input";
 import { AppliesToSelect } from "@/components/ui/applies-to-select";
@@ -18,7 +17,7 @@ import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { SelectField } from "@/components/ui/select-field";
 import { SpaceBadge } from "@/components/ui/space-badge";
 import type { SourceResponse } from "@/lib/api";
-import { amountToInput, decimalMark, fractionDigits } from "@/lib/finance/amount";
+import { amountToInput } from "@/lib/finance/amount";
 import { createSource, deleteSource, updateSource } from "@/lib/income/client";
 import {
   SOURCE_NAME_MAX,
@@ -29,7 +28,7 @@ import {
   type SourceType,
 } from "@/lib/income/income";
 
-const FIELDS: SourceFormField[] = ["name", "type", "amount", "currency", "frequency", "member_user_id", "active"];
+const FIELDS: SourceFormField[] = ["name", "type", "amount", "frequency", "member_user_id", "active"];
 const FORM_ID = "source-form";
 const TYPE_OPTIONS = (Object.keys(SOURCE_TYPE_LABEL) as SourceType[]).map((t) => ({ value: t, label: SOURCE_TYPE_LABEL[t] }));
 
@@ -67,23 +66,20 @@ export function SourceFormDialog(props: SourceFormDialogProps) {
 function LoadedSourceForm({ open, onOpenChange, spaceId, source, reference, onSaved, onDeleted, finalFocus }: SourceFormDialogProps) {
   const space = useActiveSpace();
   const household = space.type === "household";
-  const { prefs } = useFormat();
-  const mark = decimalMark(prefs.locale);
 
-  const f = useFormState<SourceFormValues>(() => initialValues(source, prefs.currency, prefs.locale), FIELDS, FORM_ID);
+  const f = useFormState<SourceFormValues>(() => initialValues(source), FIELDS, FORM_ID);
   const { values, errors, formError, busy, discard, set } = f;
   const [ask, setAsk] = React.useState(false);
-  const digits = fractionDigits(values.currency, prefs.locale);
   const editing = source !== null;
 
   function blur(field: SourceFormField) {
-    f.blur(field, validateSource(values, { mark, digits }).errors);
+    f.blur(field, validateSource(values).errors);
   }
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
-    const result = validateSource(values, { mark, digits });
+    const result = validateSource(values);
     if (!result.payload) return f.invalid(result.errors);
     f.setErrors({});
     f.setFormError(undefined);
@@ -146,14 +142,8 @@ function LoadedSourceForm({ open, onOpenChange, spaceId, source, reference, onSa
           value={values.amount}
           onValueChange={(v) => set("amount", v)}
           onBlur={() => blur("amount")}
-          currency={values.currency}
-          currencyOptions={CURRENCY_OPTIONS}
-          onCurrencyChange={(c) => set("currency", c)}
-          decimalSeparator={mark}
-          fractionDigits={digits}
           required
           error={errors.amount}
-          currencyError={errors.currency}
         />
         <FrequencySelect
           id="frequency"
@@ -216,13 +206,12 @@ function LoadedSourceForm({ open, onOpenChange, spaceId, source, reference, onSa
   );
 }
 
-function initialValues(s: SourceResponse | null, baseCurrency: string, locale: string): SourceFormValues {
-  if (!s) return { name: "", type: "salary", amount: "", currency: baseCurrency, frequency: "monthly", member_user_id: "", active: true };
+function initialValues(s: SourceResponse | null): SourceFormValues {
+  if (!s) return { name: "", type: "salary", amount: "", frequency: "monthly", member_user_id: "", active: true };
   return {
     name: s.name,
     type: s.type as SourceType,
-    amount: amountToInput(s.amount, { mark: decimalMark(locale), digits: fractionDigits(s.currency, locale) }),
-    currency: s.currency,
+    amount: amountToInput(s.amount),
     frequency: s.frequency as SourceFormValues["frequency"],
     member_user_id: s.member_user_id ?? "",
     active: s.active,

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarClock, CircleHelp, CreditCard, RefreshCw, Wallet } from "lucide-react";
+import { CalendarClock, CreditCard, RefreshCw, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useFormat } from "@/components/format-provider";
 import { AppPageHeader } from "@/components/layout/app-page-header";
@@ -22,7 +22,6 @@ import {
   isFirstRun,
   isZeroAmount,
   monthLabel,
-  unconvertedHint,
 } from "@/lib/dashboard/dashboard";
 
 const EVENT_ICON: Record<DashboardEventResponse["type"], LucideIcon> = {
@@ -31,7 +30,7 @@ const EVENT_ICON: Record<DashboardEventResponse["type"], LucideIcon> = {
   notice_deadline: CalendarClock,
 };
 
-function Event({ event, base, today }: { event: DashboardEventResponse; base: string; today: string }) {
+function Event({ event, today }: { event: DashboardEventResponse; today: string }) {
   const { calendarDate } = useFormat();
   const Icon = EVENT_ICON[event.type];
   const chip = dueChip(event.type, daysUntil(event.date, today));
@@ -59,11 +58,7 @@ function Event({ event, base, today }: { event: DashboardEventResponse; base: st
       </Link>
       {event.amount ? (
         <div className="whitespace-nowrap xl:order-4 xl:text-right">
-          <MoneyText
-            amount={event.amount.amount}
-            currency={event.amount.currency}
-            showCode={event.amount.currency !== base}
-          />
+          <MoneyText amount={event.amount.amount} currency={event.amount.currency} />
         </div>
       ) : (
         <div aria-hidden="true" className="hidden xl:order-4 xl:block" />
@@ -98,7 +93,7 @@ function Upcoming({ data, today }: { data: DashboardResponse; today: string }) {
       ) : (
         <ul className="space-y-3 xl:space-y-0 xl:rounded-lg xl:border xl:border-border xl:bg-card xl:px-5">
           {data.upcoming.map((e) => (
-            <Event key={`${e.type}-${e.contract_id}-${e.date}`} event={e} base={data.base_currency} today={today} />
+            <Event key={`${e.type}-${e.contract_id}-${e.date}`} event={e} today={today} />
           ))}
         </ul>
       )}
@@ -155,16 +150,6 @@ export function DashboardView({ data, today }: { data: DashboardResponse; today:
         }
       />
       <div data-testid="dashboard">
-        {data.unconverted_count > 0 ? (
-          <div className="mb-4" data-testid="unconverted-hint">
-            <FormMessage kind="info">
-              <span className="inline-flex items-start gap-2">
-                <CircleHelp aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-                <span>{unconvertedHint(data.unconverted_count, data.base_currency)}</span>
-              </span>
-            </FormMessage>
-          </div>
-        ) : null}
         <div className="grid gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
           <StatCard
             title="Spent this month"

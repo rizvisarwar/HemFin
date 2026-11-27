@@ -8,7 +8,7 @@ Full scope of each phase: `docs/PROJECT_PLAN.md`, section 4.
 | 0 | Foundations & team setup | **Done** (HEM-001 to HEM-007). The first real deploy is waiting for the user's Supabase, Render and Vercel accounts (`docs/deploy.md`). |
 | 1 | Auth & Profile | **Done** (HEM-008 to HEM-011; PRs #15, #17, #18, #19). |
 | 2 | Households & Invitations | **Built** (HEM-012 to HEM-016; PRs #20 to #24). **Done.** The live invitation demo passed on 2026-11-27. |
-| 3 | Core Finance | **Built** (HEM-017 to HEM-023; PRs #25 to #28 and #30 to #32). Waiting for the live demo. The scheduled jobs need `JOB_SECRET` (Render and Actions) and the `API_BASE_URL` Actions variable before the FX job can run. |
+| 3 | Core Finance | **Built** (HEM-017 to HEM-023; PRs #25 to #28 and #30 to #32). Waiting for the live demo. The scheduled jobs need `JOB_SECRET` (Render and Actions) and the `API_BASE_URL` Actions variable before they can run. HEM-024 (SEK only) follows. |
 | 4 | Documents | **Dropped for the POC** (user, 2026-11-27): no document storage; manual entry instead. |
 | 5 | Notifications | Not started |
 | 6 | Reports & Forecast | Not started |
@@ -62,12 +62,12 @@ Order: HEM-017, HEM-018 and HEM-020 run in parallel. HEM-019 follows HEM-018. Th
 | HEM-021 | Web: contracts | Engineer | Done | #30 |
 | HEM-022 | Web: expenses and income | Engineer | Done | #32 |
 | HEM-023 | Dashboard summary (API and web) | Engineer | Done | #31 |
+| HEM-024 | SEK only, remove multi-currency | Engineer | In Review | |
 
 ## Follow-ups (not yet ticketed)
 - Custom categories UI: creating and deleting a space's own categories. The API exists from HEM-018; there is no screen in Phase 3 (HEM-017 Q4).
-- FX follow-ups (from the HEM-020 review): stream the ECB feed and stop past the size cap instead of buffering it; a missed weekday run leaves that date's rates absent (consider fetching the 90-day feed each run); no alerting on repeated ECB 502s beyond GitHub failed-run emails.
 - Phase 5 follow-ups (from HEM-018): add an "ends" event for contracts with an end_date and no auto-renew; use user-local day boundaries instead of the UTC `get_today`; clear `contracts.member_user_id` (and on expenses and income) when a member leaves a space.
-- Small cleanups (from HEM-019): move `get_today` from `contracts.router` to `core/`; fetch FX rates for a page in one bulk query.
+- Small cleanups (from HEM-019): move `get_today` from `contracts.router` to `core/`.
 - Web finance follow-ups (from the HEM-021 to HEM-023 reviews): the "Applies to" filter on /income (needs a `member_user_id` filter on the income-entries API); the notice-period label wraps awkwardly on the desktop contract form; `?contract_id=` on /expenses is read only at mount; the "No expenses this month" empty title also shows when there are no expenses at all; the contracts specs could share `tests/support/ui.ts`; month tables size their columns independently.
 - Test infra: Playwright and several specs hard-code port 3100, which breaks parallel local runs; make the port configurable.
 - Phase 2 (space switcher with real households): the phone switcher sheet gets the SpaceBadge heading row from spec 4.2, and long household names stay readable (from the HEM-003 design review).

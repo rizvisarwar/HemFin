@@ -63,7 +63,6 @@ const values: ContractFormValues = {
   provider: "  ",
   category_id: "c1",
   amount: "4350.50",
-  currency: "EUR",
   frequency: "annual",
   start_date: "2026-01-01",
   end_date: "",
@@ -73,18 +72,15 @@ const values: ContractFormValues = {
   member_user_id: "",
   notes: "",
 };
-const opts = { mark: "." as const, digits: 2 };
-
 describe("validateContract", () => {
   it("builds the API body: amount as a string, empty optionals null", () => {
-    const r = validateContract(values, opts);
+    const r = validateContract(values);
     assert.deepEqual(r.errors, {});
     assert.deepEqual(r.payload, {
       category_id: "c1",
       name: "Car insurance",
       provider: null,
       amount: "4350.50",
-      currency: "EUR",
       frequency: "annual",
       start_date: "2026-01-01",
       end_date: null,
@@ -96,7 +92,7 @@ describe("validateContract", () => {
     });
   });
   it("drops the renewal term when auto-renew is off", () => {
-    const r = validateContract({ ...values, auto_renew: false, renewal_term_months: "abc" }, opts);
+    const r = validateContract({ ...values, auto_renew: false, renewal_term_months: "abc" });
     assert.equal(r.payload?.renewal_term_months, null);
   });
   it("reports each rule with the spec's wording", () => {
@@ -110,7 +106,6 @@ describe("validateContract", () => {
         renewal_term_months: "121",
         notice_period_days: "1.5",
       },
-      opts,
     );
     assert.equal(r.payload, undefined);
     assert.deepEqual(r.errors, {
@@ -122,9 +117,9 @@ describe("validateContract", () => {
       notice_period_days: "Enter a whole number of days, for example 30.",
     });
     assert.equal(
-      validateContract({ ...values, end_date: "2025-12-31" }, opts).errors.end_date,
+      validateContract({ ...values, end_date: "2025-12-31" }).errors.end_date,
       "The end date must be on or after the start date.",
     );
-    assert.equal(validateContract({ ...values, end_date: "2026-01-01" }, opts).errors.end_date, undefined);
+    assert.equal(validateContract({ ...values, end_date: "2026-01-01" }).errors.end_date, undefined);
   });
 });

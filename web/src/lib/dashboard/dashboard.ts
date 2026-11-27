@@ -45,12 +45,6 @@ export function isFirstRun(d: DashboardResponse): boolean {
   return !d.has_records;
 }
 
-export function unconvertedHint(count: number, base: string): string {
-  return count === 1
-    ? `1 amount is not in ${base}, because no rate was found for its date. Totals leave it out.`
-    : `${count} amounts are not in ${base}, because no rate was found for their dates. Totals leave them out.`;
-}
-
 export const EVENT_LABEL: Record<DashboardEventResponse["type"], string> = {
   payment: "Payment",
   renewal: "Renewal",

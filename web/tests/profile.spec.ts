@@ -16,7 +16,7 @@ async function shot(page: Page, info: TestInfo, name: string) {
   // Move the pointer off the page first, so no button is captured in its hover state.
   await page.mouse.move(0, 0);
   await page.screenshot({
-    path: `test-results/screenshots/${info.project.name}-profile-${name}.png`,
+    path: `test-results/screenshots/hem024/${info.project.name}/profile-${name}.png`,
     fullPage: true,
     animations: "disabled",
   });
@@ -25,7 +25,7 @@ async function shot(page: Page, info: TestInfo, name: string) {
 /** Screenshot of what is on screen now (for a dialog or sheet, which fullPage would stretch). */
 async function viewShot(page: Page, info: TestInfo, name: string) {
   await page.mouse.move(0, 0);
-  await page.screenshot({ path: `test-results/screenshots/${info.project.name}-profile-${name}.png`, animations: "disabled" });
+  await page.screenshot({ path: `test-results/screenshots/hem024/${info.project.name}/profile-${name}.png`, animations: "disabled" });
 }
 
 async function expectTapTarget(el: Locator, what: string) {
@@ -47,7 +47,7 @@ async function openProfile(page: Page, info: TestInfo, context: Parameters<typeo
 
 const SEEDED = {
   display_name: "Sam Example",
-  profile: { phone_e164: "+31612345678", base_currency: "EUR", locale: "en" },
+  profile: { phone_e164: "+31612345678", locale: "en" },
 };
 
 const HOME = { label: "Home", line1: "Main Street 1", postcode: "3511 AB", city: "Utrecht", country: "NL" };
@@ -55,12 +55,6 @@ const WORK = { label: "Work", line1: "Station Road 12", line2: "Floor 3", city: 
 
 const phoneInput = (page: Page) => page.locator("#phone");
 const message = (page: Page) => page.locator("#profile-form-message");
-
-async function pickCurrency(page: Page, search: string, option: RegExp) {
-  const input = page.getByLabel("Base currency");
-  await input.fill(search);
-  await page.getByRole("option", { name: option }).first().click();
-}
 
 test.describe("profile form", () => {
   test("loads the saved values, read-only email, and fits every viewport", async ({ page, context }, info) => {
@@ -73,10 +67,8 @@ test.describe("profile form", () => {
     await expect(page.getByText("Changing it is not available yet")).toBeVisible();
     await expect(page.getByLabel("Phone country")).toHaveValue("Netherlands (+31)");
     await expect(phoneInput(page)).toHaveValue("612345678");
-    await expect(page.getByLabel("Base currency")).toHaveValue("EUR");
     await expect(page.getByLabel("Locale")).toHaveValue("en");
-    // Money in the base currency and locale.
-    await expect(page.getByTestId("money-example")).toHaveText("€1,240.50");
+    await expect(page.getByLabel("Base currency")).toHaveCount(0); // SEK only: not editable
     await expectNoHorizontalScroll(page);
     await shot(page, info, "populated-light");
     await page.emulateMedia({ colorScheme: "dark" });
@@ -88,7 +80,6 @@ test.describe("profile form", () => {
   test("a new user sees the defaults", async ({ page, context }, info) => {
     await openProfile(page, info, context);
     await expect(page.getByLabel("Display name")).toHaveValue("");
-    await expect(page.getByLabel("Base currency")).toHaveValue("EUR");
     await expect(phoneInput(page)).toHaveValue("");
     await expect(page.getByTestId("addresses").getByText("No addresses yet")).toBeVisible();
     await shot(page, info, "empty-light");
@@ -103,7 +94,6 @@ test.describe("profile form", () => {
       [page.getByLabel("Display name"), "display name"],
       [page.getByLabel("Phone country"), "phone country"],
       [phoneInput(page), "phone"],
-      [page.getByLabel("Base currency"), "currency"],
       [page.getByLabel("Locale"), "locale"],
       [page.getByTestId("save-profile"), "save"],
     ];
@@ -114,27 +104,21 @@ test.describe("profile form", () => {
     await openProfile(page, info, context, SEEDED);
     await page.getByLabel("Display name").fill("Sam Q. Example");
     await phoneInput(page).fill("06 98765432");
-    await pickCurrency(page, "dollar", /^US Dollar/);
-    await expect(page.getByLabel("Base currency")).toHaveValue("USD");
     await page.getByLabel("Locale").selectOption("nl-NL");
     await page.getByTestId("save-profile").click();
 
     await expect(message(page)).toHaveText("Profile saved.");
     await expect(message(page)).toHaveAttribute("aria-live", "polite");
-    // The API's normalised value comes back into the form, and the layout re-reads the profile,
-    // so money is now written with the new currency and locale.
+    // The API's normalised value comes back into the form.
     await expect(phoneInput(page)).toHaveValue("698765432");
-    await expect(page.getByTestId("money-example")).toHaveText(/1\.240,50/);
     await shot(page, info, "saved");
 
     await page.reload();
     await expect(page.getByTestId("save-profile")).toBeEnabled();
     await expect(page.getByLabel("Display name")).toHaveValue("Sam Q. Example");
-    await expect(page.getByLabel("Base currency")).toHaveValue("USD");
     await expect(page.getByLabel("Locale")).toHaveValue("nl-NL");
     await expect(page.getByLabel("Phone country")).toHaveValue("Netherlands (+31)");
     await expect(phoneInput(page)).toHaveValue("698765432");
-    await expect(page.getByTestId("money-example")).toContainText("US$");
   });
 
   test("the API's 422 for the phone shows on the field, takes focus and is announced", async ({ page, context }, info) => {
@@ -169,45 +153,6 @@ test.describe("profile form", () => {
     await page.reload();
     await expect(page.getByTestId("save-profile")).toBeEnabled();
     await expect(phoneInput(page)).toHaveValue("");
-  });
-
-  test("an unknown currency is caught before sending, with focus on that field", async ({ page, context }, info) => {
-    await openProfile(page, info, context, SEEDED);
-    const currency = page.getByLabel("Base currency");
-    await currency.fill("ZZZ9");
-    await page.getByLabel("Display name").click(); // closes the list and leaves the text as typed
-    await page.getByTestId("save-profile").click();
-    await expect(page.locator("#base_currency-error")).toContainText("Choose a currency from the list.");
-    await expect(currency).toHaveAttribute("aria-invalid", "true");
-    await expect(currency).toBeFocused();
-  });
-
-  test("the currency picker searches by code or name and works with the keyboard", async ({ page, context }, info) => {
-    await openProfile(page, info, context, SEEDED);
-    const currency = page.getByLabel("Base currency");
-    await currency.fill("swiss");
-    const list = page.getByRole("listbox", { name: "Currencies" }); // named, not "Options"
-    await expect(list.getByRole("option")).toHaveCount(1);
-    await expect(currency).toHaveAttribute("aria-controls", "base_currency-list");
-    await expect(list.getByRole("option").first()).toContainText("Swiss Franc");
-    await currency.fill("gbp");
-    await expect(list.getByRole("option").first()).toContainText("British Pound");
-    await currency.fill("qqqq");
-    // "No match" is a message outside the listbox; there is no list to point aria-controls at.
-    await expect(page.getByTestId("combobox-empty")).toContainText("No match");
-    await expect(page.getByRole("listbox")).toHaveCount(0);
-    await expect(currency).not.toHaveAttribute("aria-controls", /.+/);
-    await currency.fill("pound");
-    const second = await list.getByRole("option").nth(1).locator("span").last().innerText(); // its code
-    await currency.press("ArrowDown");
-    await expect(currency).toHaveAttribute("aria-activedescendant", /base_currency-opt-1/);
-    await currency.press("ArrowDown");
-    await currency.press("ArrowUp");
-    await currency.press("Enter");
-    await expect(currency).toHaveValue(second);
-    await expect(page.getByRole("listbox")).toHaveCount(0);
-    // Enter in the picker picks; it does not submit the form.
-    await expect(message(page)).toHaveText("");
   });
 
   test("a server error that is not about one field is shown for the whole form", async ({ page, context }, info) => {
@@ -535,7 +480,7 @@ test.describe("review round 1", () => {
     await expect(dialog).toBeHidden();
   });
 
-  test("the country and currency lists are fully visible and scrollable inside the bottom sheet", async ({ page, context }, info) => {
+  test("the country list is fully visible and scrollable inside the bottom sheet", async ({ page, context }, info) => {
     await openProfile(page, info, context, { addresses: [HOME] });
     await page.getByTestId("addresses").getByRole("button", { name: "Add address" }).click();
     const dialog = page.getByRole("dialog", { name: "Add address" });
@@ -570,57 +515,6 @@ test.describe("review round 1", () => {
     await expect(country).not.toHaveValue("a");
     await expect(dialog).toBeVisible();
   });
-
-  // The list on the page must stay between the sticky top bar and the bottom nav, scroll inside
-  // itself, and never make the page scroll away from its field.
-  for (const place of ["middle", "near the bottom nav", "near the top bar"] as const) {
-    test(`the currency list ${place}: scrolls inside itself, clear of the bars, field stays in view`, async ({ page, context }, info) => {
-      await openProfile(page, info, context, SEEDED);
-      const currency = page.getByLabel("Base currency");
-      // Put the field where the test wants it (page scroll is set before opening, never after).
-      await currency.evaluate((el, where) => {
-        const h = window.innerHeight;
-        const r = el.getBoundingClientRect();
-        const target = where === "middle" ? h / 2 - 22 : where === "near the bottom nav" ? h - 170 : 110;
-        window.scrollBy(0, r.top - target);
-      }, place);
-      const fieldBefore = (await currency.boundingBox())!;
-      const scrollBefore = await page.evaluate(() => window.scrollY);
-      await currency.fill("a");
-      const list = page.getByRole("listbox", { name: "Currencies" });
-      await expect(list).toBeVisible();
-      await list.evaluate((el) => (el.scrollTop = el.scrollHeight)); // scroll the list, not the page
-      const last = list.getByRole("option").last();
-      await expect(last).toBeInViewport({ ratio: 1 }); // fully visible
-
-      const view = page.viewportSize()!;
-      const bars = await page.evaluate(() => {
-        const out: { where: string; top: number; bottom: number }[] = [];
-        for (const el of document.querySelectorAll<HTMLElement>("[data-viewport-inset]")) {
-          const r = el.getBoundingClientRect();
-          if (r.width > 0 && r.height > 0) out.push({ where: el.dataset.viewportInset!, top: r.top, bottom: r.bottom });
-        }
-        return out;
-      });
-      const box = (await list.boundingBox())!;
-      for (const bar of bars) {
-        if (bar.where === "top") expect(box.y, "list clear of the top bar").toBeGreaterThanOrEqual(bar.bottom - 1);
-        else expect(box.y + box.height, "list clear of the bottom nav").toBeLessThanOrEqual(bar.top + 1);
-      }
-      expect(box.y).toBeGreaterThanOrEqual(0);
-      expect(box.y + box.height).toBeLessThanOrEqual(view.height);
-      expect(box.x + box.width).toBeLessThanOrEqual(view.width);
-      // The page did not scroll, so the field is exactly where it was and in view.
-      expect(await page.evaluate(() => window.scrollY)).toBe(scrollBefore);
-      const fieldAfter = (await currency.boundingBox())!;
-      expect(Math.abs(fieldAfter.y - fieldBefore.y)).toBeLessThan(1);
-      await expect(currency).toBeInViewport({ ratio: 1 });
-      if (place === "middle") await viewShot(page, info, "currency-list-open-last-option");
-      if (place === "near the bottom nav") await viewShot(page, info, "currency-list-open-above-last-option");
-      await last.click();
-      await expect(currency).not.toHaveValue("a");
-    });
-  }
 
   test("the phone country comes from the locale's region, the same on server and client", async ({ page, context }, info) => {
     await openProfile(page, info, context, { profile: { locale: "nl-NL" } });
@@ -659,25 +553,6 @@ test.describe("review round 1", () => {
     await expect(message(page)).toHaveText("Profile saved.");
     await expect(page.getByLabel("Phone country")).toHaveValue("United Kingdom (+44)");
     await expect(phoneInput(page)).toHaveValue("2079460958");
-  });
-
-  test("the money example follows the currency being picked", async ({ page, context }, info) => {
-    await openProfile(page, info, context, SEEDED);
-    const example = page.getByTestId("money-example");
-    await expect(example).toHaveText("€1,240.50");
-    await pickCurrency(page, "swiss", /^Swiss Franc/);
-    await expect(example).toContainText("CHF"); // before saving
-    await expect(example).toContainText("1,240.50");
-    // Typed (not picked) and tidied on blur: the example follows the resolved currency.
-    const currency = page.getByLabel("Base currency");
-    await currency.fill("usd");
-    await expect(example).toHaveText("$1,240.50");
-    await page.getByLabel("Display name").click();
-    await expect(currency).toHaveValue("USD");
-    await expect(example).toHaveText("$1,240.50");
-    // Text that names no currency falls back to the saved one.
-    await currency.fill("nonsense");
-    await expect(example).toHaveText("€1,240.50");
   });
 
   test("a display name is counted in characters, not UTF-16 units", async ({ page, context }, info) => {

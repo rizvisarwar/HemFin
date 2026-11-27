@@ -54,7 +54,7 @@ function SpaceExpenses({ spaceId, household }: { spaceId: string; household: boo
   const search = useSearchParams();
   const toast = useToast();
   const hydrated = useHydrated();
-  const { calendarDate, money, prefs } = useFormat();
+  const { calendarDate, money } = useFormat();
   const ref = useReferenceData(spaceId, household, { contracts: true });
 
   // `?contract_id=` comes from the contract page's "Expenses for this contract" link.
@@ -95,7 +95,7 @@ function SpaceExpenses({ spaceId, household }: { spaceId: string; household: boo
 
   const title = (e: ExpenseResponse) => e.description?.trim() || categoryLabel(ref, e.category);
   const summary = (e: ExpenseResponse) =>
-    `${title(e)}, ${money(e.amount, { currency: e.currency, code: e.currency !== prefs.currency })}, ${calendarDate(e.spent_on)}`;
+    `${title(e)}, ${money(e.amount, { currency: e.currency })}, ${calendarDate(e.spent_on)}`;
   // From xl the table has Category and Applies to columns of its own, so its meta line leaves them out.
   const meta = (e: ExpenseResponse, withColumns: boolean) =>
     [
@@ -221,7 +221,7 @@ function SpaceExpenses({ spaceId, household }: { spaceId: string; household: boo
                 </span>
                 <span className="mt-2 flex items-end justify-between gap-3">
                   <span className="text-small text-muted-foreground">{calendarDate(e.spent_on)}</span>
-                  <RecordAmount amount={e.amount} currency={e.currency} base={e.base_amount} />
+                  <RecordAmount amount={e.amount} currency={e.currency} />
                 </span>
               </RecordCardButton>
             )}
@@ -252,7 +252,7 @@ function SpaceExpenses({ spaceId, household }: { spaceId: string; household: boo
                     },
                   ]
                 : []),
-              { id: "amount", header: "Amount", align: "right", cell: (e) => <RecordAmount amount={e.amount} currency={e.currency} base={e.base_amount} /> },
+              { id: "amount", header: "Amount", align: "right", cell: (e) => <RecordAmount amount={e.amount} currency={e.currency} /> },
             ]}
           />
           {list.next ? (

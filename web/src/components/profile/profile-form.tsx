@@ -13,9 +13,7 @@ import { Field, FieldError } from "@/components/ui/field";
 import { useFocusFirstInvalid } from "@/components/auth/form-parts";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { FormMessage } from "@/components/ui/form-message";
-import { useFormat } from "@/components/format-provider";
 import { countryByCode, countryOptions, type ComboOption } from "@/lib/profile/countries";
-import { currencyOptions } from "@/lib/profile/currencies";
 import { localeOptionsWith } from "@/lib/profile/locales";
 import { buildPhone, phoneDefaults } from "@/lib/profile/phone";
 import { NETWORK_MESSAGE, parseProblem } from "@/lib/profile/problem";
@@ -23,29 +21,26 @@ import { NETWORK_MESSAGE, parseProblem } from "@/lib/profile/problem";
 const DISPLAY_NAME_MAX = 80;
 
 const phoneCountries = countryOptions("en", true);
-const currencies = currencyOptions("en");
 const phoneCountryText = (o: ComboOption) => `${o.label} (${o.hint})`;
-const currencyText = (o: ComboOption) => o.value;
 
 interface Saved {
   displayName: string;
   profile: ProfileResponse;
 }
 
-type Errors = Partial<Record<"display_name" | "phone" | "base_currency" | "locale", string>>;
+type Errors = Partial<Record<"display_name" | "phone" | "locale", string>>;
 
 /** The API's field names mapped to the form's field ids. */
 const FIELD_OF_API: Record<string, keyof Errors> = {
   display_name: "display_name",
   phone_e164: "phone",
-  base_currency: "base_currency",
   locale: "locale",
 };
 
 const text = (fd: FormData, name: string) => String(fd.get(name) ?? "");
 
 /**
- * Profile form: display name, read-only email, phone, base currency and locale.
+ * Profile form: display name, read-only email, phone and locale.
  *
  * Every input is uncontrolled and read from FormData on submit, so text typed before hydration is
  * kept and nothing is ever put in the URL (the form posts, and the button is disabled until
@@ -55,7 +50,6 @@ export function ProfileForm({ email, displayName, profile }: { email: string; di
   const router = useRouter();
   const form = React.useRef<HTMLFormElement>(null);
   const hydrated = useHydrated();
-  const { money } = useFormat();
   const [saved, setSaved] = React.useState<Saved>({ displayName: displayName ?? "", profile });
   const [version, setVersion] = React.useState(0);
   const [errors, setErrors] = React.useState<Errors>({});
@@ -68,10 +62,6 @@ export function ProfileForm({ email, displayName, profile }: { email: string; di
   const phone = phoneDefaults(saved.profile.phone_e164, saved.profile.locale);
   const phoneCountry = phone.country ? countryByCode(phone.country) : undefined;
   const phoneCountryDefault = phoneCountry ? `${phoneCountryOption(phoneCountry.code)} (+${phoneCountry.dial})` : "";
-  // The example follows the currency being picked, in the saved locale (docs/design/profile.md 6.4).
-  const [pickedCurrency, setPickedCurrency] = React.useState<string>();
-  const exampleCurrency = pickedCurrency ?? saved.profile.base_currency;
-
   function fail(errs: Errors, formMessage?: string) {
     setErrors(errs);
     setMessage(formMessage ? { kind: "error", text: formMessage } : null);
@@ -83,7 +73,6 @@ export function ProfileForm({ email, displayName, profile }: { email: string; di
     if (busy) return;
     const fd = new FormData(e.currentTarget);
     const name = text(fd, "display_name").trim();
-    const currency = resolveOption(currencies, text(fd, "base_currency"), currencyText)?.value;
     const phoneInput = text(fd, "phone");
     const country = resolveOption(phoneCountries, text(fd, "phone_country"), phoneCountryText)?.value;
     const locale = text(fd, "locale");
@@ -91,7 +80,6 @@ export function ProfileForm({ email, displayName, profile }: { email: string; di
     const errs: Errors = {};
     // Count characters (code points), as the API does.
     if ([...name].length > DISPLAY_NAME_MAX) errs.display_name = `Use at most ${DISPLAY_NAME_MAX} characters.`;
-    if (!currency) errs.base_currency = "Choose a currency from the list.";
     if (phoneInput.trim() !== "" && !phoneInput.trim().startsWith("+") && !country) {
       errs.phone = "Choose the country this number belongs to.";
     }
@@ -106,7 +94,6 @@ export function ProfileForm({ email, displayName, profile }: { email: string; di
         body: {
           display_name: name === "" ? null : name,
           phone_e164: buildPhone(country ?? "", phoneInput),
-          base_currency: currency,
           locale,
         },
       });
@@ -124,9 +111,8 @@ export function ProfileForm({ email, displayName, profile }: { email: string; di
         // Re-render the inputs from what the API stored (for example the phone in its normalised form).
         setSaved({ displayName: data.display_name ?? "", profile: data });
         setVersion((v) => v + 1);
-        setPickedCurrency(undefined);
         setMessage({ kind: "success", text: "Profile saved." });
-        router.refresh(); // the (app) layout re-reads the base currency and locale for every page
+        router.refresh(); // the (app) layout re-reads the profile
       }
     } catch {
       fail({}, NETWORK_MESSAGE);
@@ -210,34 +196,6 @@ export function ProfileForm({ email, displayName, profile }: { email: string; di
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="base_currency" className="text-body">
-              Base currency
-            </Label>
-            <Combobox
-              id="base_currency"
-              name="base_currency"
-              options={currencies}
-              textFor={currencyText}
-              defaultText={saved.profile.base_currency}
-              invalid={!!errors.base_currency}
-              describedBy={["base_currency-hint", errors.base_currency ? "base_currency-error" : null].filter(Boolean).join(" ")}
-              listLabel="Currencies"
-              onTextChange={(t) => {
-                const match = resolveOption(currencies, t, currencyText);
-                // Follows whatever the text resolves to (typed, picked or tidied on blur); text that
-                // names no currency falls back to the saved one.
-                setPickedCurrency(match?.value);
-              }}
-              placeholder="Search, for example EUR or Euro"
-            />
-            <p id="base_currency-hint" className="text-small text-muted-foreground">
-              Totals and reports are shown in this currency. Example:{" "}
-              <span data-testid="money-example">{money("1240.50", { currency: exampleCurrency })}</span>
-            </p>
-            <FieldError id="base_currency-error" error={errors.base_currency} />
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="locale" className="text-body">
               Locale
             </Label>
@@ -255,7 +213,7 @@ export function ProfileForm({ email, displayName, profile }: { email: string; di
               ))}
             </NativeSelect>
             <p id="locale-hint" className="text-small text-muted-foreground">
-              Sets how numbers and dates are written.
+              Numbers and dates are shown in the Swedish format for now.
             </p>
             <FieldError id="locale-error" error={errors.locale} />
           </div>

@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useFormat } from "@/components/format-provider";
 import { useActiveSpace } from "@/components/layout/app-shell-client";
-import { CURRENCY_OPTIONS, DeleteButton, memberLabel, PendingFormDialog, useToday, type ReferenceData } from "@/components/finance/finance-parts";
+import { DeleteButton, memberLabel, PendingFormDialog, useToday, type ReferenceData } from "@/components/finance/finance-parts";
 import { useFormState } from "@/components/finance/use-form-state";
 import { AmountInput } from "@/components/ui/amount-input";
 import { AppliesToSelect } from "@/components/ui/applies-to-select";
@@ -16,12 +16,12 @@ import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { SelectField } from "@/components/ui/select-field";
 import { SpaceBadge } from "@/components/ui/space-badge";
 import type { IncomeEntryResponse } from "@/lib/api";
-import { amountToInput, decimalMark, fractionDigits } from "@/lib/finance/amount";
+import { amountToInput } from "@/lib/finance/amount";
 import { DESCRIPTION_MAX, todayIso } from "@/lib/finance/common";
 import { createEntry, deleteEntry, updateEntry } from "@/lib/income/client";
 import { sourceOptionLabel, validateEntry, type EntryFormField, type EntryFormValues } from "@/lib/income/income";
 
-const FIELDS: EntryFormField[] = ["amount", "currency", "received_on", "source_id", "description", "member_user_id"];
+const FIELDS: EntryFormField[] = ["amount", "received_on", "source_id", "description", "member_user_id"];
 const FORM_ID = "entry-form";
 
 export interface EntryFormDialogProps {
@@ -58,24 +58,22 @@ export function EntryFormDialog(props: EntryFormDialogProps) {
 function LoadedEntryForm({ open, onOpenChange, spaceId, entry, reference, onSaved, onDeleted, finalFocus }: EntryFormDialogProps) {
   const space = useActiveSpace();
   const household = space.type === "household";
-  const { prefs, calendarDate, money } = useFormat();
-  const mark = decimalMark(prefs.locale);
+  const { calendarDate, money } = useFormat();
   const today = useToday();
 
-  const f = useFormState<EntryFormValues>(() => initialValues(entry, prefs.currency, prefs.locale), FIELDS, FORM_ID);
+  const f = useFormState<EntryFormValues>(() => initialValues(entry), FIELDS, FORM_ID);
   const { values, errors, formError, busy, discard, set } = f;
   const [ask, setAsk] = React.useState(false);
-  const digits = fractionDigits(values.currency, prefs.locale);
   const editing = entry !== null;
 
   function blur(field: EntryFormField) {
-    f.blur(field, validateEntry(values, { mark, digits, today }).errors);
+    f.blur(field, validateEntry(values, { today }).errors);
   }
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
-    const result = validateEntry(values, { mark, digits, today });
+    const result = validateEntry(values, { today });
     if (!result.payload) return f.invalid(result.errors);
     f.setErrors({});
     f.setFormError(undefined);
@@ -119,14 +117,8 @@ function LoadedEntryForm({ open, onOpenChange, spaceId, entry, reference, onSave
           value={values.amount}
           onValueChange={(v) => set("amount", v)}
           onBlur={() => blur("amount")}
-          currency={values.currency}
-          currencyOptions={CURRENCY_OPTIONS}
-          onCurrencyChange={(c) => set("currency", c)}
-          decimalSeparator={mark}
-          fractionDigits={digits}
           required
           error={errors.amount}
-          currencyError={errors.currency}
         />
         <Field
           id="received_on"
@@ -173,7 +165,7 @@ function LoadedEntryForm({ open, onOpenChange, spaceId, entry, reference, onSave
           open={ask}
           onOpenChange={setAsk}
           title="Delete this income?"
-          description={`${money(entry.amount, { currency: entry.currency, code: entry.currency !== prefs.currency })} from ${calendarDate(entry.received_on)}. It cannot be undone.`}
+          description={`${money(entry.amount, { currency: entry.currency })} from ${calendarDate(entry.received_on)}. It cannot be undone.`}
           confirmLabel="Delete income"
           busyLabel="Deleting…"
           dismissLabel="Keep income"
@@ -200,11 +192,10 @@ function LoadedEntryForm({ open, onOpenChange, spaceId, entry, reference, onSave
   );
 }
 
-function initialValues(e: IncomeEntryResponse | null, baseCurrency: string, locale: string): EntryFormValues {
-  if (!e) return { amount: "", currency: baseCurrency, received_on: todayIso(), source_id: "", description: "", member_user_id: "" };
+function initialValues(e: IncomeEntryResponse | null): EntryFormValues {
+  if (!e) return { amount: "", received_on: todayIso(), source_id: "", description: "", member_user_id: "" };
   return {
-    amount: amountToInput(e.amount, { mark: decimalMark(locale), digits: fractionDigits(e.currency, locale) }),
-    currency: e.currency,
+    amount: amountToInput(e.amount),
     received_on: e.received_on,
     source_id: e.source_id ?? "",
     description: e.description ?? "",
