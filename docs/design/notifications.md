@@ -23,11 +23,11 @@ A notification tells a member that a contract has something coming up: a payment
 | N2 | The unread badge caps at **9+** (the ticket's rule). Its accessible name always gives the exact count. | A badge that fits in 20 px. Screen reader users still hear "12 unread". |
 | N3 | The badge uses `--primary` (navy), not `--destructive` red. | An unread count is not an error. The design system keeps red for errors and destructive actions (design-system.md, section 1). This changes `app-shell.md`, which is updated in this PR. |
 | N4 | The list shows the **active space only**. Each space has its own unread count. | Same as the API route, which is per space. Every page with finance data shows the `SpaceBadge` (app-shell.md, section 5). |
-| N5 | The row title is the **stable copy** (for example "Car insurance renews"). The event date goes on its own line. The title does not contain a date or "in 7 days". | A stored "in 7 days" goes stale the next day. The date is shown on its own line, so it can be read and sorted. See open question Q1. |
+| N5 | The row title is the **stable copy** (for example "Car insurance renews"). The event date goes on its own line. The title does not contain a date or "in 7 days". | A stored "in 7 days" goes stale the next day. The date is shown on its own line, so it can be read and sorted. PM decision Q1 (section 15.1). |
 | N6 | Tapping a row marks it read and opens the contract. The navigation does not wait for the mark-read request. | The user gets where they went. A failed mark-read leaves the row unread, and it is tried again next time. |
 | N7 | "Mark all as read" has no confirmation. It is not destructive and it only changes the read state. | Keeps the flow short. |
-| N8 | Dismiss asks for confirmation. | Dismiss is permanent in the API (`dismissed_at`, with no undo), and the team rule is that destructive actions get a confirmation. Open question Q3. |
-| N9 | Dismissing never changes the contract, its dates or any money. The confirmation says so. | The user should not fear that an alert change affects their finances. |
+| N8 | Dismiss acts at once, with no confirmation. | PM decision (2026-11-27, Q3): dismissing is low-stakes and this is a POC. |
+| N9 | Dismissing only hides the notification from this list. It never changes the contract, its dates or any money. | The row's copy and the spec make this clear, so the user is not afraid of a side effect. |
 | N10 | Failed actions show an inline alert above the list. They do not use a toast. | Toasts auto-dismiss after 6 s, and error messages should stay until the user has read them (design-system.md, section 7). |
 | N11 | Read and unread are shown with a bold title, a left bar and the visible word "New", not colour alone. | WCAG 1.4.1. |
 
@@ -175,7 +175,7 @@ Each row is a `HemCard` (variant `interactive`).
 | Left bar | 4 px `--primary` on the card's left edge | Same | Unread rows only. |
 | Event line | `text-small`, `--muted-foreground` | Same | Date (and amount when there is one). |
 | Added line | `text-small`, `--muted-foreground` | Same | Relative, or a date (5.4). |
-| Dismiss | Ghost `Button`, 44 px tall, label "Dismiss", right-aligned in the footer | Same | Opens the confirmation (7.2). |
+| Dismiss | Ghost `Button`, 44 px tall, label "Dismiss", right-aligned in the footer | Same | Acts at once (7.2). |
 
 ### 5.2 Read and unread
 
@@ -235,15 +235,11 @@ Each type has one icon, one title pattern and one event label. The server sends 
 
 ### 7.2 Dismiss one row
 
-1. Tap "Dismiss". A confirmation opens (`ConfirmDialog`, sheet on phone, centred dialog from tablet up).
-   - Title: "Dismiss this notification?"
-   - Description: "{title}. It will leave your list. The contract and its dates stay as they are."
-   - Confirm button: "Dismiss notification" (default variant, not red, because nothing is lost from the finances).
-   - Dismiss button: "Keep notification" (focused first).
-2. Confirm: `POST .../{id}/dismiss`. On 204 the row is removed and the focus rules in 9.3 apply.
-3. Failure: the dialog stays open and shows the error text (`ConfirmDialog` does this already).
+1. Tap "Dismiss". There is no dialog (PM decision, Q3). The app sends `POST .../{id}/dismiss` at once.
+2. On 204 the row is removed and focus moves as in 9.1.
+3. Failure: the row stays, and the inline alert from 8.3 appears above the list.
 
-Dismissed rows never come back in the list. Dismiss is not undoable in this POC.
+Dismissed rows never come back in the list. Dismiss is not undoable in this POC, and the row copy and this spec say that it only hides the notification.
 
 ### 7.3 Show more
 
@@ -259,8 +255,7 @@ Dismissed rows never come back in the list. Dismiss is not undoable in this POC.
 | Bell | Enter opens `/notifications`. |
 | Mark all as read | Enter or Space. |
 | Row title link | Enter opens the contract. |
-| Dismiss | Enter or Space opens the confirmation. |
-| Confirmation | Tab cycles inside the dialog. Escape closes it and returns focus to the row's Dismiss button. |
+| Dismiss | Enter or Space dismisses the row at once, and focus moves as in 9.1. |
 
 ---
 
@@ -307,8 +302,6 @@ Layout at 375 px: 48 px from the top of the content, centred, the button full wi
 
 **Unread count fails:** silent. The bell shows no badge and no error. The list page shows its own error if the list also fails. A count error should not alarm the user.
 
-**Dismiss confirmation fails:** the dialog stays open with the error text (`ConfirmDialog`).
-
 ### 8.4 Success
 
 Success is shown by the change itself: the row goes, the badge goes, the list changes. No toast is used for these actions (N10 and 9.2). The announcement is the only extra signal.
@@ -321,13 +314,12 @@ Success is shown by the change itself: the row goes, the badge goes, the list ch
 
 - Focus rings: the global `:focus-visible` outline (2 px `--ring`, 2 px offset). Never removed.
 - Opening `/notifications` from the bell: focus starts at the top of the page, as for any page.
-- After a successful dismiss, focus goes to:
+- After a successful dismiss (PM decision, Q3), focus goes to:
   1. the Dismiss button of the next row, if there is one;
-  2. otherwise the Dismiss button of the previous row;
-  3. otherwise the empty-state heading (an `h2` with `tabIndex={-1}`).
+  2. otherwise, when the dismissed row was the last one, the Dismiss button of the previous row (the PM did not name this case; this is the spec's choice);
+  3. otherwise, when the list is now empty, the empty-state heading (an `h2` with `tabIndex={-1}`).
 - After "Mark all as read", focus goes to the page title (`h1`, `tabIndex={-1}`), because the button is disabled once there is nothing unread.
 - After "Show more", focus goes to the first new row's title link.
-- Confirmation dialogs trap focus, start on "Keep notification", and return focus to the row's Dismiss button on Escape or "Keep".
 
 ### 9.2 Announcements
 
@@ -362,9 +354,7 @@ Success is shown by the change itself: the row goes, the badge goes, the list ch
 | Bell name | Notifications / Notifications, {n} unread |
 | Mark all | Mark all as read |
 | Dismiss (button) | Dismiss |
-| Dismiss dialog title | Dismiss this notification? |
-| Dismiss dialog body | {title}. It will leave your list. The contract and its dates stay as they are. |
-| Dismiss dialog buttons | Dismiss notification / Keep notification |
+| Dismiss button name (for screen readers) | Dismiss: {title} |
 | Show more | Show more |
 | Loading more | Loading |
 | Load more failed | We could not load more. Try again. |
@@ -375,7 +365,7 @@ Success is shown by the change itself: the row goes, the badge goes, the list ch
 | Empty body | We will tell you here when a renewal, payment or contract end is coming up. Only you can see these. |
 | Empty action | Review your contracts |
 
-Rules: sentence case, no exclamation marks, no "Oops". "Dismiss" always means "hide from this list" and never "delete the contract". The dismiss dialog says so.
+Rules: sentence case, no exclamation marks, no "Oops". "Dismiss" always means "hide from this list" and never "delete the contract".
 
 ---
 
@@ -424,7 +414,6 @@ Checks for the reviewer:
 | `Button` (`outline`, `ghost`, `default`) | Mark all, Show more, Dismiss, Try again, Review your contracts. |
 | `EmptyState` (`page`, `space="active"`) | The empty state. |
 | `Skeleton` | Loading rows. |
-| `ConfirmDialog` | Dismiss confirmation. |
 | `SpaceBadge` (through `AppPageHeader`) | The active space in the page header. |
 | `Logo`, `TopBar`, `BottomNav`, `SideNav`, rail | Shell, with the count badge in place. |
 
@@ -464,13 +453,13 @@ Not sent to the UI: `user_id` (the caller's own rows only).
 
 | Call | Response | UI use |
 |---|---|---|
-| `GET /notifications?cursor=&limit=` | `Page`: `items` (notification list) and `next_cursor` | The list, newest `created_at` first, non-dismissed rows only. Show more uses `next_cursor`. |
-| `GET /notifications/unread-count` | `{ "count": number }` | The bell badge and the "{n} unread" line. |
+| `GET /notifications?cursor=&limit=` | `Page`: `items` (notification list) and `next_cursor` | The list, newest `created_at` first, non-dismissed rows only. The UI asks for `limit=20`. Show more uses `next_cursor`. |
+| `GET /notifications/unread-count` | `{ "count": number }` | The bell badge and the "{n} unread" line. Counts rows with `read_at` null and `dismissed_at` null. |
 | `POST /notifications/{id}/read` | 204 | Tap on a row (unread rows only). |
 | `POST /notifications/read-all` | 204 | Mark all as read. |
-| `POST /notifications/{id}/dismiss` | 204 | Dismiss, after confirmation. |
+| `POST /notifications/{id}/dismiss` | 204 | Dismiss, at once (no confirmation). |
 
-The page size the UI asks for is 20 (open question Q5).
+The page size is 20 (PM decision Q5).
 
 ### 14.3 Errors
 
@@ -478,12 +467,17 @@ RFC 7807 problem+json, as elsewhere. The UI shows `title` and `detail` only in t
 
 ---
 
-## 15. Open questions for the PM
+## 15. PM decisions and open items
 
-- **Q1. Title copy (blocking for HEM-026).** HEM-026's example title includes the date ("Home insurance renews on 1 jan. 2027"). This spec shows the date on its own line, so the title should not repeat it. It also should not say "in 7 days", which goes stale. Proposed: HEM-026 generates the stable title patterns in section 6 without a date. If the PM prefers the date in the title, the event line is dropped on phone to avoid repeating it.
-- **Q2. Badge cap and colour.** The ticket says "9+", but `app-shell.md`, `top-bar.tsx`, `bottom-nav.tsx` and `side-nav.tsx` say "99+", and `app-shell.md` says `--destructive`. This spec uses 9+ and `--primary` (N2, N3). `app-shell.md` is updated in this PR. The code change is part of HEM-027.
-- **Q3. Dismiss confirmation.** Included because dismiss is permanent in the API and the team rule is to confirm destructive actions (N8). The PM can remove it. If removed, the dismiss action needs an undo or the copy must say "This cannot be undone", and the change needs the same focus rules.
-- **Q4. HEM-024 (sv-SE) is not merged.** The spec uses `Intl` with the `sv-SE` locale directly, so it does not depend on the helper. HEM-027 should use the shared helper once HEM-024 lands, so the formats match the other screens.
-- **Q5. Unread count and page size (assumed).** This spec assumes `unread-count` counts rows with `read_at` null and `dismissed_at` null, and that the UI asks for 20 rows per page. Please confirm both in HEM-026.
-- **Q6. Active space only (N4).** `app-shell.md` (section 5) said Notifications spans spaces. The route and the ticket are per space, so `app-shell.md` is updated to match this spec.
+### 15.1 PM decisions (2026-11-27)
+
+- **Q1. Titles are stable copy with no date** ("Car insurance renews"). The date goes on its own line. HEM-026 is updated to match. Applied in section 6.
+- **Q2. Badge: "9+" in `--primary`.** HEM-027 swaps the inline badges in `top-bar.tsx`, `bottom-nav.tsx` and `side-nav.tsx` for `CountBadge`.
+- **Q3. No dismiss confirmation.** Dismiss acts at once and moves focus to the next row, or to the heading if the list is empty. Applied in N8, 7.2, 7.4, 9.1, 13 and 14. Note: when the dismissed row was the last one, the spec moves focus to the previous row, since the PM did not name that case.
+- **Q4. sv-SE helper.** HEM-027 uses the shared sv-SE helper once HEM-024 lands.
+- **Q5. Unread count excludes dismissed rows, and the page size is 20.** Applied in 14.2.
+- **Q6. Active space only (N4).** `app-shell.md` is updated to match.
+
+### 15.2 Open item for HEM-027
+
 - **Q7. Member removal.** HEM-026 deletes a removed member's rows in the same transaction as the removal. The UI needs no extra state: a removed member gets 404 on the notification routes, as for any space they cannot see. HEM-027 should check that this 404 follows the existing space-switch path, so the page does not show an error.

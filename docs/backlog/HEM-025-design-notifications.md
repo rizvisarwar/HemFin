@@ -40,12 +40,14 @@ A short spec in `docs/design/notifications.md`, plus any presentational componen
 - Dismiss has a confirmation (N8). Mark all does not.
 - The list is for the active space only (N4).
 
-**Open questions for the PM**
-- Q1 (blocking for HEM-026): the example title "Home insurance renews on 1 jan. 2027" repeats the date. Please confirm titles are stable copy with no date.
-- Q2: the ticket says "9+", the old shell said "99+" in red. This spec uses 9+ in primary. Confirm.
-- Q3: keep the dismiss confirmation, or drop it?
-- Q5: unread count excludes dismissed rows, and the page size is 20. Confirm in HEM-026.
-- Q4: HEM-024 (sv-SE) is not on main yet. HEM-027 should use the shared helper once it lands.
+**PM decisions (2026-11-27, answers to the open questions)**
+- Q1: titles are stable copy with no date ("Car insurance renews"). The date is on its own line. HEM-026 is updated to match.
+- Q2: "9+" in `--primary`. HEM-027 swaps the inline badges in top-bar, bottom-nav and side-nav.
+- Q3: no dismiss confirmation. Dismiss acts at once and moves focus to the next row, or to the heading if the list is empty. Spec section 7.2 and 9.1 are updated. (The spec moves focus to the previous row when the last row is dismissed. The PM did not name that case.)
+- Q4: HEM-027 uses the shared sv-SE helper once HEM-024 lands.
+- Q5: unread count excludes dismissed rows, and the page size is 20.
+
+**Spec updates for these decisions:** `docs/design/notifications.md` (N5, N8, N9, 7.2, 7.4, 9.1, 10, 13, 14.2, 15). Lint and build re-run after the update.
 
 **How to verify**
 - Open `docs/design/notifications.md`, sections 3 to 5 and 14.
