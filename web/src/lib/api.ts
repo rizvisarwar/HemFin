@@ -10,6 +10,8 @@ export type MemberResponse = components["schemas"]["MemberOut"];
 export type InvitationResponse = components["schemas"]["InvitationOut"];
 export type InvitationPreview = components["schemas"]["InvitationPreview"];
 export type InvitationAccepted = components["schemas"]["InvitationAccepted"];
+export type ContractResponse = components["schemas"]["ContractOut"];
+export type CategoryResponse = components["schemas"]["CategoryOut"];
 export type Role = components["schemas"]["Role"];
 
 /**

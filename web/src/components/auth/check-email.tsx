@@ -9,7 +9,7 @@ import { CHECK_EMAIL_MESSAGE, GENERIC_ERROR, mapAuthError } from "@/lib/auth/err
 import { isEmailValid } from "@/lib/auth/password";
 import { parsePending, readPendingRaw, rememberPending } from "@/lib/auth/pending";
 import { CooldownNote, useCooldown } from "./cooldown";
-import { Field } from "./form-parts";
+import { Field } from "@/components/ui/field";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { FormMessage } from "@/components/ui/form-message";
 

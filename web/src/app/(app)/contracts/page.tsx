@@ -1,21 +1,15 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
-import { FileText } from "lucide-react";
-import { PlaceholderPage } from "@/components/layout/placeholder-page";
+import { ContractsView } from "@/components/contracts/contracts-view";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Contracts" };
 
 export default function ContractsPage() {
+  // useSearchParams (the `?new=1` link) needs a Suspense boundary.
   return (
-    <PlaceholderPage
-      title="Contracts"
-      description="Home and car policies, subscriptions and bills in one place."
-      icon={FileText}
-      emptyTitle="No contracts yet"
-      emptyDescription="Add insurance, subscriptions and bills in one place. We will remind you before each one renews."
-      actionLabel="Add a contract"
-      actionHref="/contracts"
-      secondaryLabel="Learn how reminders work"
-      secondaryHref="/notifications"
-    />
+    <Suspense fallback={<Skeleton className="h-32 w-full" aria-busy="true" />}>
+      <ContractsView />
+    </Suspense>
   );
 }

@@ -314,7 +314,7 @@ A contract is a recurring obligation: insurance, a utility, a subscription, a me
 |                                                  |
 | +----------------------------------------------+ |
 | | Car insurance                            >   | |  HemCard interactive (link)
-| | Harbor Insurance · Insurance, car            | |  text-small
+| | Harbor Insurance · Car insurance             | |  text-small
 | | EUR 4,350.00 a year                          | |  MoneyText md
 | | Renews 1 Jan 2027                            | |
 | | [Clock] Notice deadline soon, in 5 days      | |  DueChip soon
@@ -344,7 +344,7 @@ A contract is a recurring obligation: insurance, a utility, a subscription, a me
 |  Reports  | +-----------------------+---------------+--------------+------------+--------+ |
 |           | | Contract              | Category      | Amount       | Next pay.  | Renews | |
 |           | +-----------------------+---------------+--------------+------------+--------+ |
-|           | | Car insurance         | Insurance, car| EUR 4,350.00 | 3 Dec 2026 | 1 Jan  | |
+|           | | Car insurance         | Car insurance | EUR 4,350.00 | 3 Dec 2026 | 1 Jan  | |
 |           | | Harbor Insurance      |               | a year       |            | 2027   | |
 |           | |                       |               |              |            | [Clock]| |
 |           | |                       |               |              |            | Notice | |
@@ -357,7 +357,7 @@ A contract is a recurring obligation: insurance, a utility, a subscription, a me
 
 **Card content (in order).**
 1. Name (`text-body-strong`, clamped to two lines). The whole card is one link to the detail page. Accessible name: "Car insurance, Harbor Insurance, EUR 4,350.00 a year".
-2. Provider and category (`text-small`, muted). "Harbor Insurance · Insurance, car". The provider is omitted when empty.
+2. Provider and category (`text-small`, muted). "Harbor Insurance · Car insurance". The provider is omitted when empty.
 3. Amount with the frequency phrase (`MoneyText` `md`, and "a year" in the same line). If the currency is not the base, the code is shown and the converted line appears under it (3.3).
 4. Renewal date ("Renews 1 Jan 2027"). If `renewal_date` is null: "No renewal date" for a contract that ends or does not renew.
 5. Next payment, when it is soon (DueChip). The notice deadline chip (`soon`) if within 30 days. A notice in the list shows only the chip, not the date. The date is in the detail view.
@@ -422,7 +422,7 @@ A contract is a recurring obligation: insurance, a utility, a subscription, a me
 | < Contracts                                      |  back link, 44 px
 | Car insurance                                    |  h1
 | [Lock Personal]                                  |  SpaceBadge md
-| Harbor Insurance · Insurance, car                |  text-lead
+| Harbor Insurance · Car insurance                 |  text-lead
 |                                                  |
 | [ Edit contract                              ]   |  primary, full width
 | [ ... ]                                          |  44 px menu: Mark as cancelled, Delete
@@ -457,7 +457,7 @@ A contract is a recurring obligation: insurance, a utility, a subscription, a me
 
 ```
 | Contracts / Car insurance                       [Lock Personal]     [ Edit contract ] [...] |
-| Harbor Insurance · Insurance, car                                                             |
+| Harbor Insurance · Car insurance                                                              |
 |                                                                                               |
 | +------------------------------------------+  +-----------------------------------------------+|
 | | Schedule                                 |  | Details                                       ||
