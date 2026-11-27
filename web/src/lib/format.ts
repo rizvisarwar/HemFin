@@ -26,6 +26,16 @@ export function formatDate(iso: string, locale = "en"): string {
   }).format(new Date(iso));
 }
 
+/**
+ * A calendar date ("2026-12-03", no time) as "3 Dec 2026". Read in UTC, so no time zone can move it a day
+ * (a date-only string parses as UTC midnight).
+ */
+export function formatCalendarDate(iso: string, locale = "en"): string {
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(
+    new Date(iso),
+  );
+}
+
 /** The user's display preferences (from their profile). */
 export interface FormatPrefs {
   currency: string; // ISO-4217 base currency
@@ -61,6 +71,10 @@ export function makeFormatter(prefs: FormatPrefs) {
     },
     date(iso: string): string {
       return safe((p) => formatDate(iso, p.locale), iso);
+    },
+    /** A calendar date (no time of day), for example a contract's start date. */
+    calendarDate(iso: string): string {
+      return safe((p) => formatCalendarDate(iso, p.locale), iso);
     },
   };
 }

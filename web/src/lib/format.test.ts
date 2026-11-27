@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { formatMoney, makeFormatter } from "./format.ts";
+import { formatCalendarDate, formatMoney, makeFormatter } from "./format.ts";
 
 describe("formatMoney", () => {
   it("formats a decimal string without float loss", () => {
@@ -23,5 +23,12 @@ describe("makeFormatter uses the profile's currency and locale", () => {
   });
   it("formats dates in the locale", () => {
     assert.match(makeFormatter({ currency: "EUR", locale: "en" }).date("2026-11-26T10:00:00Z"), /Nov.*2026/);
+  });
+});
+
+describe("calendar dates", () => {
+  it("never move a day, whatever the time zone", () => {
+    assert.equal(formatCalendarDate("2026-12-03", "en-GB"), "3 Dec 2026");
+    assert.equal(makeFormatter({ currency: "EUR", locale: "en" }).calendarDate("2027-01-01"), "Jan 1, 2027");
   });
 });

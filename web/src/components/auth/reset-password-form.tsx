@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { GENERIC_ERROR, mapAuthError } from "@/lib/auth/errors";
 import { isPasswordValid } from "@/lib/auth/password";
-import { Field, PasswordRules, useFocusFirstInvalid } from "./form-parts";
+import { Field } from "@/components/ui/field";
+import { PasswordRules, useFocusFirstInvalid } from "./form-parts";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { FormMessage } from "@/components/ui/form-message";
 

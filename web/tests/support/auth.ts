@@ -170,3 +170,70 @@ export async function signInAs(context: BrowserContext, who: { email: string } =
     },
   ]);
 }
+
+export interface SeedContract {
+  name: string;
+  /** Category key, for example "insurance.car". */
+  category?: string;
+  provider?: string | null;
+  amount?: string;
+  currency?: string;
+  frequency?: "weekly" | "monthly" | "quarterly" | "semiannual" | "annual";
+  start_date?: string;
+  end_date?: string | null;
+  auto_renew?: boolean;
+  renewal_term_months?: number | null;
+  notice_period_days?: number | null;
+  /** A member's user id, or null for the whole household. */
+  member_user_id?: string | null;
+  status?: "active" | "cancelled";
+  notes?: string | null;
+  /** The schedule the real API would compute, set by the test (the mock does not compute it). */
+  schedule?: { next_payment_date: string | null; renewal_date: string | null; notice_deadline: string | null };
+}
+
+/** Creates contracts in a space of the mock API. Returns their ids, in order. */
+export function seedContracts(spaceId: string, contracts: SeedContract[]) {
+  return post<{ ids: string[] }>("/__test/contracts", { space_id: spaceId, contracts });
+}
+
+export interface StoredContract {
+  id: string;
+  name: string;
+  category: string;
+  provider: string | null;
+  amount: string;
+  currency: string;
+  frequency: string;
+  start_date: string;
+  end_date: string | null;
+  auto_renew: boolean;
+  renewal_term_months: number | null;
+  notice_period_days: number | null;
+  member_user_id: string | null;
+  status: string;
+  notes: string | null;
+}
+
+/** A space's contracts as the mock API stores them, to check what the app really saved. */
+export function storedContracts(spaceId: string) {
+  return post<StoredContract[]>("/__test/stored-contracts", { space_id: spaceId });
+}
+
+/** Makes the contract list and get calls (`list`) and/or the create, update and delete calls (`save`) fail with a 500. */
+export function failContracts(who: { email: string }, flags: { list?: boolean; save?: boolean }) {
+  return post<void>("/__test/contracts-fail", { email: who.email, ...flags });
+}
+
+/** Selects a space the way the switcher does: by writing the cookie the server reads. */
+export async function selectSpace(context: BrowserContext, spaceId: string) {
+  await context.addCookies([{ name: "hemfin-space", value: spaceId, url: APP, httpOnly: true, sameSite: "Lax" }]);
+}
+
+/** A calendar date `days` from today in the test runner's time zone, "YYYY-MM-DD". */
+export function isoIn(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
