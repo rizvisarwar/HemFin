@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/fx/rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ECB reference rates for a date (or the latest date before it) */
+        get: operations["get_rates_api_v1_fx_rates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/invitations/accept": {
         parameters: {
             query?: never;
@@ -672,6 +689,26 @@ export interface components {
          * @enum {string}
          */
         Frequency: "weekly" | "monthly" | "quarterly" | "semiannual" | "annual";
+        /**
+         * FxRatesOut
+         * @description Euro foreign exchange reference rates: 1 EUR = rates[code] units of that currency.
+         */
+        FxRatesOut: {
+            /**
+             * Base
+             * @default EUR
+             */
+            base: string;
+            /**
+             * Rate Date
+             * Format: date
+             */
+            rate_date: string;
+            /** Rates */
+            rates: {
+                [key: string]: string;
+            };
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -995,6 +1032,56 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_rates_api_v1_fx_rates_get: {
+        parameters: {
+            query?: {
+                /** @description Defaults to today (UTC). */
+                date?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FxRatesOut"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description No rates on or before that date */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     accept_invitation_api_v1_invitations_accept_post: {
         parameters: {
             query?: never;

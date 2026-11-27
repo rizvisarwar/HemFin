@@ -1,7 +1,7 @@
 """categories and contracts
 
 Revision ID: 0006
-Revises: 0005
+Revises: 0007
 Create Date: 2026-11-27
 """
 
@@ -11,7 +11,8 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "0006"
-down_revision = "0005"
+# Applied after 0007 (HEM-020 merged first).
+down_revision = "0007"
 branch_labels = None
 depends_on = None
 

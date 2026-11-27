@@ -19,6 +19,7 @@ dependencies = [
     "pyjwt[crypto]>=2.9",
     "phonenumbers>=8.13",
     "pycountry>=24.6",
+    "defusedxml>=0.7.1",
 ]
 
 [dependency-groups]
@@ -27,6 +28,7 @@ dev = [
     "pytest-asyncio>=0.24",
     "ruff>=0.6",
     "mypy>=1.11",
+    "types-defusedxml>=0.7.0.20260504",
 ]
 
 [build-system]
