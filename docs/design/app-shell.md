@@ -187,7 +187,7 @@ All ten product items from the plan are listed, plus Notifications. Notification
 - A tooltip on hover and focus shows the full label. Each button has an `aria-label` with the full label.
 - The active item has an `--accent` background and a 2 px `--primary` bar on its left edge.
 - If the items do not fit the height, the rail scrolls inside itself. The page does not scroll sideways.
-- The Notifications item shows an unread count as a small badge (`--destructive` fill, `--destructive-foreground` text, minimum 20 px, capped at "99+").
+- The Notifications item shows an unread count as a small badge (`--primary` fill, `--primary-foreground` text, minimum 20 px, capped at "9+"). Rules and component: `notifications.md`, section 3.
 
 ### 3.4 Sidebar (desktop, 1280 px and up)
 - 256 px wide. Group labels are `text-small` in `--muted-foreground`, with 24 px before each group.
@@ -212,7 +212,7 @@ A nav item is active when `currentPath === href`, or when `href !== "/"` and `cu
 | Right | Space switcher (compact), Notifications bell | Space switcher (full), Notifications bell | Space switcher (full), Notifications bell |
 
 - Phone top bar: 56 px tall. The space switcher uses the compact variant.
-- Notifications bell: 44 × 44 px button with `aria-label` "Notifications" plus the unread count, for example "Notifications, 3 unread". The count is a badge in `--destructive`.
+- Notifications bell: 44 × 44 px button with `aria-label` "Notifications" plus the unread count, for example "Notifications, 3 unread". The count is a `CountBadge` in `--primary`, capped at "9+" (`notifications.md`, sections 2 and 3).
 - No search in HEM-002. The top bar leaves space for a search button in a later phase.
 
 ### 4.2 Space switcher
@@ -281,7 +281,7 @@ Every page starts with a PageHeader. It sets the title, says whose data the page
 
 Rules:
 - **Title:** `text-h1`, sentence case. One `h1` per page.
-- **Space badge:** shown on any page whose data belongs to one space. Not shown on Profile, Notifications (which spans spaces, so each notification carries its own badge) or the landing page.
+- **Space badge:** shown on any page whose data belongs to one space. Not shown on Profile or the landing page. Shown on Notifications too, for the active space (`notifications.md`, N4).
 - **Description:** optional, `text-lead` in `--muted-foreground`, maximum two lines.
 - **Actions:**
   - Phone: the primary action is a full-width button below the description. Secondary actions go in a "..." menu button (44 × 44 px). Never a floating action button, because it would collide with the bottom nav.
