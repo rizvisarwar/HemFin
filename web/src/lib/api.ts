@@ -11,6 +11,8 @@ export type InvitationResponse = components["schemas"]["InvitationOut"];
 export type InvitationPreview = components["schemas"]["InvitationPreview"];
 export type InvitationAccepted = components["schemas"]["InvitationAccepted"];
 export type Role = components["schemas"]["Role"];
+export type DashboardResponse = components["schemas"]["DashboardOut"];
+export type DashboardEventResponse = components["schemas"]["DashboardEvent"];
 
 /**
  * Browser API client: sends the current Supabase access token with every request. Import from

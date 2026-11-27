@@ -732,6 +732,30 @@ addRoute("POST", /^\/__test\/households$/, async ({ body }) => {
   }
   return [200, { ids, personal_id: uuidFor(`personal:${sub}`) }];
 });
+// ---- Dashboard (HEM-023) -----------------------------------------------------------------------
+// The summary is whatever a test seeds for the user (the mock does no sums), else an empty space.
+const EMPTY_DASHBOARD = {
+  month: "2026-11",
+  base_currency: "EUR",
+  spent_this_month: { amount: "0.00", currency: "EUR" },
+  recurring_monthly: { amount: "0.00", currency: "EUR" },
+  income_this_month: { amount: "0.00", currency: "EUR" },
+  upcoming: [],
+  unconverted_count: 0,
+};
+addRoute(
+  "GET",
+  /^\/api\/v1\/spaces\/([^/]+)\/dashboard$/,
+  inSpace("member", async ({ me }) => (me.fail_dashboard ? serverError() : [200, me.dashboard ?? EMPTY_DASHBOARD])),
+);
+// Test helper: seed a user's dashboard response, or make it fail. Body: {email, dashboard?, fail?: boolean}.
+addRoute("POST", /^\/__test\/dashboard$/, async ({ body }) => {
+  const me = userState({ sub: userIdOf(body.email), email: body.email });
+  if (body.dashboard !== undefined) me.dashboard = body.dashboard;
+  if (body.fail !== undefined) me.fail_dashboard = body.fail;
+  return [204, null];
+});
+
 // Test helper: make a user's list calls fail. Body: {email, spaces?: boolean, members?: boolean}.
 addRoute("POST", /^\/__test\/fail$/, async ({ body }) => {
   const me = userState({ sub: userIdOf(body.email), email: body.email });
