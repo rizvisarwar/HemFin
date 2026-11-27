@@ -23,6 +23,7 @@ Every day the job creates in-app notifications for upcoming contract events, onc
   - No data from one space ever goes to a non-member.
 - [ ] **Routes** under `/api/v1/spaces/{space_id}/notifications`, all with `require_space_member()`. Every route returns only the caller's own rows (`user_id` = caller) in that space; a non-member gets 404.
   - `GET` lists non-dismissed rows, newest `created_at` first, with cursor pagination.
+  - Each item has: `id`, `space_id`, `contract_id`, `type`, `title`, `event_date`, `amount` (Money `{amount, currency}` or null), `read_at` (or null) and `created_at`. The page envelope is `{items, next_cursor}`.
   - `GET /unread-count` returns `{count}`.
   - `POST /{id}/read`, `POST /read-all`, `POST /{id}/dismiss`. Each is idempotent and returns 204. Another user's row id returns 404.
 - [ ] **Member removal** (Phase 5 follow-up): when a member leaves or is removed, delete their notifications for that space, and clear `member_user_id` on that space's contracts, expenses and income sources and entries. Same transaction as the removal.
