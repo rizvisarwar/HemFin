@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     EMAIL_FROM: str = ""
     # Public web origin used to build invite links (the token goes in the URL fragment).
     WEB_BASE_URL: str = "http://localhost:3000"
+    # ECB euro reference rates (public feeds). The 90-day feed backfills an empty table.
+    FX_ECB_DAILY_URL: str = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
+    FX_ECB_HIST_URL: str = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist-90d.xml"
+    FX_FETCH_TIMEOUT_SECONDS: float = 10.0
     SUPABASE_JWT_AUDIENCE: str = "authenticated"
     # How long fetched signing keys are trusted, and the minimum gap between forced refetches
     # (triggered by an unknown `kid`, so a flood of bad tokens cannot hammer Supabase).
