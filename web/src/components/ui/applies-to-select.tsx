@@ -1,4 +1,4 @@
-import { CircleAlert } from "lucide-react";
+import { FieldError } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { cn } from "@/lib/utils";
@@ -72,14 +72,7 @@ export function AppliesToSelect({
           {hint}
         </p>
       ) : null}
-      <div aria-live="polite" id={errorId}>
-        {error ? (
-          <p className="flex items-start gap-1.5 text-small text-destructive">
-            <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-            <span>{error}</span>
-          </p>
-        ) : null}
-      </div>
+      <FieldError id={errorId} error={error} />
     </div>
   );
 }

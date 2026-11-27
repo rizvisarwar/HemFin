@@ -27,4 +27,28 @@ Replace the `/contracts` placeholder with the contracts list, detail and forms f
 **Verify.** `npm --prefix web run lint`, `npm --prefix web test`, `npm --prefix web run build`, `cd web && npx playwright test` (596 passed, 16 skipped). Screenshots (light and dark, 375/768/1280): `web/test-results/screenshots/hem021/<phone|tablet|desktop>/`.
 **Limits and follow-ups.** The category column label uses the category name (e.g. "Car insurance"), not the spec sketch "Insurance, car". The mock backend does not compute schedules (tests seed them). The three pickers still repeat the error markup instead of using `FieldError`. Designer sign-off on screenshots is pending.
 
+### 2026-11-27, Engineer, review round 1
+Merged origin/main (HEM-019, no conflicts); `npm run gen:api` produced no diff.
+Code review:
+1. loadMore race: an epoch counter is bumped on every filter change or reload; a page requested earlier is dropped, `moreBusy` is reset in `applyFilters`. Test: held cursor request, Status changed, then released (`contracts-review.spec.ts`).
+2. Detail after a space switch: renders the skeleton when `space.id !== spaceId`. Test: a MutationObserver proves the old heading never shows once the space is Personal.
+3. Delete focus: the detail page goes to `/contracts?deleted=1`; the list focuses "Your contracts" once loaded and clears the param. Test: `toBeFocused`.
+N1/N2: "For <member>" and the category name show nothing until the reference data is ready (list and detail). Test with a delayed members call.
+N3: polite `role=status` live region announces "N contracts shown". Test.
+N4: detail is `md:max-w-[640px]`.
+N5: the confirm button stays busy after success (no second DELETE).
+N6: `AmountInput` has an `onBlur` prop; the wrapper div is gone.
+N7: notes wrapper cleaned up.
+N8: the three pickers and `AmountInput` use `FieldError`.
+N9: DB test adds a second space with a whole-household contract and asserts `member_user_id=none` does not return it (not run locally: the Docker daemon is not running here; CI runs it).
+Design review:
+4. Dates are day, month, year ("1 Jan 2027") through `calendarDate` (parts of Intl.DateTimeFormat, UTC); used by cards, table and schedule. Test.
+5. SpaceBadge moved into the dialog header (new `headerExtra` prop on `ResponsiveDialog`), at every width. Test.
+6. After a failed submit the first invalid field is focused and its message is scrolled into view in the scrolling body (the footer sits outside it). Test: the currency error ends above the footer and is fully in the viewport.
+Nits: 4 sketch in finance.md 4.1 and 4.2 now says "Car insurance". 5 form Cancel is a text (ghost) button. 6 a cancelled contract with a notice period shows "No notice deadline, cancelled". 8 the close icon is 44 px (tested). 9 the dismiss buttons of the confirmations and the discard alert get an explicit `focus:` outline, since programmatic focus after a click is not :focus-visible (tested via computed outline). 10 description is `text-balance`. 11 not done (not trivial). 7 skipped as agreed.
+Verify: lint, `npm test` (97), build, `npx playwright test` (617 passed, 16 skipped), ruff and mypy. Screenshots regenerated in `web/test-results/screenshots/hem021/<phone|tablet|desktop>/`.
+
 ## Review
+
+### Round 1 (2026-11-27)
+Reviewer and Designer: CHANGES_REQUESTED (PR comments 7217166981 and 7216992997). Fixed in the next commit, see the Handoff log entry above.

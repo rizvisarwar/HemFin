@@ -660,6 +660,7 @@ test.describe("contract detail", () => {
     await expect(page.getByTestId("cancelled-badge")).toHaveText("Cancelled");
     await expect(page.getByText("Contract marked as cancelled.")).toBeVisible();
     await expect(page.getByTestId("schedule-card")).toContainText("No payments due, cancelled");
+    await expect(page.getByTestId("schedule-card")).toContainText("No notice deadline, cancelled");
     await expect(page.getByRole("button", { name: "Edit contract" })).toBeVisible();
     await snap(page, info, "detail-cancelled");
 
@@ -685,6 +686,8 @@ test.describe("contract detail", () => {
     await alert.getByRole("button", { name: "Delete contract" }).click();
     await expect(page).toHaveURL(/\/contracts$/);
     await expect(toastText(page)).toContainText("Contract deleted");
+    // Focus goes to the list heading, not to a removed row.
+    await expect(page.getByRole("heading", { name: "Your contracts" })).toBeFocused();
     const rows = page.getByTestId(isPhone(page) ? "contract-card" : "contract-row");
     await expect(rows).toHaveCount(1);
     await expect(rows).toContainText("Music streaming");

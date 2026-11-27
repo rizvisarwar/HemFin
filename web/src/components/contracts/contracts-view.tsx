@@ -77,6 +77,8 @@ function SpaceContracts({ spaceId, household }: { spaceId: string; household: bo
   const [filterOpen, setFilterOpen] = React.useState(false);
   const [draft, setDraft] = React.useState<ContractFilters>(DEFAULT_FILTERS);
   const heading = React.useRef<HTMLHeadingElement>(null);
+  // Bumped whenever the list is replaced (new filters, a reload): a page that was requested earlier is then dropped.
+  const epoch = React.useRef(0);
 
   React.useEffect(() => {
     let live = true;
@@ -89,6 +91,14 @@ function SpaceContracts({ spaceId, household }: { spaceId: string; household: bo
     };
   }, [spaceId, filters, reload]);
 
+  // After a delete the detail page sends the user here: focus the list heading (the row they came from is gone).
+  const afterDelete = search.get("deleted") === "1";
+  React.useEffect(() => {
+    if (!afterDelete || list.status === "loading") return;
+    heading.current?.focus();
+    router.replace("/contracts");
+  }, [afterDelete, list.status, router]);
+
   // The success message goes after 5 seconds.
   React.useEffect(() => {
     if (!message) return;
@@ -97,13 +107,17 @@ function SpaceContracts({ spaceId, household }: { spaceId: string; household: bo
   }, [message]);
 
   function applyFilters(next: ContractFilters) {
+    epoch.current += 1;
     setList({ status: "loading" });
+    setMoreBusy(false);
     setMoreError(false);
     setFilters(next);
   }
 
   function refresh() {
+    epoch.current += 1;
     setList({ status: "loading" });
+    setMoreBusy(false);
     setReload((n) => n + 1);
   }
 
@@ -119,9 +133,11 @@ function SpaceContracts({ spaceId, household }: { spaceId: string; household: bo
 
   async function loadMore() {
     if (list.status !== "ready" || !list.next || moreBusy) return;
+    const started = epoch.current;
     setMoreBusy(true);
     setMoreError(false);
     const res = await listContracts(spaceId, filters, list.next);
+    if (started !== epoch.current) return; // the filters changed meanwhile: this page belongs to the old list
     setMoreBusy(false);
     if (!res.ok) return setMoreError(true);
     setList({ status: "ready", items: [...list.items, ...res.data.items], next: res.data.next_cursor ?? null });
@@ -129,6 +145,11 @@ function SpaceContracts({ spaceId, household }: { spaceId: string; household: bo
 
   const groups = React.useMemo(() => categoryGroups(ref.categories, "key"), [ref.categories]);
   const members = ref.members;
+  const named = ref.status === "ready"; // names come with the reference data: show none rather than a fallback
+  const forMember = (c: ContractResponse) =>
+    household && named && c.member_user_id
+      ? `For ${memberLabel(members.find((m) => m.user_id === c.member_user_id) ?? { display_name: null })}`
+      : null;
   const items = list.status === "ready" ? list.items : [];
   const emptyPage = list.status === "ready" && items.length === 0 && isDefaultFilters(filters);
   const addButton = (
@@ -149,6 +170,9 @@ function SpaceContracts({ spaceId, household }: { spaceId: string; household: bo
       </h2>
 
       <FormMessage kind="success">{message}</FormMessage>
+      <p className="sr-only" role="status" aria-live="polite" data-testid="result-count">
+        {list.status === "ready" ? `${items.length} ${items.length === 1 ? "contract" : "contracts"} shown${list.next ? ", more available" : ""}` : ""}
+      </p>
 
       {emptyPage ? null : (
         <>
@@ -218,13 +242,9 @@ function SpaceContracts({ spaceId, household }: { spaceId: string; household: bo
                   <span className="min-w-0 flex-1">
                     <span className="line-clamp-2 block break-words text-body-strong">{c.name}</span>
                     <span className="mt-0.5 block text-small text-muted-foreground [overflow-wrap:anywhere]">
-                      {[c.provider, categoryName(ref.categories, c.category)].filter(Boolean).join(" · ")}
+                      {[c.provider, (named ? categoryName(ref.categories, c.category) : "")].filter(Boolean).join(" · ")}
                     </span>
-                    {household && c.member_user_id ? (
-                      <span className="block text-small text-muted-foreground">
-                        For {memberLabel(members.find((m) => m.user_id === c.member_user_id) ?? { display_name: null })}
-                      </span>
-                    ) : null}
+                    {forMember(c) ? <span className="block text-small text-muted-foreground">{forMember(c)}</span> : null}
                   </span>
                   <ContractAmount contract={c} />
                 </span>
@@ -250,15 +270,11 @@ function SpaceContracts({ spaceId, household }: { spaceId: string; household: bo
                       {c.name}
                     </Link>
                     {c.provider ? <p className="text-small text-muted-foreground [overflow-wrap:anywhere]">{c.provider}</p> : null}
-                    {household && c.member_user_id ? (
-                      <p className="text-small text-muted-foreground">
-                        For {memberLabel(members.find((m) => m.user_id === c.member_user_id) ?? { display_name: null })}
-                      </p>
-                    ) : null}
+                    {forMember(c) ? <p className="text-small text-muted-foreground">{forMember(c)}</p> : null}
                   </div>
                 ),
               },
-              { id: "category", header: "Category", from: "xl", className: "text-small", cell: (c) => categoryName(ref.categories, c.category) },
+              { id: "category", header: "Category", from: "xl", className: "text-small", cell: (c) => (named ? categoryName(ref.categories, c.category) : "") },
               { id: "amount", header: "Amount", from: "md", align: "right", cell: (c) => <ContractAmount contract={c} /> },
               {
                 id: "next",

@@ -27,13 +27,16 @@ export function formatDate(iso: string, locale = "en"): string {
 }
 
 /**
- * A calendar date ("2026-12-03", no time) as "3 Dec 2026". Read in UTC, so no time zone can move it a day
+ * A calendar date ("2026-12-03", no time) as "3 Dec 2026" (finance.md 3.6). Read in UTC, so no time zone can move it a day
  * (a date-only string parses as UTC midnight).
  */
 export function formatCalendarDate(iso: string, locale = "en"): string {
-  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(
+  // Day, month, year in that order whatever the locale ("3 Dec 2026"), with the locale's short month name.
+  const parts = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).formatToParts(
     new Date(iso),
   );
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("day")} ${get("month")} ${get("year")}`;
 }
 
 /** The user's display preferences (from their profile). */

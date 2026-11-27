@@ -33,6 +33,8 @@ export function ContractDetailView({ id }: { id: string }) {
   React.useEffect(() => {
     if (space.id !== spaceId) router.replace("/contracts");
   }, [space.id, spaceId, router]);
+  // After a switch the old contract must not stay on screen while the navigation finishes.
+  if (space.id !== spaceId) return <DetailSkeleton />;
   return <Detail id={id} spaceId={spaceId} household={space.type === "household"} />;
 }
 
@@ -64,20 +66,7 @@ function Detail({ id, spaceId, household }: { id: string; spaceId: string; house
     };
   }, [spaceId, id, reload]);
 
-  if (load.status === "loading") {
-    return (
-      <div aria-busy="true" data-testid="contract-loading">
-        <p className="sr-only" role="status">
-          Loading contract
-        </p>
-        <Skeleton className="mb-4 h-9 w-56" />
-        <div className="grid gap-4 md:max-w-xl xl:max-w-none xl:grid-cols-2">
-          <Skeleton className="h-56 w-full" />
-          <Skeleton className="h-56 w-full" />
-        </div>
-      </div>
-    );
-  }
+  if (load.status === "loading") return <DetailSkeleton />;
   if (load.status === "not-found") {
     return (
       <div data-testid="contract-not-found">
@@ -111,9 +100,12 @@ function Detail({ id, spaceId, household }: { id: string; spaceId: string; house
   const c = load.contract;
   const s = c.schedule;
   const cancelled = c.status === "cancelled";
-  const category = categoryName(ref.categories, c.category);
+  const named = ref.status === "ready"; // no fallback names while the reference data loads
+  const category = named ? categoryName(ref.categories, c.category) : "";
   const appliesTo = c.member_user_id
-    ? memberLabel(ref.members.find((m) => m.user_id === c.member_user_id) ?? { display_name: null })
+    ? !named
+      ? ""
+      : memberLabel(ref.members.find((m) => m.user_id === c.member_user_id) ?? { display_name: null })
     : "Whole household";
 
   async function setStatus(status: "active" | "cancelled"): Promise<string | undefined> {
@@ -186,7 +178,7 @@ function Detail({ id, spaceId, household }: { id: string; spaceId: string; house
         <FormMessage kind={message?.kind ?? "success"}>{message?.text}</FormMessage>
       </div>
 
-      <div className="grid gap-4 md:max-w-xl xl:max-w-none xl:grid-cols-2 xl:items-start">
+      <div className="grid gap-4 md:max-w-[640px] xl:max-w-none xl:grid-cols-2 xl:items-start">
         <HemCard data-testid="schedule-card" aria-labelledby="schedule-heading" role="region">
           <h2 id="schedule-heading" className="text-h3">
             Schedule
@@ -226,6 +218,8 @@ function Detail({ id, spaceId, household }: { id: string; spaceId: string; house
                 </>
               ) : c.notice_period_days === null ? (
                 "No notice period set"
+              ) : cancelled ? (
+                "No notice deadline, cancelled"
               ) : (
                 "No notice deadline"
               )}
@@ -250,7 +244,7 @@ function Detail({ id, spaceId, household }: { id: string; spaceId: string; house
               {c.auto_renew ? `Automatically, every ${c.renewal_term_months ?? 12} months` : "Does not renew automatically"}
             </Row>
             {household ? <Row label="Applies to">{appliesTo}</Row> : null}
-            {c.notes ? <Row label="Notes">{<span className="whitespace-pre-wrap">{c.notes}</span>}</Row> : null}
+            {c.notes ? <Row label="Notes"><span className="whitespace-pre-wrap">{c.notes}</span></Row> : null}
           </dl>
         </HemCard>
       </div>
@@ -311,7 +305,7 @@ function Detail({ id, spaceId, household }: { id: string; spaceId: string; house
             const res = await deleteContract(spaceId, id);
             if (!res.ok) return res.problem.form ?? "We could not delete this contract. Try again.";
             toast("Contract deleted");
-            router.push("/contracts");
+            router.push("/contracts?deleted=1");
             return undefined;
           }}
         />
@@ -325,6 +319,21 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
     <div className="flex flex-col gap-1 border-b border-border py-3 last:border-b-0 md:flex-row md:justify-between md:gap-4">
       <dt className="shrink-0 text-small text-muted-foreground">{label}</dt>
       <dd className="min-w-0 break-words text-body md:text-right">{children}</dd>
+    </div>
+  );
+}
+
+function DetailSkeleton() {
+  return (
+    <div aria-busy="true" data-testid="contract-loading">
+      <p className="sr-only" role="status">
+        Loading contract
+      </p>
+      <Skeleton className="mb-4 h-9 w-56" />
+      <div className="grid gap-4 md:max-w-[640px] xl:max-w-none xl:grid-cols-2">
+        <Skeleton className="h-56 w-full" />
+        <Skeleton className="h-56 w-full" />
+      </div>
     </div>
   );
 }

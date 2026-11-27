@@ -28,7 +28,7 @@ describe("makeFormatter uses the profile's currency and locale", () => {
 
 describe("calendar dates", () => {
   it("never move a day, whatever the time zone", () => {
-    assert.equal(formatCalendarDate("2026-12-03", "en-GB"), "3 Dec 2026");
-    assert.equal(makeFormatter({ currency: "EUR", locale: "en" }).calendarDate("2027-01-01"), "Jan 1, 2027");
+    assert.equal(formatCalendarDate("2026-12-03", "en"), "3 Dec 2026");
+    assert.equal(makeFormatter({ currency: "EUR", locale: "en" }).calendarDate("2027-01-01"), "1 Jan 2027");
   });
 });

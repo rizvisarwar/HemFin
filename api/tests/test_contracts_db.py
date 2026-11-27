@@ -448,6 +448,12 @@ async def test_list_filters_and_pagination(aclient: httpx.AsyncClient, key: Test
     assert await names(status="cancelled") == ["e"]
     assert await names(member_user_id=str(uid)) == ["b"]
     assert await names(member_user_id="none") == ["a", "c", "d", "e"]  # whole household
+    # Another space's whole-household contract is never returned.
+    other = await _household(aclient, h)
+    await _make(
+        aclient, h, other, await _cat(aclient, h, other, "insurance.home"), name="elsewhere"
+    )
+    assert await names(member_user_id="none") == ["a", "c", "d", "e"]
     assert (
         await aclient.get(url, params={"member_user_id": "someone"}, headers=h)
     ).status_code == 422

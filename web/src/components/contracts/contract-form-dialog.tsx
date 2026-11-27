@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useFormat } from "@/components/format-provider";
 import { useActiveSpace } from "@/components/layout/app-shell-client";
-import { useFocusFirstInvalid } from "@/components/auth/form-parts";
 import { AmountInput } from "@/components/ui/amount-input";
 import { AppliesToSelect } from "@/components/ui/applies-to-select";
 import { Button } from "@/components/ui/button";
@@ -75,7 +74,16 @@ export function ContractFormDialog(props: ContractFormDialogProps) {
   const [attempt, setAttempt] = React.useState(0);
   const [discard, setDiscard] = React.useState(false);
   const form = React.useRef<HTMLFormElement>(null);
-  useFocusFirstInvalid(form, attempt);
+  // After a failed submit: focus the first invalid field and bring its message into view in the scrolling body.
+  React.useEffect(() => {
+    if (attempt === 0) return;
+    const el = form.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    if (!el) return;
+    el.focus();
+    const ids = (el.getAttribute("aria-describedby") ?? "").split(" ").filter((id) => id.endsWith("-error"));
+    const message = ids.length ? document.getElementById(ids[ids.length - 1]) : null;
+    message?.scrollIntoView({ block: "nearest" });
+  }, [attempt]);
 
   const digits = fractionDigits(values.currency, prefs.locale);
   const groups = React.useMemo(() => categoryGroups(categories, "id"), [categories]);
@@ -133,6 +141,7 @@ export function ContractFormDialog(props: ContractFormDialogProps) {
       busy={busy}
       className="md:max-w-lg"
       title={contract ? "Edit contract" : "Add a contract"}
+      headerExtra={<SpaceBadge type={space.type} label={space.name} />}
       footer={
         <>
           <Button
@@ -144,13 +153,12 @@ export function ContractFormDialog(props: ContractFormDialogProps) {
           >
             {busy ? "Saving…" : "Save contract"}
           </Button>
-          <Button type="button" variant="outline" onClick={requestClose} disabled={busy}>
+          <Button type="button" variant="ghost" onClick={requestClose} disabled={busy}>
             Cancel
           </Button>
         </>
       }
     >
-      <SpaceBadge type={space.type} label={space.name} className="mb-4" />
       {referenceStatus === "loading" ? (
         <div aria-busy="true" className="space-y-4" data-testid="contract-form-loading">
           <p className="sr-only" role="status">
@@ -217,24 +225,22 @@ export function ContractFormDialog(props: ContractFormDialogProps) {
           </FormSection>
 
           <FormSection title="Cost">
-            {/* focusout bubbles: the amount is checked when focus leaves the amount field. */}
-            <div onBlur={(e) => (e.target as HTMLElement).id === "amount" && blur("amount")}>
-              <AmountInput
-                id="amount"
-                name="amount"
-                label="Amount"
-                value={values.amount}
-                onValueChange={(v) => set("amount", v)}
-                currency={values.currency}
-                currencyOptions={CURRENCY_OPTIONS}
-                onCurrencyChange={(c) => set("currency", c)}
-                decimalSeparator={mark}
-                fractionDigits={digits}
-                required
-                error={errors.amount}
-                currencyError={errors.currency}
-              />
-            </div>
+            <AmountInput
+              id="amount"
+              name="amount"
+              label="Amount"
+              value={values.amount}
+              onValueChange={(v) => set("amount", v)}
+              onBlur={() => blur("amount")}
+              currency={values.currency}
+              currencyOptions={CURRENCY_OPTIONS}
+              onCurrencyChange={(c) => set("currency", c)}
+              decimalSeparator={mark}
+              fractionDigits={digits}
+              required
+              error={errors.amount}
+              currencyError={errors.currency}
+            />
             <FrequencySelect
               id="frequency"
               label="Billed"
@@ -355,7 +361,7 @@ export function ContractFormDialog(props: ContractFormDialogProps) {
             >
               Discard changes
             </Button>
-            <Button id="keep-editing" type="button" variant="outline" onClick={() => setDiscard(false)}>
+            <Button id="keep-editing" type="button" variant="outline" className="focus:outline-2 focus:outline-offset-2 focus:outline-ring" onClick={() => setDiscard(false)}>
               Keep editing
             </Button>
           </>

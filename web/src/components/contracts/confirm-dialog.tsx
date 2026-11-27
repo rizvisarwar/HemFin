@@ -42,8 +42,11 @@ export function ConfirmDialog({
     setBusy(true);
     setError(undefined);
     const message = await onConfirm();
-    setBusy(false);
-    if (message) setError(message);
+    // On success the button stays busy until the caller closes the dialog or leaves the page: no second click.
+    if (message) {
+      setBusy(false);
+      setError(message);
+    }
   }
 
   return (
@@ -67,7 +70,7 @@ export function ConfirmDialog({
           >
             {busy ? busyLabel : confirmLabel}
           </Button>
-          <Button id="confirm-dismiss" type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
+          <Button id="confirm-dismiss" type="button" variant="outline" className="focus:outline-2 focus:outline-offset-2 focus:outline-ring" disabled={busy} onClick={() => onOpenChange(false)}>
             {dismissLabel}
           </Button>
         </>
