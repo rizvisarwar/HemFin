@@ -16,6 +16,8 @@ export type SourceResponse = components["schemas"]["SourceOut"];
 export type IncomeEntryResponse = components["schemas"]["EntryOut"];
 export type CategoryResponse = components["schemas"]["CategoryOut"];
 export type Role = components["schemas"]["Role"];
+export type DashboardResponse = components["schemas"]["DashboardOut"];
+export type DashboardEventResponse = components["schemas"]["DashboardEvent"];
 
 /**
  * Browser API client: sends the current Supabase access token with every request. Import from

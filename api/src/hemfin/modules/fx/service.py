@@ -174,24 +174,38 @@ async def convert(
 
 
 def _apply(
-    amount: Decimal, rate_from: Decimal | None, rate_to: Decimal | None, to_ccy: str
+    amount: Decimal,
+    rate_from: Decimal | None,
+    rate_to: Decimal | None,
+    to_ccy: str,
+    *,
+    round_result: bool = True,
 ) -> Decimal | None:
     if rate_from is None or rate_to is None:
         return None
     try:
         # Multiply before dividing so there is a single rounding step before the final quantize.
         result = amount * rate_to / rate_from
+        if not round_result:
+            return result
         return result.quantize(Decimal(1).scaleb(-minor_units(to_ccy)), rounding=ROUND_HALF_EVEN)
     except InvalidOperation:
         raise FxAmountError("The amount cannot be converted.") from None
 
 
 async def convert_many(
-    session: AsyncSession, to_ccy: str, items: Sequence[tuple[Decimal, str, date]]
+    session: AsyncSession,
+    to_ccy: str,
+    items: Sequence[tuple[Decimal, str, date]],
+    *,
+    round_results: bool = True,
 ) -> list[Decimal | None]:
     """`convert` for a page of (amount, currency, date). Each (currency, date) rate is looked
     up once, so a page costs one query per distinct pair rather than two per row. An amount
-    that cannot be converted is None, like a missing rate."""
+    that cannot be converted is None, like a missing rate.
+
+    `round_results=False` keeps full precision so a caller can sum first and round once
+    (the dashboard totals). Same-currency amounts are never rounded either way."""
     to_ccy = to_ccy.upper()
     cache: dict[tuple[str, date], Decimal | None] = {}
 
@@ -210,7 +224,13 @@ async def convert_many(
         else:
             try:
                 out.append(
-                    _apply(amount, await rate(ccy, on_date), await rate(to_ccy, on_date), to_ccy)
+                    _apply(
+                        amount,
+                        await rate(ccy, on_date),
+                        await rate(to_ccy, on_date),
+                        to_ccy,
+                        round_result=round_results,
+                    )
                 )
             except FxAmountError:
                 out.append(None)
