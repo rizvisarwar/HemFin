@@ -79,7 +79,7 @@ These decisions let HEM-021, HEM-022 and HEM-023 start without a design round tr
 Rules:
 - **Keyboard.** `inputMode="decimal"` opens the decimal keypad on phones (it shows `,` or `.` according to the device locale). `autoComplete="off"`, `autoCorrect="off"`, `spellCheck={false}`.
 - **Value.** The component keeps the raw text the user typed. It does not parse or format while typing. Nothing is reformatted under the cursor.
-- **Currency options.** The closed select shows the ISO code only ("EUR", "SEK"), so the text fits the 9 rem column at every size (N6). The full currency name is not shown in this control. The list is the profile's currency list (HEM-009).
+- **Currency options.** The closed select shows the ISO code only ("EUR", "SEK"), so the text fits the 9 rem column at every size (N6). The full currency name is not shown in this control. The list is the profile's currency list (HEM-009). Trade-off: a native select shows one label both when closed and when open, so the code is the label everywhere and the name is not shown; a list with names would need a custom listbox, which is out of scope for this phase.
 - **Where errors show.** An amount error (client or server on `amount`) appears under the amount field, and `aria-invalid` is set on the input. A currency error (server on `currency`, the only way the currency can be invalid, because the select offers only valid codes) appears under the whole row, at full width, and `aria-invalid` is set on the currency select. Both are linked with `aria-describedby`. Each message is a specific sentence from the server, or 3.1.1.
 - **Required.** The amount input carries `aria-required`. The forms do not use the native `required` attribute, so the browser's own message does not compete with the inline errors (3.10).
 - **Parsing (for the engineer, on submit).** Trim spaces. Accept only the locale's decimal mark: `.` in an English locale, `,` in a German or Swedish one. Digits only otherwise. Any other mark, a thousands separator, letters or signs are rejected with the message in 3.1.1. Nothing is reinterpreted silently. Convert the accepted text to a plain decimal string with a dot (`"12.50"`) before sending. Never pass the text through `Number()` or `parseFloat()`.
@@ -526,7 +526,7 @@ Opened by "Add a contract" (`/contracts?new=1`, so the empty state and the dashb
 |                                                  |
 | Cost                                             |
 |  Amount                       Currency           |
-|  [ 4350                  ]    [ EUR, euro  v ]   |
+|  [ 4350                  ]    [ EUR        v ]   |
 |  Billed                                          |
 |  [ Yearly                                  v ]   |
 |                                                  |
@@ -573,34 +573,35 @@ At 464 px of content width, each half of a pair is 224 px. The Amount row is 308
           | Add a contract                           (X) |
           | [Lock Personal]                              |
           |----------------------------------------------|
-          | About                                        |
+          |  About                                       |
           |  Name                                        |
-          |  [ Car insurance                        ]    |
+          |  [ Car insurance                            ]|
           |  Provider (optional)                         |
-          |  [ Harbor Insurance                     ]    |
+          |  [ Harbor Insurance                         ]|
           |  Category                                    |
-          |  [ Choose a category                  v ]    |
+          |  [ Choose a category                      v ]|
           | Cost                                         |
-          |  Amount                      Currency        |
-          |  [ 4350                ]     [ EUR   v ]     |  full row: AmountInput
+          |  Amount                Currency              |
+          |  [ 4350               ][ EUR                ]|
           |  Billed                                      |
-          |  [ Yearly                             v ]    |
+          |  [ Yearly                                 v ]|
           | Dates                                        |
-          |  Starts                      Ends (optional) |  share a row (224 px each)
-          |  [ 1 Jan 2026       ]        [          ]    |
+          |  Starts                Ends (optional)       |
+          |  [ 1 Jan 2026         ][                    ]|
           |  Leave empty if it runs until you cancel it. |
           | Renewal                                      |
           |  [x] Renews automatically                    |
-          |  Renews every (months)   Notice period (days,|
-          |  [ 12            ]       [ 30          ]     |  optional label wraps
+          |  Renews every (months) Notice period         |
+          |                        (days, optional)      |
+          |  [ 12                 ][ 30                 ]|
           |  How many days before renewal you must give  |
           |  notice. Leave empty if there is none.       |
-          | Applies to (optional)                        |
-          |  [ Whole household                    v ]    |
-          | Notes (optional)                             |
-          |  [                                      ]    |
+          |  Applies to (optional)                       |
+          |  [ Whole household                        v ]|
+          |  Notes (optional)                            |
+          |  [                                          ]|
           |----------------------------------------------|
-          |                    [ Cancel ] [ Save contract ] |  md: footer right-aligned
+          |                [ Cancel ]  [ Save contract ] |
           +----------------------------------------------+
 ```
 
@@ -748,7 +749,7 @@ The whole card (or row, on the title) is one button that opens the edit dialog. 
 | From | date | empty | `from` (inclusive) |
 | To | date | empty | `to` (inclusive) |
 | Category | `CategorySelect` with "All categories" | All | `category` |
-| Applies to (household) | `AppliesToSelect` with "All members" | All | `member_user_id` |
+| Applies to (household) | Filter values as in 4.1: `all`, `household`, or a member id (not `AppliesToSelect`) | all | `member_user_id` |
 | Linked to a contract | not a control. Set by the "Expenses for this contract" link (`contract_id`). Shows as a removable chip "Car insurance ×" (44 px). | none | `contract_id` |
 
 From and To are inclusive, as the API promises (HEM-019). The "×" chip removes the filter.
@@ -783,7 +784,7 @@ Opened by "Add an expense" (or `/expenses?new=1`). Title "Add an expense". The f
 | [Lock Personal]                                  |
 |--------------------------------------------------|
 |  Amount                       Currency           |
-|  [ 12.50                  ]   [ EUR, euro  v ]   |  autofocus, decimal keypad
+|  [ 12.50                  ]   [ EUR        v ]   |  autofocus, decimal keypad
 |  Use . before the cents.                         |
 |  Category                                        |
 |  [ Food                                    v ]   |  last used in this space (F19)
@@ -880,7 +881,7 @@ The ConvertedAmount line on income reads "About EUR 552.10" (no extra plus sign;
 | Amount | `amount` and `currency` (flat record fields, section 11) | `+` sign (`signDisplay="always"`), right-aligned, `shrink-0 whitespace-nowrap`, `MoneyText md` |
 | Converted | `base_amount` (Money or null) | `ConvertedAmount`, "About {base}". Hidden when null. |
 
-**Filters.** From, To (inclusive), Source (`source_id`, "All sources" or each source), Applies to (household). Filter sheet on phone, row on desktop.
+**Filters.** From, To (inclusive), Source (`source_id`, "All sources" or each source), Applies to (household; values as in 4.1, not `AppliesToSelect`). Filter sheet on phone, row on desktop.
 
 **States**
 
@@ -1038,7 +1039,7 @@ The 768 wireframe shows the Name with its type and frequency. The 1280 table sho
 | +----------------------------------------------+ |
 | | Income this month                            | |
 | | +€2,850.00                                   | |
-| | Income for November 2026                     | |
+| | Received in November 2026                   | |
 | +----------------------------------------------+ |
 | (i) 1 amount is not in EUR, because no rate     |  hint, text-small, muted, icon
 |     was found for its date. Totals leave it out.|
@@ -1073,24 +1074,29 @@ The "Notice deadline" event has no amount (a notice date is not a payment). It s
 **Desktop 1280 px.** Three totals across the top, then the upcoming list full width (960 px of content).
 
 ```
++---------------------------------------------------------------------------------------+
 | Dashboard  [Lock Personal]                                       [ + Add an expense ] |
 |                                                                                       |
-| +------------------------+ +------------------------+ +------------------------+     |
-| | Spent this month       | | Recurring cost         | | Income this month      |     |
-| | €812.40                | | €1,043.00 a month      | | +€2,850.00             |     |
-| | November 2026          | | Contracts, monthly     | | Received November 2026 |     |
-| +------------------------+ +------------------------+ +------------------------+     |
-|  (i) 1 amount is not in EUR. No rate for its date. Totals leave it out.               |
+| +-------------------------+  +-------------------------+  +-------------------------+ |
+| | Spent this month        |  | Recurring cost          |  | Income this month       | |
+| | €812.40                 |  | €1,043.00 a month       |  | +€2,850.00              | |
+| | November 2026           |  | Contracts, monthly      |  | Received in             | |
+| |                         |  |                         |  | November 2026           | |
+| +-------------------------+  +-------------------------+  +-------------------------+ |
+| (i) 1 amount is not in EUR. No rate for its date. Totals leave it out.                |
 |                                                                                       |
 | Next 30 days                                                                          |
-| Type          Contract                         Date          Amount        When       |
-| -------------------------------------------------------------------------------------- |
-| [CreditCard]  Car insurance, Harbor Insurance  3 Dec 2026    EUR 362.50    [Clock] Due in 6 days |
-|   Payment                                                                             |
-| [RefreshCw]   Music streaming, Lark Audio      14 Dec 2026   EUR 11.99     [Clock] Renews in 6 days |
-|   Renewal                                                                             |
-| [CalendarClock] Car insurance                  2 Dec 2026    (no amount)   [Clock] Notice deadline soon |
-|   Notice deadline                                                                     |
+| Event                            Date             Amount When                         |
+| ------------------------------------------------------------------------------------- |
+| [CreditCard] Payment             3 Dec 2026   EUR 362.50 [Clock] Due in 6 days        |
+| Car insurance, Harbor Insurance                                                       |
+|                                                                                       |
+| [RefreshCw] Renewal              14 Dec 2026   EUR 11.99 [Clock] Renews in 6 days     |
+| Music streaming, Lark Audio                                                           |
+|                                                                                       |
+| [CalendarClock] Notice deadline  2 Dec 2026              [Clock] Notice deadline soon |
+| Car insurance, Harbor Insurance                                                       |
++---------------------------------------------------------------------------------------+
 ```
 
 **Upcoming row layout (N11).** Each event is a row on `xl` and up, and a stacked card everywhere below `xl`. Below `xl` the card is used at every width, because at 768 the Upcoming card sits in a half-width column (about 316 px).
@@ -1246,7 +1252,7 @@ Field names are the API's. The UI field and its control are given so the enginee
 - **Records keep flat fields.** Contracts (11.2), expenses (11.4), income sources (11.5) and income entries (11.6) have a flat `amount` (a decimal string) and a flat `currency` (ISO-4217). The forms post them that way.
 - **Computed values use Money.** Money is `{amount, currency}`, with `amount` as a decimal string (Q2). It is used for the upcoming event `amount` (11.3), the dashboard totals (11.7) and `base_amount` on expenses and income entries (Q1, 11.4 and 11.6).
 
-No other field is a Money object. A `Money` value and a flat amount are never mixed on the same record.
+Records keep flat `amount` and `currency`. On expenses and income entries, `base_amount` is the only Money field, beside the flat amount.
 
 ### 11.1 Categories (HEM-018)
 
@@ -1433,7 +1439,7 @@ The PM answered the questions raised while writing this spec. The decisions are 
 | Q9 | Dashboard header action. | **Confirmed:** "Add an expense". | F17, 7.1 |
 | Q10 | Expense future dates. | **Accepted.** Expense and income dates may be at most one day in the future. The API validates this in HEM-019. A later date shows "The date cannot be more than a day in the future." | 3.6, 5.2, 6.2, 11.4, 11.6 |
 | Q11 | Playwright screenshots for the new components. | **Yes.** HEM-021 to HEM-023 attach Playwright screenshots at 375, 768 and 1280 px for the states in sections 4 to 7. The reviewer checks them against those sections. | 14 |
-| Q12 | Record amounts or Money objects (review round 1, N13). | **Records keep flat `amount` and `currency`** (contracts, expenses, income sources and entries). **Computed values use Money**: the upcoming event `amount` (with `contract_name`), the dashboard totals, and `base_amount`. Section 11 states the shape per endpoint. | 3.2, 11 |
+| Q12 | Record amounts or Money objects (review round 1, N13). | **Records keep flat `amount` and `currency`. On expenses and income entries, `base_amount` is the only Money field, beside the flat amount.** **Computed values use Money**: the upcoming event `amount` (with `contract_name`) and the dashboard totals. Section 11 states the shape per endpoint. | 3.2, 11 |
 | Q13 | Converted amount with no rate: what does `ConvertedAmount` show? (review round 1, the open question on `converted-amount.tsx`). | **The spec wins.** When `converted` is null, `ConvertedAmount` renders nothing. The text "No SEK to EUR rate…" is removed. The dashboard's `unconverted_count` hint is the only place that reports missing rates (7.1). | 3.3, 7.1, 12.2 |
 
 **Board follow-ups from these decisions**

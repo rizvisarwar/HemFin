@@ -127,4 +127,13 @@ A written spec in `docs/design/finance.md`, plus any presentational components, 
 - `docs/design/finance.md` sections 3.1, 3.3, 4.1, 4.3, 6.3, 7.1, 11, 12.2 and 13.
 - `npm --prefix web run lint` and `npm --prefix web run build` (both pass).
 
+### 2026-11-27 · Designer (Haiku 5.5) · Review round 2 fixes (PR #26, comment 7215313361)
+- F-1: section 11 says records keep flat `amount` and `currency`, and `base_amount` is the only Money field on expenses and income entries. Q12 matches.
+- F-2: the expense (5.1) and income (6.1) "Applies to" filters use the 4.1 values (`all`, `household`, member id).
+- N-1: `EUR, euro` is `EUR` in the 4.3 and 5.2 wireframes. 3.1 notes the trade-off: a native select shows one label, so the code is the label.
+- N-2: the 4.3 768 wireframe has aligned borders, and "Notice period (days, optional)" is shown as two lines.
+- N-3: the 7.1 desktop upcoming wireframe fits the 89-column frame.
+- N-4: "Received in November 2026" is used in both the phone and the desktop totals.
+- Lint and build run.
+
 ## Review
