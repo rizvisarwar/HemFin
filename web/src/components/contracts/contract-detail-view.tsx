@@ -19,9 +19,10 @@ import { useHydrated } from "@/lib/hooks/use-hydrated";
 import type { ContractResponse } from "@/lib/api";
 import { deleteContract, getContract, updateContract } from "@/lib/contracts/client";
 import { noticeChip, noticePassed, paymentChip, renewalChip } from "@/lib/contracts/contracts";
-import { ConfirmDialog } from "./confirm-dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ContractFormDialog } from "./contract-form-dialog";
-import { categoryName, ContractAmount, memberLabel, SoonChips, useReferenceData, useToday } from "./contract-parts";
+import { categoryLabel, memberName, useReferenceData, useToday } from "@/components/finance/finance-parts";
+import { ContractAmount, SoonChips } from "./contract-parts";
 
 type Load = { status: "loading" } | { status: "not-found" } | { status: "error" } | { status: "ready"; contract: ContractResponse };
 
@@ -100,13 +101,9 @@ function Detail({ id, spaceId, household }: { id: string; spaceId: string; house
   const c = load.contract;
   const s = c.schedule;
   const cancelled = c.status === "cancelled";
-  const named = ref.status === "ready"; // no fallback names while the reference data loads
-  const category = named ? categoryName(ref.categories, c.category) : "";
-  const appliesTo = c.member_user_id
-    ? !named
-      ? ""
-      : memberLabel(ref.members.find((m) => m.user_id === c.member_user_id) ?? { display_name: null })
-    : "Whole household";
+  // No fallback names while the reference data loads, a neutral label when it failed to load.
+  const category = categoryLabel(ref, c.category);
+  const appliesTo = c.member_user_id ? memberName(ref, c.member_user_id) : "Whole household";
 
   async function setStatus(status: "active" | "cancelled"): Promise<string | undefined> {
     const res = await updateContract(spaceId, id, { status });

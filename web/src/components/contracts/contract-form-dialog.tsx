@@ -19,21 +19,19 @@ import { SpaceBadge } from "@/components/ui/space-badge";
 import { Textarea } from "@/components/ui/textarea";
 import type { CategoryResponse, ContractResponse, MemberResponse } from "@/lib/api";
 import { createContract, updateContract } from "@/lib/contracts/client";
-import { amountToInput, decimalMark, fractionDigits } from "@/lib/contracts/amount";
+import { amountToInput, decimalMark, fractionDigits } from "@/lib/finance/amount";
 import {
-  categoryGroups,
   NAME_MAX,
   NOTES_MAX,
-  todayIso,
   validateContract,
-  type ContractFormErrors,
   type ContractFormField,
   type ContractFormValues,
 } from "@/lib/contracts/contracts";
-import { CURRENCY_CODES } from "@/lib/profile/currencies";
-import { memberLabel } from "./contract-parts";
+import { categoryGroups, todayIso } from "@/lib/finance/common";
+import { CURRENCY_OPTIONS, memberLabel } from "@/components/finance/finance-parts";
+import { useFormState } from "@/components/finance/use-form-state";
+import { DiscardDialog } from "@/components/ui/discard-dialog";
 
-const CURRENCY_OPTIONS = CURRENCY_CODES.map((code) => ({ code, label: code }));
 const FIELDS: ContractFormField[] = [
   "name", "provider", "category_id", "amount", "currency", "frequency", "start_date", "end_date",
   "auto_renew", "renewal_term_months", "notice_period_days", "member_user_id", "notes",
@@ -66,72 +64,34 @@ export function ContractFormDialog(props: ContractFormDialogProps) {
   const { prefs } = useFormat();
   const mark = decimalMark(prefs.locale);
 
-  const [start] = React.useState(() => initialValues(contract, prefs.currency, prefs.locale));
-  const [values, setValues] = React.useState<ContractFormValues>(start);
-  const [errors, setErrors] = React.useState<ContractFormErrors>({});
-  const [formError, setFormError] = React.useState<string>();
-  const [busy, setBusy] = React.useState(false);
-  const [attempt, setAttempt] = React.useState(0);
-  const [discard, setDiscard] = React.useState(false);
-  const form = React.useRef<HTMLFormElement>(null);
-  // After a failed submit: focus the first invalid field and bring its message into view in the scrolling body.
-  React.useEffect(() => {
-    if (attempt === 0) return;
-    const el = form.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
-    if (!el) return;
-    el.focus();
-    const ids = (el.getAttribute("aria-describedby") ?? "").split(" ").filter((id) => id.endsWith("-error"));
-    const message = ids.length ? document.getElementById(ids[ids.length - 1]) : null;
-    message?.scrollIntoView({ block: "nearest" });
-  }, [attempt]);
+  const f = useFormState<ContractFormValues>(() => initialValues(contract, prefs.currency, prefs.locale), FIELDS, "contract-form");
+  const { values, errors, formError, busy, discard } = f;
 
   const digits = fractionDigits(values.currency, prefs.locale);
   const groups = React.useMemo(() => categoryGroups(categories, "id"), [categories]);
-  const dirty = JSON.stringify(values) !== JSON.stringify(start);
-
-  function set<K extends ContractFormField>(field: K, value: ContractFormValues[K]) {
-    setValues((v) => ({ ...v, [field]: value }));
-    setErrors((e) => (e[field] ? { ...e, [field]: undefined } : e));
-  }
+  const set = f.set;
 
   /** Validate on blur: only the field that was left shows its message. */
   function blur(field: ContractFormField) {
-    const { errors: all } = validateContract(values, { mark, digits });
-    setErrors((e) => ({ ...e, [field]: all[field] }));
+    f.blur(field, validateContract(values, { mark, digits }).errors);
   }
 
-  function requestClose() {
-    if (busy) return;
-    if (dirty) setDiscard(true);
-    else onOpenChange(false);
-  }
+  const requestClose = () => f.requestClose(() => onOpenChange(false));
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
     const result = validateContract(values, { mark, digits });
-    if (!result.payload) {
-      setErrors(result.errors);
-      setFormError(undefined);
-      setAttempt((n) => n + 1);
-      return;
-    }
-    setErrors({});
-    setFormError(undefined);
-    setBusy(true);
+    if (!result.payload) return f.invalid(result.errors);
+    f.setErrors({});
+    f.setFormError(undefined);
+    f.setBusy(true);
     const res = contract
       ? await updateContract(props.spaceId, contract.id, result.payload)
       : await createContract(props.spaceId, result.payload);
-    setBusy(false);
+    f.setBusy(false);
     if (res.ok) return props.onSaved(res.data);
-    const next: ContractFormErrors = {};
-    for (const [field, message] of Object.entries(res.problem.fields)) {
-      if ((FIELDS as string[]).includes(field)) next[field as ContractFormField] = message;
-    }
-    const known = Object.keys(next).length > 0;
-    setErrors(next);
-    setFormError(res.problem.form ?? (known ? undefined : "Something went wrong. Try again in a moment."));
-    setAttempt((n) => n + 1);
+    f.refused(res.problem);
   }
 
   return (
@@ -177,7 +137,6 @@ export function ContractFormDialog(props: ContractFormDialogProps) {
         </div>
       ) : (
         <form
-          ref={form}
           id="contract-form"
           method="post"
           noValidate
@@ -342,30 +301,14 @@ export function ContractFormDialog(props: ContractFormDialogProps) {
         </form>
       )}
 
-      <ResponsiveDialog
-        alert
+      <DiscardDialog
         open={discard}
-        onOpenChange={setDiscard}
-        title="Discard changes?"
+        onOpenChange={f.setDiscard}
         description="Your changes to this contract are not saved."
-        initialFocus={() => document.getElementById("keep-editing")}
-        footer={
-          <>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => {
-                setDiscard(false);
-                onOpenChange(false);
-              }}
-            >
-              Discard changes
-            </Button>
-            <Button id="keep-editing" type="button" variant="outline" className="focus:outline-2 focus:outline-offset-2 focus:outline-ring" onClick={() => setDiscard(false)}>
-              Keep editing
-            </Button>
-          </>
-        }
+        onDiscard={() => {
+          f.setDiscard(false);
+          onOpenChange(false);
+        }}
       />
     </ResponsiveDialog>
   );

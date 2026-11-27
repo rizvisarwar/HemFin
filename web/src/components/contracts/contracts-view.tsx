@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FileText, ListFilter } from "lucide-react";
+import { FileText } from "lucide-react";
 import { useFormat } from "@/components/format-provider";
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { useActiveSpace } from "@/components/layout/app-shell-client";
@@ -15,15 +15,17 @@ import { FormMessage } from "@/components/ui/form-message";
 import { HemCard } from "@/components/ui/hem-card";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { ResponsiveList } from "@/components/ui/responsive-list";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { useHydrated } from "@/lib/hooks/use-hydrated";
 import type { ContractResponse } from "@/lib/api";
+import { AppliesFilter } from "@/components/finance/filter-fields";
+import { FilterBar } from "@/components/finance/filter-bar";
+import { categoryLabel, forMemberText, ListSkeleton, useReferenceData, useToday, type ReferenceData } from "@/components/finance/finance-parts";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
+import { useListHeading } from "@/lib/hooks/use-list-heading";
+import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { listContracts } from "@/lib/contracts/client";
 import {
-  categoryGroups,
   DEFAULT_FILTERS,
   filterButtonLabel,
   isDefaultFilters,
@@ -31,22 +33,9 @@ import {
   type ContractFilters,
   type StatusFilter,
 } from "@/lib/contracts/contracts";
+import { categoryGroups } from "@/lib/finance/common";
 import { ContractFormDialog } from "./contract-form-dialog";
-import {
-  categoryName,
-  ContractAmount,
-  memberLabel,
-  SoonChips,
-  soonChips,
-  useReferenceData,
-  useToday,
-  type ReferenceData,
-} from "./contract-parts";
-
-type List =
-  | { status: "loading" }
-  | { status: "error" }
-  | { status: "ready"; items: ContractResponse[]; next: string | null };
+import { ContractAmount, SoonChips, soonChips } from "./contract-parts";
 
 /**
  * The contracts of the active space (finance.md 4.1). Keyed by the space id, so switching space starts
@@ -66,38 +55,19 @@ function SpaceContracts({ spaceId, household }: { spaceId: string; household: bo
   const today = useToday();
   const ref = useReferenceData(spaceId, household);
 
-  const [filters, setFilters] = React.useState<ContractFilters>(DEFAULT_FILTERS);
-  const [list, setList] = React.useState<List>({ status: "loading" });
-  const [reload, setReload] = React.useState(0);
-  const [moreBusy, setMoreBusy] = React.useState(false);
-  const [moreError, setMoreError] = React.useState(false);
+  const { filters, list, applyFilters, refresh, loadMore, moreBusy, moreError } = usePagedList(spaceId, DEFAULT_FILTERS, listContracts);
   const [message, setMessage] = React.useState<string | null>(null);
   const [formOpen, setFormOpen] = React.useState(search.get("new") === "1");
   const [formKey, setFormKey] = React.useState(0);
-  const [filterOpen, setFilterOpen] = React.useState(false);
-  const [draft, setDraft] = React.useState<ContractFilters>(DEFAULT_FILTERS);
-  const heading = React.useRef<HTMLHeadingElement>(null);
-  // Bumped whenever the list is replaced (new filters, a reload): a page that was requested earlier is then dropped.
-  const epoch = React.useRef(0);
-
-  React.useEffect(() => {
-    let live = true;
-    listContracts(spaceId, filters).then((res) => {
-      if (!live) return;
-      setList(res.ok ? { status: "ready", items: res.data.items, next: res.data.next_cursor ?? null } : { status: "error" });
-    });
-    return () => {
-      live = false;
-    };
-  }, [spaceId, filters, reload]);
+  const { ref: heading, focus: focusHeading } = useListHeading();
 
   // After a delete the detail page sends the user here: focus the list heading (the row they came from is gone).
   const afterDelete = search.get("deleted") === "1";
   React.useEffect(() => {
     if (!afterDelete || list.status === "loading") return;
-    heading.current?.focus();
+    focusHeading();
     router.replace("/contracts");
-  }, [afterDelete, list.status, router]);
+  }, [afterDelete, list.status, router, focusHeading]);
 
   // The success message goes after 5 seconds.
   React.useEffect(() => {
@@ -105,21 +75,6 @@ function SpaceContracts({ spaceId, household }: { spaceId: string; household: bo
     const t = setTimeout(() => setMessage(null), 5000);
     return () => clearTimeout(t);
   }, [message]);
-
-  function applyFilters(next: ContractFilters) {
-    epoch.current += 1;
-    setList({ status: "loading" });
-    setMoreBusy(false);
-    setMoreError(false);
-    setFilters(next);
-  }
-
-  function refresh() {
-    epoch.current += 1;
-    setList({ status: "loading" });
-    setMoreBusy(false);
-    setReload((n) => n + 1);
-  }
 
   function openForm() {
     setFormKey((n) => n + 1);
@@ -131,25 +86,9 @@ function SpaceContracts({ spaceId, household }: { spaceId: string; household: bo
     if (search.get("new") === "1") router.replace("/contracts");
   }
 
-  async function loadMore() {
-    if (list.status !== "ready" || !list.next || moreBusy) return;
-    const started = epoch.current;
-    setMoreBusy(true);
-    setMoreError(false);
-    const res = await listContracts(spaceId, filters, list.next);
-    if (started !== epoch.current) return; // the filters changed meanwhile: this page belongs to the old list
-    setMoreBusy(false);
-    if (!res.ok) return setMoreError(true);
-    setList({ status: "ready", items: [...list.items, ...res.data.items], next: res.data.next_cursor ?? null });
-  }
-
   const groups = React.useMemo(() => categoryGroups(ref.categories, "key"), [ref.categories]);
   const members = ref.members;
-  const named = ref.status === "ready"; // names come with the reference data: show none rather than a fallback
-  const forMember = (c: ContractResponse) =>
-    household && named && c.member_user_id
-      ? `For ${memberLabel(members.find((m) => m.user_id === c.member_user_id) ?? { display_name: null })}`
-      : null;
+  const forMember = (c: ContractResponse) => forMemberText(ref, household, c.member_user_id);
   const items = list.status === "ready" ? list.items : [];
   const emptyPage = list.status === "ready" && items.length === 0 && isDefaultFilters(filters);
   const addButton = (
@@ -175,27 +114,11 @@ function SpaceContracts({ spaceId, household }: { spaceId: string; household: bo
       </p>
 
       {emptyPage ? null : (
-        <>
-          {/* md and up: the filters sit in a row and apply at once. */}
-          <div className="mb-4 hidden gap-4 md:grid md:grid-cols-3" data-testid="filter-row">
-            <FilterControls prefix="filter" value={filters} onChange={applyFilters} groups={groups} members={members} household={household} />
-          </div>
-          {/* Phone: one button that opens a sheet. */}
-          <Button
-            type="button"
-            variant="outline"
-            className="mb-4 w-full justify-start md:hidden"
-            disabled={!hydrated}
-            data-testid="filters-button"
-            onClick={() => {
-              setDraft(filters);
-              setFilterOpen(true);
-            }}
-          >
-            <ListFilter aria-hidden="true" />
-            {filterButtonLabel(filters)}
-          </Button>
-        </>
+        <FilterBar filters={filters} defaults={DEFAULT_FILTERS} onApply={applyFilters} buttonLabel={filterButtonLabel(filters)} showLabel="Show contracts">
+          {({ prefix, value, onChange }) => (
+            <FilterControls prefix={prefix} value={value} onChange={onChange} groups={groups} members={members} household={household} />
+          )}
+        </FilterBar>
       )}
 
       {list.status === "error" ? (
@@ -206,7 +129,7 @@ function SpaceContracts({ spaceId, household }: { spaceId: string; household: bo
           </Button>
         </div>
       ) : list.status === "loading" ? (
-        <ListSkeleton />
+        <ListSkeleton label="Loading contracts" testId="contracts-loading" cardClass="h-32" />
       ) : emptyPage ? (
         <EmptyState
           icon={FileText}
@@ -242,7 +165,7 @@ function SpaceContracts({ spaceId, household }: { spaceId: string; household: bo
                   <span className="min-w-0 flex-1">
                     <span className="line-clamp-2 block break-words text-body-strong">{c.name}</span>
                     <span className="mt-0.5 block text-small text-muted-foreground [overflow-wrap:anywhere]">
-                      {[c.provider, (named ? categoryName(ref.categories, c.category) : "")].filter(Boolean).join(" · ")}
+                      {[c.provider, categoryLabel(ref, c.category)].filter(Boolean).join(" · ")}
                     </span>
                     {forMember(c) ? <span className="block text-small text-muted-foreground">{forMember(c)}</span> : null}
                   </span>
@@ -274,7 +197,7 @@ function SpaceContracts({ spaceId, household }: { spaceId: string; household: bo
                   </div>
                 ),
               },
-              { id: "category", header: "Category", from: "xl", className: "text-small", cell: (c) => (named ? categoryName(ref.categories, c.category) : "") },
+              { id: "category", header: "Category", from: "xl", className: "text-small", cell: (c) => categoryLabel(ref, c.category) },
               { id: "amount", header: "Amount", from: "md", align: "right", cell: (c) => <ContractAmount contract={c} /> },
               {
                 id: "next",
@@ -332,32 +255,6 @@ function SpaceContracts({ spaceId, household }: { spaceId: string; household: bo
           refresh();
         }}
       />
-
-      <ResponsiveDialog
-        open={filterOpen}
-        onOpenChange={setFilterOpen}
-        title="Filters"
-        footer={
-          <>
-            <Button
-              type="button"
-              onClick={() => {
-                applyFilters(draft);
-                setFilterOpen(false);
-              }}
-            >
-              Show contracts
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setDraft(DEFAULT_FILTERS)}>
-              Clear filters
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <FilterControls prefix="sheet" value={draft} onChange={setDraft} groups={groups} members={members} household={household} />
-        </div>
-      </ResponsiveDialog>
     </>
   );
 }
@@ -400,42 +297,7 @@ function FilterControls({
         onValueChange={(category) => onChange({ ...value, category })}
         emptyLabel="All categories"
       />
-      {household ? (
-        <div className="space-y-2">
-          <Label htmlFor={`${prefix}-applies`} className="text-body">
-            Applies to
-          </Label>
-          <NativeSelect id={`${prefix}-applies`} value={value.applies} onChange={(e) => onChange({ ...value, applies: e.target.value })}>
-            <option value="all">All</option>
-            <option value="household">Whole household</option>
-            {members.map((m) => (
-              <option key={m.user_id} value={m.user_id}>
-                {memberLabel(m)}
-              </option>
-            ))}
-          </NativeSelect>
-        </div>
-      ) : null}
+      {household ? <AppliesFilter prefix={prefix} value={value.applies} onChange={(applies) => onChange({ ...value, applies })} members={members} /> : null}
     </>
-  );
-}
-
-function ListSkeleton() {
-  return (
-    <div aria-busy="true" data-testid="contracts-loading">
-      <p className="sr-only" role="status">
-        Loading contracts
-      </p>
-      <div className="space-y-3 md:hidden">
-        {[0, 1, 2].map((i) => (
-          <Skeleton key={i} className="h-32 w-full" />
-        ))}
-      </div>
-      <div className="hidden space-y-2 md:block">
-        {[0, 1, 2].map((i) => (
-          <Skeleton key={i} className="h-16 w-full" />
-        ))}
-      </div>
-    </div>
   );
 }

@@ -1,19 +1,15 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
-import { Banknote } from "lucide-react";
-import { PlaceholderPage } from "@/components/layout/placeholder-page";
+import { IncomeView } from "@/components/income/income-view";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Income" };
 
 export default function IncomePage() {
+  // useSearchParams (`?new=1`) needs a Suspense boundary.
   return (
-    <PlaceholderPage
-      title="Income"
-      description="Salary and other money coming in."
-      icon={Banknote}
-      emptyTitle="No income yet"
-      emptyDescription="Record your salary and other income to see the full picture each month."
-      actionLabel="Add income"
-      actionHref="/income"
-    />
+    <Suspense fallback={<Skeleton className="h-32 w-full" aria-busy="true" />}>
+      <IncomeView />
+    </Suspense>
   );
 }

@@ -191,3 +191,40 @@ test("the member and the category name stay hidden until they are loaded, never 
   await expect(rows).not.toContainText("subscription.streaming");
   await expect(rows).toContainText("For Jordan Kim", { timeout: 15_000 });
 });
+
+// HEM-022 follow-ups to the shared pieces.
+
+test("after a delete the list heading takes focus only when nothing else has it", async ({ page, context }, info) => {
+  const { spaceId } = await setup(context, info);
+  await seedContracts(spaceId, [CAR]);
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  await page.route(
+    (url) => url.pathname.includes("/api/v1/spaces/") && url.pathname.endsWith("/contracts"),
+    async (route) => {
+      await gate;
+      await route.continue();
+    },
+  );
+  await page.goto("/contracts?deleted=1");
+  const add = page.getByTestId("add-contract");
+  await expect(add).toBeEnabled();
+  await add.focus(); // the user has already moved on while the list loads
+  release();
+  await expect(rowsOf(page)).toHaveCount(1);
+  await expect(page).toHaveURL(/\/contracts$/);
+  await expect(add).toBeFocused();
+  await expect(page.getByRole("heading", { name: "Your contracts" })).not.toBeFocused();
+});
+
+test("a category that could not be loaded reads 'Category unavailable', never a blank", async ({ page, context }, info) => {
+  const { spaceId } = await setup(context, info);
+  await seedContracts(spaceId, [MUSIC]);
+  await page.route("**/api/v1/spaces/*/categories*", (route) =>
+    route.fulfill({ status: 500, contentType: "application/problem+json", body: JSON.stringify({ title: "Internal Server Error", status: 500 }) }),
+  );
+  await page.goto("/contracts");
+  await expect(rowsOf(page)).toContainText("Music streaming");
+  // The category shows on the card (phone) and in the xl column; the md table has no category column.
+  if ((page.viewportSize()?.width ?? 0) !== 768) await expect(rowsOf(page)).toContainText("Category unavailable");
+});

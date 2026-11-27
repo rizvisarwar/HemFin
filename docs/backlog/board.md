@@ -60,7 +60,7 @@ Order: HEM-017, HEM-018 and HEM-020 run in parallel. HEM-019 follows HEM-018. Th
 | HEM-019 | API: expenses and income | Engineer | In Review | #28 |
 | HEM-020 | API: exchange rates and FX job | Engineer | Done | #25 |
 | HEM-021 | Web: contracts | Engineer | In Progress | |
-| HEM-022 | Web: expenses and income | Engineer | Todo | |
+| HEM-022 | Web: expenses and income | Engineer | In Review | |
 | HEM-023 | Dashboard summary (API and web) | Engineer | Todo | |
 
 ## Follow-ups (not yet ticketed)

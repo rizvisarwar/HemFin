@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  categoryGroups,
-  contractProblem,
-  daysBetween,
   filterButtonLabel,
   filtersToQuery,
   noticeChip,
@@ -12,9 +9,9 @@ import {
   renewalChip,
   validateContract,
   DEFAULT_FILTERS,
-  type CategoryLike,
   type ContractFormValues,
 } from "./contracts.ts";
+import { daysBetween } from "../finance/common.ts";
 
 const TODAY = "2026-11-27";
 
@@ -58,45 +55,6 @@ describe("filters", () => {
   it("labels the phone filter button", () => {
     assert.equal(filterButtonLabel(DEFAULT_FILTERS), "Filters: Active");
     assert.equal(filterButtonLabel({ status: "all", category: "food", applies: "household" }), "Filters: All, 2 more");
-  });
-});
-
-const cat = (key: string, name: string, parent: string | null, system = true, kind = "expense"): CategoryLike => ({
-  id: `id-${key}`,
-  key,
-  name,
-  parent_key: parent,
-  kind,
-  system,
-});
-
-describe("categoryGroups", () => {
-  const list = [
-    cat("utility", "Utilities", null),
-    cat("utility.gas", "Gas", "utility"),
-    cat("insurance", "Insurance", null),
-    cat("insurance.home", "Home insurance", "insurance"),
-    cat("insurance.car", "Car insurance", "insurance"),
-    cat("transport", "Transport", null),
-    cat("pets", "Pets", null, false),
-    cat("income", "Income", null, true, "income"),
-  ];
-  it("groups by parent in the spec's order and ends with the space's own", () => {
-    const g = categoryGroups(list, "id");
-    assert.deepEqual(
-      g.map((x) => x.label),
-      ["Insurance", "Utilities", "Transport", "Your categories"],
-    );
-    assert.deepEqual(g[0].options, [
-      { value: "id-insurance.home", label: "Home insurance" },
-      { value: "id-insurance.car", label: "Car insurance" },
-    ]);
-    assert.deepEqual(g[2].options, [{ value: "id-transport", label: "Transport" }]);
-  });
-  it("uses keys for the filter and adds an All option per group", () => {
-    const g = categoryGroups(list, "key");
-    assert.deepEqual(g[0].options[0], { value: "insurance", label: "All insurance" });
-    assert.equal(g[0].options[1].value, "insurance.home");
   });
 });
 
@@ -168,28 +126,5 @@ describe("validateContract", () => {
       "The end date must be on or after the start date.",
     );
     assert.equal(validateContract({ ...values, end_date: "2026-01-01" }, opts).errors.end_date, undefined);
-  });
-});
-
-describe("contractProblem", () => {
-  it("maps validation errors to fields by API name", () => {
-    const p = contractProblem(422, {
-      errors: [
-        { loc: ["body", "amount"], msg: "Value error, Too many decimals" },
-        { loc: ["body", "currency"], msg: "Unsupported currency" },
-      ],
-    });
-    assert.deepEqual(p.fields, { amount: "Too many decimals", currency: "Unsupported currency" });
-  });
-  it("maps a coded refusal (foreign category or member) to its field", () => {
-    assert.deepEqual(contractProblem(422, { code: "invalid_category", detail: "Unknown category." }).fields, {
-      category_id: "Unknown category.",
-    });
-    assert.deepEqual(contractProblem(422, { code: "invalid_member", detail: "Not a member." }).fields, {
-      member_user_id: "Not a member.",
-    });
-  });
-  it("gives a form message when no field is named", () => {
-    assert.equal(contractProblem(500, {}).form, "Something went wrong. Try again in a moment.");
   });
 });

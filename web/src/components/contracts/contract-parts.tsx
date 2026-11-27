@@ -6,56 +6,8 @@ import { DueChip } from "@/components/ui/due-chip";
 import { FREQUENCY_PHRASE } from "@/components/ui/frequency-select";
 import { MoneyText } from "@/components/ui/money-text";
 import { cn } from "@/lib/utils";
-import type { CategoryResponse, ContractResponse, MemberResponse } from "@/lib/api";
-import { listCategories, listMembers } from "@/lib/contracts/client";
-import { noticeChip, paymentChip, renewalChip, todayIso, type Chip } from "@/lib/contracts/contracts";
-
-/** Today as a calendar date, fixed for the life of the screen. */
-export function useToday(): string {
-  const [today] = React.useState(() => todayIso());
-  return today;
-}
-
-/** A member's name for a picker or a row. Never the email address (finance.md 3.7). */
-export function memberLabel(m: Pick<MemberResponse, "display_name">): string {
-  return m.display_name?.trim() || "Member";
-}
-
-export interface ReferenceData {
-  status: "loading" | "ready" | "error";
-  categories: CategoryResponse[];
-  members: MemberResponse[];
-  retry: () => void;
-}
-
-/**
- * The categories (and, in a household, the members) of one space, for the pickers, the filters and
- * the names in rows. Mount it under a key of the space id, so a switch of space starts again.
- */
-export function useReferenceData(spaceId: string, household: boolean): ReferenceData {
-  const [state, setState] = React.useState<Omit<ReferenceData, "retry">>({ status: "loading", categories: [], members: [] });
-  const [attempt, setAttempt] = React.useState(0);
-  React.useEffect(() => {
-    let live = true;
-    Promise.all([listCategories(spaceId), household ? listMembers(spaceId) : Promise.resolve(null)]).then(([cats, members]) => {
-      if (!live) return;
-      if (!cats.ok || (members && !members.ok)) setState({ status: "error", categories: [], members: [] });
-      else setState({ status: "ready", categories: cats.data.items, members: members && members.ok ? members.data : [] });
-    });
-    return () => {
-      live = false;
-    };
-  }, [spaceId, household, attempt]);
-  const retry = React.useCallback(() => {
-    setState((s) => ({ ...s, status: "loading" }));
-    setAttempt((n) => n + 1);
-  }, []);
-  return { ...state, retry };
-}
-
-export function categoryName(categories: CategoryResponse[], key: string): string {
-  return categories.find((c) => c.key === key)?.name ?? key;
-}
+import type { ContractResponse } from "@/lib/api";
+import { noticeChip, paymentChip, renewalChip, type Chip } from "@/lib/contracts/contracts";
 
 /** "EUR 4,350.00 a year": the amount in its own currency (a code when it is not the base currency) and the frequency in words. */
 export function ContractAmount({ contract, align = "right" }: { contract: ContractResponse; align?: "left" | "right" }) {

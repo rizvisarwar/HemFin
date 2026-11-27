@@ -2,8 +2,8 @@
  * Display and form rules for contracts (docs/design/finance.md section 4). The schedule itself is
  * computed by the API; nothing here works out a payment or renewal date.
  */
-import { parseAmount, type DecimalMark } from "./amount.ts";
-import { parseProblem, type ProblemFields } from "../profile/problem.ts";
+import { parseAmount, type DecimalMark } from "../finance/amount.ts";
+import { appliesToQuery, daysBetween } from "../finance/common.ts";
 
 /** A payment or renewal this close shows a warning chip, a notice deadline within `NOTICE_SOON_DAYS` (finance.md F6). */
 export const PAYMENT_SOON_DAYS = 7;
@@ -11,22 +11,7 @@ export const NOTICE_SOON_DAYS = 30;
 
 export type Frequency = "weekly" | "monthly" | "quarterly" | "semiannual" | "annual";
 
-// ---- Dates -------------------------------------------------------------------------------------
-
-/** Today as a calendar date in the browser's time zone ("2026-12-03"). */
-export function todayIso(now: Date = new Date()): string {
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
-}
-
-/** Whole days from `from` to `to` (both "YYYY-MM-DD"). Negative when `to` is earlier. */
-export function daysBetween(from: string, to: string): number {
-  const ms = (iso: string) => {
-    const [y, m, d] = iso.split("-").map(Number);
-    return Date.UTC(y, m - 1, d);
-  };
-  return Math.round((ms(to) - ms(from)) / 86_400_000);
-}
+// ---- Due chips ---------------------------------------------------------------------------------
 
 function inDays(n: number): string {
   return n === 0 ? "today" : n === 1 ? "tomorrow" : `in ${n} days`;
@@ -87,7 +72,7 @@ export function filtersToQuery(f: ContractFilters) {
   return {
     status: f.status === "all" ? undefined : f.status,
     category: f.category || undefined,
-    member_user_id: f.applies === "all" ? undefined : f.applies === "household" ? "none" : f.applies,
+    member_user_id: appliesToQuery(f.applies),
   };
 }
 
@@ -103,61 +88,6 @@ export function filterButtonLabel(f: ContractFilters): string {
 
 export const isDefaultFilters = (f: ContractFilters) =>
   f.status === DEFAULT_FILTERS.status && f.category === "" && f.applies === "all";
-
-// ---- Categories --------------------------------------------------------------------------------
-
-export interface CategoryLike {
-  id: string;
-  key: string;
-  name: string;
-  parent_key: string | null;
-  kind: string;
-  system: boolean;
-}
-
-export interface CategoryGroupOut {
-  label: string;
-  options: { value: string; label: string }[];
-}
-
-/** Order of the system groups (finance.md 3.4). Groups the API adds later follow, then "Your categories". */
-const GROUP_ORDER = ["insurance", "utility", "subscription", "membership", "housing", "transport", "food", "health", "kids", "other"];
-
-/**
- * Expense categories as picker groups: one per parent, in the spec's order, then "Your categories".
- * A parent with no children is its own single option. `by` chooses the option value: the category id
- * (forms) or its key (the list filter, where a group also gets an "All ..." option for the parent key).
- */
-export function categoryGroups(categories: CategoryLike[], by: "id" | "key"): CategoryGroupOut[] {
-  const expense = categories.filter((c) => c.kind === "expense");
-  const parents = expense.filter((c) => c.system && c.parent_key === null);
-  parents.sort((a, b) => rank(a.key) - rank(b.key) || a.name.localeCompare(b.name));
-  const groups: CategoryGroupOut[] = [];
-  for (const parent of parents) {
-    const kids = expense.filter((c) => c.system && c.parent_key === parent.key);
-    const value = (c: CategoryLike) => (by === "id" ? c.id : c.key);
-    if (kids.length === 0) {
-      groups.push({ label: parent.name, options: [{ value: value(parent), label: parent.name }] });
-      continue;
-    }
-    const options = kids.map((k) => ({ value: value(k), label: k.name }));
-    if (by === "key") options.unshift({ value: parent.key, label: `All ${parent.name.toLowerCase()}` });
-    groups.push({ label: parent.name, options });
-  }
-  const custom = expense.filter((c) => !c.system);
-  if (custom.length > 0) {
-    groups.push({
-      label: "Your categories",
-      options: custom.map((c) => ({ value: by === "id" ? c.id : c.key, label: c.name })),
-    });
-  }
-  return groups;
-}
-
-function rank(key: string): number {
-  const i = GROUP_ORDER.indexOf(key);
-  return i === -1 ? GROUP_ORDER.length : i;
-}
 
 // ---- Form --------------------------------------------------------------------------------------
 
@@ -254,23 +184,4 @@ export function validateContract(
       notes: v.notes.trim() || null,
     },
   };
-}
-
-// ---- Server errors -----------------------------------------------------------------------------
-
-/** The API reports a foreign category or member with a code and a plain detail, not an `errors[]` entry. */
-const CODE_FIELD: Record<string, ContractFormField> = {
-  invalid_category: "category_id",
-  invalid_member: "member_user_id",
-};
-
-/** Maps a problem+json response to field errors (by API field name, F8) and a form-level message. */
-export function contractProblem(status: number, body: unknown): ProblemFields {
-  const problem = parseProblem(status, body);
-  const b = (typeof body === "object" && body !== null ? body : {}) as { code?: unknown; detail?: unknown };
-  const field = typeof b.code === "string" ? CODE_FIELD[b.code] : undefined;
-  if (field && typeof b.detail === "string" && b.detail.trim() !== "") {
-    return { fields: { ...problem.fields, [field]: b.detail }, status };
-  }
-  return problem;
 }
