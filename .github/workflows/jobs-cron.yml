@@ -7,9 +7,9 @@ name: Scheduled jobs
 # If either is unset the run succeeds with a notice and does nothing.
 # The API implements /internal/jobs/daily (expires old invitations) and /internal/jobs/fx
 # (stores the ECB reference rates, weekdays 16:30 UTC after the ECB publishes around 16:00 CET).
-# /internal/jobs/weekly does
-# not exist yet, so the weekly run returns 404 until a ticket adds it. If the API's JOB_SECRET is
-# unset the endpoints answer 503; a wrong or empty X-Job-Secret answers 401.
+# /internal/jobs/weekly does not exist yet, so the weekly run returns 404 until a ticket adds it.
+# If the API's JOB_SECRET is unset the endpoints answer 503; a wrong or empty X-Job-Secret
+# answers 401.
 
 on:
   workflow_dispatch:
@@ -85,7 +85,8 @@ jobs:
         if: steps.cfg.outputs.configured == 'true'
         run: |
           # Free-tier Render sleeps, so the first request can take about a minute to wake it.
-          # Retry ONLY connection-level failures and 502/503/504 (a waking or restarting host).
+          # Retry ONLY connection-level failures and 502/503/504 (a waking or restarting host, or,
+          # for the fx job, a 502 because the ECB feed was unreachable; the job is idempotent).
           # Any other response, including 404 and 500, fails immediately so a job that may have
           # partly run is never repeated. The endpoints should be idempotent when they land.
           url="${API_BASE_URL%/}/internal/jobs/${JOB_NAME}"

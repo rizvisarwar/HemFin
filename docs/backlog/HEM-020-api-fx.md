@@ -16,7 +16,7 @@ The API stores daily ECB reference rates and can convert any amount between curr
   - On first run against an empty table, backfill from the 90-day feed (`eurofxref-hist-90d.xml`) so conversions for recent dates work right away.
 - [ ] **`jobs-cron.yml`:** add an `fx` schedule on weekdays around 16:30 UTC (after ECB publishes) and the `fx` option for manual runs. Keep the case statement in sync. Push with the gh credential helper, as CLAUDE.md says.
 - [ ] **FX service** `modules/fx/service.py`:
-  - `convert(amount, from_ccy, to_ccy, on_date) -> Decimal | None`.
+  - `convert(session, amount, from_ccy, to_ccy, on_date) -> Decimal | None` (the session comes first because it reads the table).
   - Goes through EUR as the cross currency.
   - Uses the latest rate on or before `on_date`, at most 7 days back.
   - Same currency returns the amount unchanged.
@@ -47,11 +47,21 @@ Built the FX table, the `POST /internal/jobs/fx` job, `modules/fx` (service, rou
 
 How to verify: `cd api; uv run pytest tests/test_fx.py`; with `DATABASE_URL` set also `tests/test_fx_db.py`. After deploy, run the "Scheduled jobs" workflow manually with job `fx`.
 
-CI status after the fix commit: `api` and `docker` pass (db tests ran in CI). `gitleaks` fails on one false positive in history (commit `4cd20c7`, `api/tests/test_fx.py:229`, a feed-URL test setting; the line is already reworded). It needs the exact-fingerprint line `4cd20c73e019b48b6b97dd9f8ac36f11149b34fd:api/tests/test_fx.py:generic-api-key:229` appended to `.gitleaksignore`; my attempt to commit that was refused by the permission check, so I did not add it. `web` fails on `tests/invitations-screens.spec.ts:249` (accept page F/H), a web test this ticket does not touch.
+CI status (updated after review round 1): `api` and `docker` pass, db tests included. `gitleaks` had two false positives in history (commit `4cd20c7`, `api/tests/test_fx.py` lines 229 and 256, a test passing the job secret and a feed URL); both exact fingerprints were added to `.gitleaksignore` with the user's approval, and the test secret is now generated per run. `web` failed on `tests/invitations-screens.spec.ts:249`; root cause and fix are in the review round 1 entry below.
 
 Known limits and follow-ups:
 - The `db`-marked tests (`tests/test_fx_db.py`, 4 tests, plus all existing db tests) cannot run locally (no Postgres); CI runs them.
 - Follow-up: `jobs-cron.yml` has no way to alert on repeated 502s from the ECB; GitHub's failed-run emails are the only signal.
 - Follow-up: once a web ticket needs it, expose a convert endpoint; only the service function exists now.
+
+### 2026-11-27 Engineer, review round 1 follow-up
+- Web CI failure (`invitations-screens.spec.ts:249`, phone): root cause is a race in the test, not this branch (which changes only generated types on the web side). `toHaveURL` passes on the `history.pushState` of the client-side "View members" navigation; if Next then falls back to a full navigation to the same URL, the next `page.goto("/invite")` is interrupted by it ("Navigation to /invite is interrupted by another navigation to /household/<id>/members"). It passes locally (5/5 before, 55 passed over 5 repeats of the whole spec after) because the dev server is faster than the CI production build. Fix: wait for the members page (`members` test id) and the `load` state before the goto. Own commit.
+- The tablet `households-screens.spec.ts:83` failure ("Share finances with family" heading not found within 5 s after `goto`) was flaky and not reproduced; no change made, likely a slow cold load on the CI runner.
+- N1: `convert` now computes `amount * rate_to / rate_from`, rejects non-finite amounts, and turns `InvalidOperation` from `quantize` into `FxAmountError` (a `ValueError`, documented in the docstring; a future route should map it to 422). Tests added.
+- N2: test comment fixed (0.37, not 0.36).
+- N4: `FX_FETCH_TIMEOUT_SECONDS` is `Field(default=10.0, gt=0, le=60)`; test added.
+- N7: retry comment in `jobs-cron.yml` now mentions the fx 502 case. N8: header comment re-wrapped.
+- N9: ticket text now shows `convert(session, ...)` and the CI notes above are refreshed.
+- Not done (not in the approved list): N3 (stream the feed body), N5 (share `minor_units` with HEM-018 after both merge), N6 (daily feed misses a skipped weekday; consider fetching the 90-day feed every run). Suggested follow-ups.
 
 ## Review

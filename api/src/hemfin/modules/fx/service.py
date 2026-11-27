@@ -35,6 +35,10 @@ class FxFetchError(Exception):
     """The ECB feed could not be fetched or understood. Messages never include feed content."""
 
 
+class FxAmountError(ValueError):
+    """The amount to convert is not finite or is too large to round to minor units."""
+
+
 def minor_units(currency: str) -> int:
     if currency in _ZERO_DECIMAL:
         return 0
@@ -167,7 +171,13 @@ async def convert(
 
     Rounds once, at the end, to the target currency's minor units (ROUND_HALF_EVEN).
     Same currency returns the amount unchanged (not rounded).
+
+    Raises FxAmountError when the amount is not finite or too large to convert and round
+    (more than 28 significant digits in the result). A caller that exposes this over HTTP
+    should map it to a 422.
     """
+    if not amount.is_finite():
+        raise FxAmountError("The amount cannot be converted.")
     from_ccy, to_ccy = from_ccy.upper(), to_ccy.upper()
     if from_ccy == to_ccy:
         return amount
@@ -175,8 +185,12 @@ async def convert(
     rate_to = await _latest_rate(session, to_ccy, on_date)
     if rate_from is None or rate_to is None:
         return None
-    result = amount / rate_from * rate_to
-    return result.quantize(Decimal(1).scaleb(-minor_units(to_ccy)), rounding=ROUND_HALF_EVEN)
+    try:
+        # Multiply before dividing so there is a single rounding step before the final quantize.
+        result = amount * rate_to / rate_from
+        return result.quantize(Decimal(1).scaleb(-minor_units(to_ccy)), rounding=ROUND_HALF_EVEN)
+    except InvalidOperation:
+        raise FxAmountError("The amount cannot be converted.") from None
 
 
 def today_utc() -> date:

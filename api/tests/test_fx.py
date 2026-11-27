@@ -172,8 +172,27 @@ async def test_rounding_is_half_even_to_minor_units(monkeypatch: pytest.MonkeyPa
     assert await _conv("1", "EUR", "KWD") == Decimal("0.300")  # three decimals
 
 
+@pytest.mark.parametrize("amount", ["1e40", "NaN", "Infinity"])
+async def test_unconvertible_amount_raises_a_clear_error(
+    monkeypatch: pytest.MonkeyPatch, amount: str
+) -> None:
+    _rates(monkeypatch, {"USD": "1.1550"})
+    with pytest.raises(service.FxAmountError):
+        await _conv(amount, "EUR", "USD")
+
+
+def test_fetch_timeout_setting_is_bounded() -> None:
+    from pydantic import ValidationError
+
+    for bad in (0, -1, 61):
+        with pytest.raises(ValidationError):
+            Settings(FX_FETCH_TIMEOUT_SECONDS=bad)
+    assert Settings(FX_FETCH_TIMEOUT_SECONDS=60).FX_FETCH_TIMEOUT_SECONDS == 60
+
+
 async def test_rounds_only_once_at_the_end(monkeypatch: pytest.MonkeyPatch) -> None:
-    # 0.35 AAA is 0.11666... EUR; rounding that leg to 0.12 first would give 0.36 BBB.
+    # 0.35 AAA is 0.11666... EUR; rounding that leg to 0.12 first would give 0.37 BBB
+    # (0.12 * 3.1 = 0.372).
     _rates(monkeypatch, {"AAA": "3", "BBB": "3.1"})
     assert await _conv("0.35", "AAA", "BBB") == Decimal("0.36")
     assert await _conv("0.34", "AAA", "BBB") == Decimal("0.35")  # early rounding would give 0.34
