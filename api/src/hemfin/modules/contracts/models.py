@@ -56,7 +56,7 @@ class Contract(Base):
     name: Mapped[str] = mapped_column(Text)
     provider: Mapped[str | None] = mapped_column(Text)
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 4))
-    currency: Mapped[str] = mapped_column(String(3))
+    currency: Mapped[str] = mapped_column(String(3), server_default="SEK")
     frequency: Mapped[str] = mapped_column(Text)
     start_date: Mapped[date] = mapped_column(Date)
     end_date: Mapped[date | None] = mapped_column(Date)

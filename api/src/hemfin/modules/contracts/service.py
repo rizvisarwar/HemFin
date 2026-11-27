@@ -7,7 +7,7 @@ from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hemfin.core.errors import CodedHTTPException
-from hemfin.core.money import MoneyBase, validate_amount
+from hemfin.core.money import CURRENCY, MoneyBase
 from hemfin.core.pagination import decode_cursor, encode_cursor
 from hemfin.modules.categories.models import Category
 from hemfin.modules.categories.schemas import CategoryKind
@@ -119,7 +119,7 @@ async def create_contract(
         name=body.name,
         provider=body.provider,
         amount=body.amount,
-        currency=body.currency,
+        currency=CURRENCY,
         frequency=body.frequency.value,
         start_date=body.start_date,
         end_date=body.end_date,
@@ -193,13 +193,6 @@ async def update_contract(
     c, _ = await _get_row(session, space_id, contract_id)
     changes: dict[str, Any] = body.model_dump(exclude_unset=True)
 
-    amount = changes.get("amount", c.amount)
-    currency = changes.get("currency", c.currency)
-    if "amount" in changes or "currency" in changes:
-        try:
-            validate_amount(amount, currency)
-        except ValueError as exc:
-            raise _invalid("invalid_amount", str(exc)) from None
     start = changes.get("start_date", c.start_date)
     end = changes.get("end_date", c.end_date)
     if end is not None and end < start:

@@ -4,23 +4,6 @@
  */
 
 export interface paths {
-    "/api/v1/fx/rates": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** ECB reference rates for a date (or the latest date before it) */
-        get: operations["get_rates_api_v1_fx_rates_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/invitations/accept": {
         parameters: {
             query?: never;
@@ -297,7 +280,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Month totals and the next 30 days, in the caller's base currency
+         * Month totals and the next 30 days, in SEK
          * @description `upcoming` covers today through today + 30 days inclusive (31 calendar days), at most 10 events. `recurring_monthly` counts active contracts that pay in the month. `has_records` is true when the space has any contract, expense or income entry.
          */
         get: operations["get_dashboard_api_v1_spaces__space_id__dashboard_get"];
@@ -684,8 +667,6 @@ export interface components {
              * Format: uuid
              */
             category_id: string;
-            /** Currency */
-            currency: string;
             /** End Date */
             end_date?: string | null;
             frequency: components["schemas"]["Frequency"];
@@ -733,7 +714,10 @@ export interface components {
              * Format: uuid
              */
             created_by: string;
-            /** Currency */
+            /**
+             * Currency
+             * @default SEK
+             */
             currency: string;
             /** End Date */
             end_date: string | null;
@@ -784,8 +768,6 @@ export interface components {
             auto_renew?: boolean | null;
             /** Category Id */
             category_id?: string | null;
-            /** Currency */
-            currency?: string | null;
             /** End Date */
             end_date?: string | null;
             frequency?: components["schemas"]["Frequency"] | null;
@@ -829,8 +811,6 @@ export interface components {
         };
         /** DashboardOut */
         DashboardOut: {
-            /** Base Currency */
-            base_currency: string;
             /** Has Records */
             has_records: boolean;
             income_this_month: components["schemas"]["MoneyBase"];
@@ -838,8 +818,6 @@ export interface components {
             month: string;
             recurring_monthly: components["schemas"]["MoneyBase"];
             spent_this_month: components["schemas"]["MoneyBase"];
-            /** Unconverted Count */
-            unconverted_count: number;
             /** Upcoming */
             upcoming: components["schemas"]["DashboardEvent"][];
         };
@@ -850,8 +828,6 @@ export interface components {
              * @example 12.50
              */
             amount: string;
-            /** Currency */
-            currency: string;
             /** Description */
             description?: string | null;
             /** Member User Id */
@@ -871,7 +847,6 @@ export interface components {
              * @example 12.50
              */
             amount: string;
-            base_amount: components["schemas"]["MoneyBase"] | null;
             /**
              * Created At
              * Format: date-time
@@ -882,7 +857,10 @@ export interface components {
              * Format: uuid
              */
             created_by: string;
-            /** Currency */
+            /**
+             * Currency
+             * @default SEK
+             */
             currency: string;
             /** Description */
             description: string | null;
@@ -918,8 +896,6 @@ export interface components {
         EntryPatch: {
             /** Amount */
             amount?: string | null;
-            /** Currency */
-            currency?: string | null;
             /** Description */
             description?: string | null;
             /** Member User Id */
@@ -948,8 +924,6 @@ export interface components {
             category_id: string;
             /** Contract Id */
             contract_id?: string | null;
-            /** Currency */
-            currency: string;
             /** Description */
             description?: string | null;
             /** Member User Id */
@@ -969,7 +943,6 @@ export interface components {
              * @example 12.50
              */
             amount: string;
-            base_amount: components["schemas"]["MoneyBase"] | null;
             /** Category */
             category: string;
             /**
@@ -989,7 +962,10 @@ export interface components {
              * Format: uuid
              */
             created_by: string;
-            /** Currency */
+            /**
+             * Currency
+             * @default SEK
+             */
             currency: string;
             /** Description */
             description: string | null;
@@ -1029,8 +1005,6 @@ export interface components {
             category_id?: string | null;
             /** Contract Id */
             contract_id?: string | null;
-            /** Currency */
-            currency?: string | null;
             /** Description */
             description?: string | null;
             /** Member User Id */
@@ -1045,26 +1019,6 @@ export interface components {
          * @enum {string}
          */
         Frequency: "weekly" | "monthly" | "quarterly" | "semiannual" | "annual";
-        /**
-         * FxRatesOut
-         * @description Euro foreign exchange reference rates: 1 EUR = rates[code] units of that currency.
-         */
-        FxRatesOut: {
-            /**
-             * Base
-             * @default EUR
-             */
-            base: string;
-            /**
-             * Rate Date
-             * Format: date
-             */
-            rate_date: string;
-            /** Rates */
-            rates: {
-                [key: string]: string;
-            };
-        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1189,7 +1143,7 @@ export interface components {
         };
         /**
          * MoneyBase
-         * @description Output shape: amount as a string at the currency's minor units.
+         * @description Output shape: amount as a string with 2 decimals, and the stored currency code.
          */
         MoneyBase: {
             /**
@@ -1197,7 +1151,10 @@ export interface components {
              * @example 12.50
              */
             amount: string;
-            /** Currency */
+            /**
+             * Currency
+             * @default SEK
+             */
             currency: string;
         };
         /** Page[CategoryOut] */
@@ -1271,8 +1228,6 @@ export interface components {
         };
         /** ProfilePatch */
         ProfilePatch: {
-            /** Base Currency */
-            base_currency?: string | null;
             /** Display Name */
             display_name?: string | null;
             /** Locale */
@@ -1306,8 +1261,6 @@ export interface components {
              * @example 12.50
              */
             amount: string;
-            /** Currency */
-            currency: string;
             frequency: components["schemas"]["IncomeFrequency"];
             /** Member User Id */
             member_user_id?: string | null;
@@ -1334,7 +1287,10 @@ export interface components {
              * Format: uuid
              */
             created_by: string;
-            /** Currency */
+            /**
+             * Currency
+             * @default SEK
+             */
             currency: string;
             frequency: components["schemas"]["IncomeFrequency"];
             /**
@@ -1367,8 +1323,6 @@ export interface components {
             active?: boolean | null;
             /** Amount */
             amount?: string | null;
-            /** Currency */
-            currency?: string | null;
             frequency?: components["schemas"]["IncomeFrequency"] | null;
             /** Member User Id */
             member_user_id?: string | null;
@@ -1502,56 +1456,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    get_rates_api_v1_fx_rates_get: {
-        parameters: {
-            query?: {
-                /** @description Defaults to today (UTC). */
-                date?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FxRatesOut"];
-                };
-            };
-            /** @description Not authenticated */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": unknown;
-                };
-            };
-            /** @description No rates on or before that date */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     accept_invitation_api_v1_invitations_accept_post: {
         parameters: {
             query?: never;

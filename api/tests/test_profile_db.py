@@ -23,24 +23,31 @@ async def test_profile_defaults_and_patch(aclient: httpx.AsyncClient, key: TestK
     h = _h(key, uuid4())
     r = await aclient.get("/api/v1/me/profile", headers=h)
     assert r.status_code == 200
-    assert r.json()["base_currency"] == "EUR"
+    assert r.json()["base_currency"] == "SEK"
     assert r.json()["locale"] == "en"
     assert r.json()["phone_e164"] is None
 
     r = await aclient.patch(
         "/api/v1/me/profile",
         headers=h,
-        json={"phone_e164": "+31 6 1234 5678", "base_currency": "usd", "locale": "nl-nl"},
+        json={"phone_e164": "+31 6 1234 5678", "locale": "nl-nl"},
     )
     assert r.status_code == 200
     assert r.json()["phone_e164"] == PHONE
-    assert r.json()["base_currency"] == "USD"
+    assert r.json()["base_currency"] == "SEK"
     assert r.json()["locale"] == "nl-NL"
 
     # Partial patch leaves the rest alone; null clears the phone.
     r = await aclient.patch("/api/v1/me/profile", headers=h, json={"phone_e164": None})
     assert r.json()["phone_e164"] is None
-    assert r.json()["base_currency"] == "USD"
+    assert r.json()["base_currency"] == "SEK"
+
+
+async def test_base_currency_is_not_editable(aclient: httpx.AsyncClient, key: TestKey) -> None:
+    h = _h(key, uuid4())
+    r = await aclient.patch("/api/v1/me/profile", headers=h, json={"base_currency": "USD"})
+    assert r.status_code == 422
+    assert (await aclient.get("/api/v1/me/profile", headers=h)).json()["base_currency"] == "SEK"
 
 
 async def test_display_name_roundtrip(aclient: httpx.AsyncClient, key: TestKey) -> None:

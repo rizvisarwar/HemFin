@@ -4,14 +4,14 @@ from uuid import UUID
 
 from pydantic import BaseModel, StringConstraints, model_validator
 
-from hemfin.core.money import Amount, Currency, Money, MoneyBase, validate_amount
+from hemfin.core.money import Amount, AmountIn, MoneyBase, validate_amount
 from hemfin.modules.contracts.schemas import CalendarDate
 
 Description = Annotated[str, StringConstraints(strip_whitespace=True, max_length=120)]
 Merchant = Annotated[str, StringConstraints(strip_whitespace=True, max_length=80)]
 
 
-class ExpenseCreate(Money):
+class ExpenseCreate(AmountIn):
     category_id: UUID
     spent_on: CalendarDate
     description: Description | None = None
@@ -25,7 +25,6 @@ class ExpensePatch(BaseModel):
 
     category_id: UUID | None = None
     amount: Amount | None = None
-    currency: Currency | None = None
     spent_on: CalendarDate | None = None
     description: Description | None = None
     merchant: Merchant | None = None
@@ -34,11 +33,11 @@ class ExpensePatch(BaseModel):
 
     @model_validator(mode="after")
     def _checks(self) -> "ExpensePatch":
-        for f in ("category_id", "amount", "currency", "spent_on"):
+        for f in ("category_id", "amount", "spent_on"):
             if f in self.model_fields_set and getattr(self, f) is None:
                 raise ValueError(f"{f} cannot be null.")
-        if self.amount is not None and self.currency is not None:
-            validate_amount(self.amount, self.currency)
+        if self.amount is not None:
+            validate_amount(self.amount)
         return self
 
 
@@ -52,8 +51,6 @@ class ExpenseOut(MoneyBase):
     merchant: str | None
     contract_id: UUID | None
     member_user_id: UUID | None
-    # In the caller's base currency at `spent_on`; null when no rate exists.
-    base_amount: MoneyBase | None
     created_by: UUID
     created_at: datetime
     updated_at: datetime

@@ -58,7 +58,7 @@ class IncomeSource(Base):
     name: Mapped[str] = mapped_column(Text)
     type: Mapped[str] = mapped_column(Text)
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 4))
-    currency: Mapped[str] = mapped_column(String(3))
+    currency: Mapped[str] = mapped_column(String(3), server_default="SEK")
     frequency: Mapped[str] = mapped_column(Text)
     member_user_id: Mapped[UUID | None] = mapped_column(
         ForeignKey(f"{APP_SCHEMA}.users.id", ondelete="SET NULL")
@@ -88,7 +88,7 @@ class IncomeEntry(Base):
         ForeignKey(f"{APP_SCHEMA}.income_sources.id", ondelete="SET NULL")
     )
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 4))
-    currency: Mapped[str] = mapped_column(String(3))
+    currency: Mapped[str] = mapped_column(String(3), server_default="SEK")
     received_on: Mapped[date] = mapped_column(Date)
     description: Mapped[str | None] = mapped_column(Text)
     member_user_id: Mapped[UUID | None] = mapped_column(

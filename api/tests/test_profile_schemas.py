@@ -27,21 +27,17 @@ def test_phone_null_clears() -> None:
 
 
 def test_codes_are_stripped_and_upper_cased() -> None:
-    assert ProfilePatch(base_currency=" eur ").base_currency == "EUR"
     assert AddressIn(label="a", line1="b", city="c", country=" nl ").country == "NL"
 
 
-def test_currency_and_locale() -> None:
-    p = ProfilePatch(base_currency="usd", locale="nl-nl")
-    assert (p.base_currency, p.locale) == ("USD", "nl-NL")
-    for bad in ("EURO", "XXQ", "e1"):
-        with pytest.raises(ValidationError):
-            ProfilePatch(base_currency=bad)
+def test_locale() -> None:
+    assert ProfilePatch(locale="nl-nl").locale == "nl-NL"
     for bad_locale in ("e", "english", "nl_NL", "nl-NL-x-foo-bar"):
         with pytest.raises(ValidationError):
             ProfilePatch(locale=bad_locale)
+    # base_currency is no longer editable (SEK only).
     with pytest.raises(ValidationError):
-        ProfilePatch.model_validate({"base_currency": None})
+        ProfilePatch.model_validate({"base_currency": "USD"})
 
 
 def test_address_validation() -> None:

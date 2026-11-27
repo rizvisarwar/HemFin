@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hemfin.core.dates import check_not_future, check_range
 from hemfin.core.errors import CodedHTTPException
-from hemfin.core.money import MoneyBase, validate_amount
+from hemfin.core.money import CURRENCY
 from hemfin.core.pagination import decode_date_cursor, encode_date_cursor
 from hemfin.modules.categories.models import Category
 from hemfin.modules.categories.schemas import CategoryKind
@@ -16,13 +16,12 @@ from hemfin.modules.categories.service import ensure_category
 from hemfin.modules.contracts.models import Contract
 from hemfin.modules.expenses.models import Expense
 from hemfin.modules.expenses.schemas import ExpenseCreate, ExpenseOut, ExpensePatch
-from hemfin.modules.fx.base_amount import base_amounts
 from hemfin.modules.spaces.service import ensure_member
 
 _ROW = select(Expense, Category.key).join(Category, Category.id == Expense.category_id)
 
 
-def _to_out(e: Expense, category_key: str, base: MoneyBase | None) -> ExpenseOut:
+def _to_out(e: Expense, category_key: str) -> ExpenseOut:
     return ExpenseOut(
         id=e.id,
         space_id=e.space_id,
@@ -35,7 +34,6 @@ def _to_out(e: Expense, category_key: str, base: MoneyBase | None) -> ExpenseOut
         merchant=e.merchant,
         contract_id=e.contract_id,
         member_user_id=e.member_user_id,
-        base_amount=base,
         created_by=e.created_by,
         created_at=e.created_at,
         updated_at=e.updated_at,
@@ -75,15 +73,6 @@ async def _get_row(session: AsyncSession, space_id: UUID, expense_id: UUID) -> t
     return row[0], row[1]
 
 
-async def _out(
-    session: AsyncSession, user_id: UUID, rows: list[tuple[Expense, str]]
-) -> list[ExpenseOut]:
-    bases = await base_amounts(
-        session, user_id, [(e.amount, e.currency, e.spent_on) for e, _ in rows]
-    )
-    return [_to_out(e, key, b) for (e, key), b in zip(rows, bases, strict=True)]
-
-
 async def create_expense(
     session: AsyncSession, *, space_id: UUID, actor: UUID, body: ExpenseCreate, today: date
 ) -> ExpenseOut:
@@ -94,7 +83,7 @@ async def create_expense(
         created_by=actor,
         category_id=body.category_id,
         amount=body.amount,
-        currency=body.currency,
+        currency=CURRENCY,
         spent_on=body.spent_on,
         description=body.description,
         merchant=body.merchant,
@@ -103,13 +92,13 @@ async def create_expense(
     )
     session.add(e)
     await session.commit()
-    return (await _out(session, actor, [await _get_row(session, space_id, e.id)]))[0]
+    return _to_out(*await _get_row(session, space_id, e.id))
 
 
 async def get_expense(
     session: AsyncSession, *, space_id: UUID, user_id: UUID, expense_id: UUID
 ) -> ExpenseOut:
-    return (await _out(session, user_id, [await _get_row(session, space_id, expense_id)]))[0]
+    return _to_out(*await _get_row(session, space_id, expense_id))
 
 
 async def list_expenses_page(
@@ -156,7 +145,7 @@ async def list_expenses_page(
     if len(rows) > limit:
         last = page[-1][0]
         nxt = encode_date_cursor(last.spent_on, last.id)
-    return await _out(session, user_id, page), nxt
+    return [_to_out(e, key) for e, key in page], nxt
 
 
 async def update_expense(
@@ -170,11 +159,6 @@ async def update_expense(
 ) -> ExpenseOut:
     e, _ = await _get_row(session, space_id, expense_id)
     changes: dict[str, Any] = body.model_dump(exclude_unset=True)
-    if "amount" in changes or "currency" in changes:
-        try:
-            validate_amount(changes.get("amount", e.amount), changes.get("currency", e.currency))
-        except ValueError as exc:
-            raise CodedHTTPException(422, "invalid_amount", str(exc)) from None
     if "spent_on" in changes:
         check_not_future(changes["spent_on"], today, "spent_on")
     await _check_refs(
@@ -187,7 +171,7 @@ async def update_expense(
     for field, value in changes.items():
         setattr(e, field, value)
     await session.commit()
-    return (await _out(session, user_id, [await _get_row(session, space_id, expense_id)]))[0]
+    return _to_out(*await _get_row(session, space_id, expense_id))
 
 
 async def delete_expense(session: AsyncSession, *, space_id: UUID, expense_id: UUID) -> None:

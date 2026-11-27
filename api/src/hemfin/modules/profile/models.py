@@ -16,7 +16,7 @@ class Profile(Base):
         ForeignKey(f"{APP_SCHEMA}.users.id", ondelete="CASCADE"), primary_key=True
     )
     phone_e164: Mapped[str | None] = mapped_column(String(16))
-    base_currency: Mapped[str] = mapped_column(String(3), server_default="EUR")
+    base_currency: Mapped[str] = mapped_column(String(3), server_default="SEK")
     locale: Mapped[str] = mapped_column(String(35), server_default="en")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
