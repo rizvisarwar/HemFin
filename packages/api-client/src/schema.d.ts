@@ -2684,6 +2684,7 @@ export interface operations {
                 to?: string | null;
                 /** @description Category key; a group key such as `food` includes its children. */
                 category?: string | null;
+                /** @description A member's user id, or `none` for expenses that apply to the whole household. */
                 member_user_id?: string | null;
                 contract_id?: string | null;
             };
@@ -2713,13 +2714,13 @@ export interface operations {
                     "application/problem+json": unknown;
                 };
             };
-            /** @description Validation Error */
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": unknown;
                 };
             };
         };

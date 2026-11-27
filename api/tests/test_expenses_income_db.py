@@ -279,6 +279,10 @@ async def test_expense_filters_boundaries_and_pagination(
     assert await ids(**{"from": "2040-06-06"}) == []
     assert await ids(contract_id=contract) == [linked["id"]]
     assert await ids(member_user_id=str(ua)) == [linked["id"]]
+    # `none` is the whole household: the five unassigned expenses, not the member's one
+    assert {m["id"] for m in made} == set(await ids(member_user_id="none"))
+    r = await aclient.get(url, params={"member_user_id": "someone"}, headers=ha)
+    assert r.status_code == 422
     assert await ids(category="insurance") == [linked["id"]]  # group key includes children
     assert len(await ids(category="food")) == 5
     assert await ids(category="food.groc") == []  # no partial-key matches

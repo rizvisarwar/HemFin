@@ -123,6 +123,7 @@ async def list_expenses_page(
     to: date | None = None,
     category: str | None = None,
     member_user_id: UUID | None = None,
+    whole_household: bool = False,
     contract_id: UUID | None = None,
 ) -> tuple[list[ExpenseOut], str | None]:
     check_range(from_, to)
@@ -138,6 +139,8 @@ async def list_expenses_page(
         )
     if member_user_id is not None:
         stmt = stmt.where(Expense.member_user_id == member_user_id)
+    elif whole_household:
+        stmt = stmt.where(Expense.member_user_id.is_(None))
     if contract_id is not None:
         stmt = stmt.where(Expense.contract_id == contract_id)
     if cursor:

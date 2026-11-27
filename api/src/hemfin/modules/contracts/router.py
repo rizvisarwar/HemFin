@@ -35,7 +35,7 @@ _404: dict[int | str, dict[str, Any]] = {404: {"description": "Not a member, or 
 _422: dict[int | str, dict[str, Any]] = {422: {"description": "Validation error", **_P}}
 
 
-def _parse_member_filter(value: str | None) -> tuple[UUID | None, bool]:
+def parse_member_filter(value: str | None) -> tuple[UUID | None, bool]:
     """`member_user_id` is a user id, or the word `none` for the whole household."""
     if value is None:
         return None, False
@@ -76,7 +76,7 @@ async def list_contracts(
         ),
     ] = None,
 ) -> Page[ContractOut]:
-    member, whole_household = _parse_member_filter(member_user_id)
+    member, whole_household = parse_member_filter(member_user_id)
     items, nxt = await service.list_contracts_page(
         session,
         space_id=access.space_id,
