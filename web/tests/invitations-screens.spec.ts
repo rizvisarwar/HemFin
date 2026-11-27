@@ -259,6 +259,11 @@ test.describe("accept page screens", () => {
     await snap(page, info, "accept-F-joined");
     await page.getByRole("link", { name: "View members" }).click();
     await expect(page).toHaveURL(new RegExp(`/household/${spaceId}/members$`));
+    // toHaveURL passes on the history.pushState of a client-side navigation. If Next then falls
+    // back to a full navigation to the same URL, a goto issued now is interrupted by it. Wait for
+    // the members page to render and the document to finish loading first.
+    await expect(page.getByTestId("members")).toBeVisible();
+    await page.waitForLoadState("load");
     await page.goto("/invite");
     await expect(heading(page, "This invitation can't be used")).toBeVisible();
     await snap(page, info, "accept-H-generic-signed-in");

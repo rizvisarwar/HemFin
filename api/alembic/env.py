@@ -6,6 +6,7 @@ from sqlalchemy.engine import Connection
 
 from hemfin.core.config import get_settings
 from hemfin.core.db import APP_SCHEMA, Base, build_engine, parse_database_url
+from hemfin.modules.fx import models as _fx_models  # noqa: F401
 from hemfin.modules.invitations import models as _invitations_models  # noqa: F401
 from hemfin.modules.profile import models as _profile_models  # noqa: F401
 from hemfin.modules.spaces import models as _spaces_models  # noqa: E402,F401  (register tables)
