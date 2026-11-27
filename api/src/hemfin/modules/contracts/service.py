@@ -11,7 +11,7 @@ from hemfin.core.money import MoneyBase, validate_amount
 from hemfin.core.pagination import decode_cursor, encode_cursor
 from hemfin.modules.categories.models import Category
 from hemfin.modules.categories.schemas import CategoryKind
-from hemfin.modules.categories.service import get_visible
+from hemfin.modules.categories.service import ensure_category
 from hemfin.modules.contracts.models import Contract, ContractStatus
 from hemfin.modules.contracts.schedule import (
     ContractTerms,
@@ -27,7 +27,7 @@ from hemfin.modules.contracts.schemas import (
     UpcomingEvent,
     UpcomingOut,
 )
-from hemfin.modules.spaces.models import SpaceMembership
+from hemfin.modules.spaces.service import ensure_member
 
 MAX_UPCOMING_DAYS = 366
 
@@ -84,18 +84,10 @@ async def _check_refs(
 ) -> None:
     """Ids must belong to this space. A foreign id gets the same 422 as an unknown one."""
     if category_id is not None:
-        cat = await get_visible(session, space_id, category_id)
         # Contracts are expenses: income categories are rejected like unknown ones.
-        if cat is None or cat.kind != CategoryKind.expense:
-            raise _invalid("invalid_category", "Unknown category.")
+        await ensure_category(session, space_id, category_id, CategoryKind.expense)
     if member_user_id is not None:
-        is_member = await session.scalar(
-            select(SpaceMembership.id).where(
-                SpaceMembership.space_id == space_id, SpaceMembership.user_id == member_user_id
-            )
-        )
-        if is_member is None:
-            raise _invalid("invalid_member", "member_user_id must be a member of this space.")
+        await ensure_member(session, space_id, member_user_id)
 
 
 _ROW = select(Contract, Category.key).join(Category, Category.id == Contract.category_id)

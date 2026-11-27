@@ -289,6 +289,117 @@ export interface paths {
         patch: operations["update_contract_api_v1_spaces__space_id__contracts__contract_id__patch"];
         trace?: never;
     };
+    "/api/v1/spaces/{space_id}/expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List expenses, newest first */
+        get: operations["list_expenses_api_v1_spaces__space_id__expenses_get"];
+        put?: never;
+        /** Create an expense */
+        post: operations["create_expense_api_v1_spaces__space_id__expenses_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/spaces/{space_id}/expenses/{expense_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get an expense */
+        get: operations["get_expense_api_v1_spaces__space_id__expenses__expense_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete an expense */
+        delete: operations["delete_expense_api_v1_spaces__space_id__expenses__expense_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update an expense */
+        patch: operations["update_expense_api_v1_spaces__space_id__expenses__expense_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/spaces/{space_id}/income-entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List income entries, newest first */
+        get: operations["list_entries_api_v1_spaces__space_id__income_entries_get"];
+        put?: never;
+        /** Create an income entry */
+        post: operations["create_entry_api_v1_spaces__space_id__income_entries_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/spaces/{space_id}/income-entries/{entry_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get an income entry */
+        get: operations["get_entry_api_v1_spaces__space_id__income_entries__entry_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete an income entry */
+        delete: operations["delete_entry_api_v1_spaces__space_id__income_entries__entry_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update an income entry */
+        patch: operations["update_entry_api_v1_spaces__space_id__income_entries__entry_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/spaces/{space_id}/income-sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List income sources, newest first */
+        get: operations["list_sources_api_v1_spaces__space_id__income_sources_get"];
+        put?: never;
+        /** Create an income source */
+        post: operations["create_source_api_v1_spaces__space_id__income_sources_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/spaces/{space_id}/income-sources/{source_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get an income source */
+        get: operations["get_source_api_v1_spaces__space_id__income_sources__source_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete an income source */
+        delete: operations["delete_source_api_v1_spaces__space_id__income_sources__source_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update an income source */
+        patch: operations["update_source_api_v1_spaces__space_id__income_sources__source_id__patch"];
+        trace?: never;
+    };
     "/api/v1/spaces/{space_id}/invitations": {
         parameters: {
             query?: never;
@@ -679,11 +790,203 @@ export interface components {
          * @enum {string}
          */
         ContractStatus: "active" | "cancelled";
+        /** EntryCreate */
+        EntryCreate: {
+            /**
+             * Amount
+             * @example 12.50
+             */
+            amount: string;
+            /** Currency */
+            currency: string;
+            /** Description */
+            description?: string | null;
+            /** Member User Id */
+            member_user_id?: string | null;
+            /**
+             * Received On
+             * Format: date
+             */
+            received_on: string;
+            /** Source Id */
+            source_id?: string | null;
+        };
+        /** EntryOut */
+        EntryOut: {
+            /**
+             * Amount
+             * @example 12.50
+             */
+            amount: string;
+            base_amount: components["schemas"]["MoneyBase"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Created By
+             * Format: uuid
+             */
+            created_by: string;
+            /** Currency */
+            currency: string;
+            /** Description */
+            description: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Member User Id */
+            member_user_id: string | null;
+            /**
+             * Received On
+             * Format: date
+             */
+            received_on: string;
+            /** Source Id */
+            source_id: string | null;
+            /**
+             * Space Id
+             * Format: uuid
+             */
+            space_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * EntryPatch
+         * @description Partial update. Omitted fields are unchanged; nullable fields can be set to null.
+         */
+        EntryPatch: {
+            /** Amount */
+            amount?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Member User Id */
+            member_user_id?: string | null;
+            /** Received On */
+            received_on?: string | null;
+            /** Source Id */
+            source_id?: string | null;
+        };
         /**
          * EventType
          * @enum {string}
          */
         EventType: "payment" | "renewal" | "notice_deadline";
+        /** ExpenseCreate */
+        ExpenseCreate: {
+            /**
+             * Amount
+             * @example 12.50
+             */
+            amount: string;
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
+            /** Contract Id */
+            contract_id?: string | null;
+            /** Currency */
+            currency: string;
+            /** Description */
+            description?: string | null;
+            /** Member User Id */
+            member_user_id?: string | null;
+            /** Merchant */
+            merchant?: string | null;
+            /**
+             * Spent On
+             * Format: date
+             */
+            spent_on: string;
+        };
+        /** ExpenseOut */
+        ExpenseOut: {
+            /**
+             * Amount
+             * @example 12.50
+             */
+            amount: string;
+            base_amount: components["schemas"]["MoneyBase"] | null;
+            /** Category */
+            category: string;
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
+            /** Contract Id */
+            contract_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Created By
+             * Format: uuid
+             */
+            created_by: string;
+            /** Currency */
+            currency: string;
+            /** Description */
+            description: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Member User Id */
+            member_user_id: string | null;
+            /** Merchant */
+            merchant: string | null;
+            /**
+             * Space Id
+             * Format: uuid
+             */
+            space_id: string;
+            /**
+             * Spent On
+             * Format: date
+             */
+            spent_on: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * ExpensePatch
+         * @description Partial update. Omitted fields are unchanged; nullable fields can be set to null.
+         */
+        ExpensePatch: {
+            /** Amount */
+            amount?: string | null;
+            /** Category Id */
+            category_id?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Member User Id */
+            member_user_id?: string | null;
+            /** Merchant */
+            merchant?: string | null;
+            /** Spent On */
+            spent_on?: string | null;
+        };
         /**
          * Frequency
          * @enum {string}
@@ -714,6 +1017,17 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * IncomeFrequency
+         * @description The contract frequencies plus `irregular`.
+         * @enum {string}
+         */
+        IncomeFrequency: "weekly" | "monthly" | "quarterly" | "semiannual" | "annual" | "irregular";
+        /**
+         * IncomeType
+         * @enum {string}
+         */
+        IncomeType: "salary" | "business" | "other";
         /** InvitationAccepted */
         InvitationAccepted: {
             /** Household Name */
@@ -847,6 +1161,20 @@ export interface components {
             /** Next Cursor */
             next_cursor?: string | null;
         };
+        /** Page[EntryOut] */
+        Page_EntryOut_: {
+            /** Items */
+            items: components["schemas"]["EntryOut"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** Page[ExpenseOut] */
+        Page_ExpenseOut_: {
+            /** Items */
+            items: components["schemas"]["ExpenseOut"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
         /** Page[InvitationOut] */
         Page_InvitationOut_: {
             /** Items */
@@ -858,6 +1186,13 @@ export interface components {
         Page_MemberOut_: {
             /** Items */
             items: components["schemas"]["MemberOut"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** Page[SourceOut] */
+        Page_SourceOut_: {
+            /** Items */
+            items: components["schemas"]["SourceOut"][];
             /** Next Cursor */
             next_cursor?: string | null;
         };
@@ -905,6 +1240,88 @@ export interface components {
             notice_deadline: string | null;
             /** Renewal Date */
             renewal_date: string | null;
+        };
+        /** SourceCreate */
+        SourceCreate: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /**
+             * Amount
+             * @example 12.50
+             */
+            amount: string;
+            /** Currency */
+            currency: string;
+            frequency: components["schemas"]["IncomeFrequency"];
+            /** Member User Id */
+            member_user_id?: string | null;
+            /** Name */
+            name: string;
+            type: components["schemas"]["IncomeType"];
+        };
+        /** SourceOut */
+        SourceOut: {
+            /** Active */
+            active: boolean;
+            /**
+             * Amount
+             * @example 12.50
+             */
+            amount: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Created By
+             * Format: uuid
+             */
+            created_by: string;
+            /** Currency */
+            currency: string;
+            frequency: components["schemas"]["IncomeFrequency"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Member User Id */
+            member_user_id: string | null;
+            /** Name */
+            name: string;
+            /**
+             * Space Id
+             * Format: uuid
+             */
+            space_id: string;
+            type: components["schemas"]["IncomeType"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * SourcePatch
+         * @description Partial update. Omitted fields are unchanged; `member_user_id` can be set to null.
+         */
+        SourcePatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Amount */
+            amount?: string | null;
+            /** Currency */
+            currency?: string | null;
+            frequency?: components["schemas"]["IncomeFrequency"] | null;
+            /** Member User Id */
+            member_user_id?: string | null;
+            /** Name */
+            name?: string | null;
+            type?: components["schemas"]["IncomeType"] | null;
         };
         /** SpaceCreate */
         SpaceCreate: {
@@ -2232,6 +2649,661 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContractOut"];
+                };
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+        };
+    };
+    list_expenses_api_v1_spaces__space_id__expenses_get: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: number;
+                /** @description Opaque cursor from `next_cursor`. */
+                cursor?: string | null;
+                /** @description Spent on or after (inclusive). */
+                from?: string | null;
+                /** @description Spent on or before (inclusive). */
+                to?: string | null;
+                /** @description Category key; a group key such as `food` includes its children. */
+                category?: string | null;
+                member_user_id?: string | null;
+                contract_id?: string | null;
+            };
+            header?: never;
+            path: {
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_ExpenseOut_"];
+                };
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_expense_api_v1_spaces__space_id__expenses_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpenseCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseOut"];
+                };
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+        };
+    };
+    get_expense_api_v1_spaces__space_id__expenses__expense_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                expense_id: string;
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseOut"];
+                };
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_expense_api_v1_spaces__space_id__expenses__expense_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                expense_id: string;
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_expense_api_v1_spaces__space_id__expenses__expense_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                expense_id: string;
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpensePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseOut"];
+                };
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+        };
+    };
+    list_entries_api_v1_spaces__space_id__income_entries_get: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: number;
+                /** @description Opaque cursor from `next_cursor`. */
+                cursor?: string | null;
+                /** @description Received on or after (inclusive). */
+                from?: string | null;
+                /** @description Received on or before (inclusive). */
+                to?: string | null;
+                source_id?: string | null;
+            };
+            header?: never;
+            path: {
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_EntryOut_"];
+                };
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_entry_api_v1_spaces__space_id__income_entries_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntryCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntryOut"];
+                };
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+        };
+    };
+    get_entry_api_v1_spaces__space_id__income_entries__entry_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntryOut"];
+                };
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_entry_api_v1_spaces__space_id__income_entries__entry_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_entry_api_v1_spaces__space_id__income_entries__entry_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntryPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntryOut"];
+                };
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+        };
+    };
+    list_sources_api_v1_spaces__space_id__income_sources_get: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: number;
+                /** @description Opaque cursor from `next_cursor`. */
+                cursor?: string | null;
+            };
+            header?: never;
+            path: {
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_SourceOut_"];
+                };
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_source_api_v1_spaces__space_id__income_sources_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceOut"];
+                };
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+        };
+    };
+    get_source_api_v1_spaces__space_id__income_sources__source_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceOut"];
+                };
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_source_api_v1_spaces__space_id__income_sources__source_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a member, or not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_source_api_v1_spaces__space_id__income_sources__source_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+                space_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourcePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceOut"];
                 };
             };
             /** @description Not a member, or not found */
