@@ -67,3 +67,5 @@ Checks: lint, `npm --prefix web test` (130 pass), build, full Playwright (799 pa
 
 ## Review
 Round 1: code review and design review both CHANGES_REQUESTED (blocking 1 and 2 each). Addressed in the entry above; awaiting re-review.
+
+CI follow-up: the contract delete focus test failed in CI on WebKit (the hidden previous page can still report its button as the active element), so `useListHeading` now treats an element with no client rects as "nothing focused". The households tablet test that failed once in CI passed on retry (flaky, not touched by this PR).

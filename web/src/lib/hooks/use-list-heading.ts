@@ -11,7 +11,10 @@ export function useListHeading() {
   const ref = React.useRef<HTMLHeadingElement>(null);
   const focus = React.useCallback(() => {
     const active = document.activeElement;
-    if (active === null || active === document.body) ref.current?.focus();
+    // An element that is no longer on screen does not count as focus: after a client-side navigation the
+    // previous page can stay mounted but hidden, and WebKit may still report its button as active.
+    const nothing = active === null || active === document.body || active.getClientRects().length === 0;
+    if (nothing) ref.current?.focus();
   }, []);
   return { ref, focus };
 }
