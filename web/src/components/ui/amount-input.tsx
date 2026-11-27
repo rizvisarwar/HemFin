@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 export interface CurrencyOption {
   code: string; // ISO-4217, for example "EUR"
-  label: string; // shown in the select, for example "EUR, euro"
+  label: string; // shown in the closed select: the code only, for example "EUR" (finance.md 3.1)
 }
 
 export interface AmountInputProps {
@@ -28,7 +28,12 @@ export interface AmountInputProps {
   placeholder?: string;
   /** Replaces the default hint. */
   hint?: string;
+  /** Error for the amount (client validation or a server error on `amount`). */
   error?: string;
+  /** Server error for `currency` (problem+json, field `currency`). Shown under the row, full width. */
+  currencyError?: string;
+  /** Marks the amount as required with aria-required. The native attribute is not used (finance.md 3.10). */
+  required?: boolean;
   disabled?: boolean;
   autoFocus?: boolean;
   className?: string;
@@ -38,6 +43,7 @@ export interface AmountInputProps {
  * Money input: an amount typed as text and a currency select. `inputMode="decimal"` opens the
  * decimal keypad on phones. The input is type text, not number, so no browser rewrites the value
  * in the user's locale. Parsing and validation happen on submit (see docs/design/finance.md 3.1).
+ * Takes the full width of its form section; the amount and currency sit side by side at every width.
  */
 export function AmountInput({
   id,
@@ -53,6 +59,8 @@ export function AmountInput({
   placeholder,
   hint,
   error,
+  currencyError,
+  required,
   disabled,
   autoFocus,
   className,
@@ -60,6 +68,7 @@ export function AmountInput({
   const currencyId = `${id}-currency`;
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
+  const currencyErrorId = `${id}-currency-error`;
   const defaultHint =
     fractionDigits === 0
       ? "Whole numbers only for this currency."
@@ -69,7 +78,7 @@ export function AmountInput({
   return (
     <div className={cn("space-y-2", className)}>
       <div className="grid grid-cols-[minmax(0,1fr)_9rem] gap-3">
-        <div className="space-y-2">
+        <div className="min-w-0 space-y-2">
           <Label htmlFor={id} className="text-body">
             {label}
           </Label>
@@ -85,13 +94,14 @@ export function AmountInput({
             value={value}
             disabled={disabled}
             autoFocus={autoFocus}
+            aria-required={required || undefined}
             aria-invalid={error ? true : undefined}
             aria-describedby={describedBy}
             onChange={(e) => onValueChange(e.target.value)}
             className="tabular-nums text-right"
           />
         </div>
-        <div className="space-y-2">
+        <div className="min-w-0 space-y-2">
           <Label htmlFor={currencyId} className="text-body">
             Currency
           </Label>
@@ -100,6 +110,8 @@ export function AmountInput({
             name="currency"
             value={currency}
             disabled={disabled}
+            aria-invalid={currencyError ? true : undefined}
+            aria-describedby={currencyError ? currencyErrorId : undefined}
             onChange={(e) => onCurrencyChange(e.target.value)}
           >
             {currencyOptions.map((c) => (
@@ -120,6 +132,14 @@ export function AmountInput({
           <p className="flex items-start gap-1.5 text-small text-destructive">
             <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
             <span>{error}</span>
+          </p>
+        ) : null}
+      </div>
+      <div aria-live="polite" id={currencyErrorId}>
+        {currencyError ? (
+          <p className="flex items-start gap-1.5 text-small text-destructive">
+            <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+            <span>{currencyError}</span>
           </p>
         ) : null}
       </div>

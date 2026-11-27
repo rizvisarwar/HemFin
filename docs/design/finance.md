@@ -1,6 +1,6 @@
 # Core finance: contracts, expenses, income and dashboard (HEM-017)
 
-Status: v1 (HEM-017), PM decisions applied. Owner: Designer. Built by: HEM-021 (contracts), HEM-022 (expenses and income), HEM-023 (dashboard).
+Status: v1.1 (HEM-017, PM decisions applied, review round 1 fixes applied; see the handoff log). Owner: Designer. Built by: HEM-021 (contracts), HEM-022 (expenses and income), HEM-023 (dashboard).
 Related: `design-system.md` (tokens, type, money rules in section 5, dialogs and states), `app-shell.md` (shell, page header, empty-state pattern, space badge), `households.md` (form, dialog and section-link patterns, the `Field` and `FormMessage` usage).
 API source: HEM-018 (categories, contracts, schedule), HEM-019 (expenses, income), HEM-020 (FX), HEM-023 (dashboard). Field names are in section 11.
 
@@ -61,20 +61,39 @@ These decisions let HEM-021, HEM-022 and HEM-023 start without a design round tr
 
 ### 3.1 Money input (`AmountInput`)
 
-`AmountInput` (`web/src/components/ui/amount-input.tsx`) is an amount text field and a currency select on one row. The currency select sits to the right of the amount and has its own visible label, "Currency".
+`AmountInput` (`web/src/components/ui/amount-input.tsx`) is an amount text field and a currency select on one row. The currency select sits to the right of the amount and has its own visible label, "Currency". The component always takes the full width of its form section (B4): it is never placed in a half-width column. The amount and currency stay side by side at every width. The currency select is 9 rem (144 px) and the amount takes the rest.
 
 ```
  PHONE 375 px, inside a sheet
   Amount                       Currency
-  [ 12,50                 ]    [ EUR, euro  v ]     <- row, 44 px tall controls
+  [ 12,50                 ]    [ EUR     v ]        <- row, 44 px tall controls
   Use , before the cents.                            <- hint, text-small
-  Enter an amount greater than 0.                    <- error, under the field
+  Enter an amount greater than 0.                    <- error, under the amount field
+
+ Server error on currency (422, field `currency`), 375 px, under the row
+  [ 12,50                 ]    [ XYZ     v ]
+  Use , before the cents.
+  The currency is not supported.                     <- currency error, full width, under the row
 ```
 
 Rules:
 - **Keyboard.** `inputMode="decimal"` opens the decimal keypad on phones (it shows `,` or `.` according to the device locale). `autoComplete="off"`, `autoCorrect="off"`, `spellCheck={false}`.
 - **Value.** The component keeps the raw text the user typed. It does not parse or format while typing. Nothing is reformatted under the cursor.
-- **Parsing (for the engineer, on submit).** Trim spaces. Accept one decimal mark, either `.` or `,`, and treat the locale's mark as the decimal. Digits only otherwise. Reject a second mark, thousands separators, letters and signs with the message in 3.1.1. Convert to a plain decimal string with a dot (`"12.50"`) before sending. Never pass the text through `Number()` or `parseFloat()`.
+- **Currency options.** The closed select shows the ISO code only ("EUR", "SEK"), so the text fits the 9 rem column at every size (N6). The full currency name is not shown in this control. The list is the profile's currency list (HEM-009).
+- **Where errors show.** An amount error (client or server on `amount`) appears under the amount field, and `aria-invalid` is set on the input. A currency error (server on `currency`, the only way the currency can be invalid, because the select offers only valid codes) appears under the whole row, at full width, and `aria-invalid` is set on the currency select. Both are linked with `aria-describedby`. Each message is a specific sentence from the server, or 3.1.1.
+- **Required.** The amount input carries `aria-required`. The forms do not use the native `required` attribute, so the browser's own message does not compete with the inline errors (3.10).
+- **Parsing (for the engineer, on submit).** Trim spaces. Accept only the locale's decimal mark: `.` in an English locale, `,` in a German or Swedish one. Digits only otherwise. Any other mark, a thousands separator, letters or signs are rejected with the message in 3.1.1. Nothing is reinterpreted silently. Convert the accepted text to a plain decimal string with a dot (`"12.50"`) before sending. Never pass the text through `Number()` or `parseFloat()`.
+- **Examples (locale `en`, decimal mark `.`).**
+
+  | Typed | Result |
+  |---|---|
+  | `12.50` | Accepted, sent as `"12.50"` |
+  | `1250` | Accepted, sent as `"1250"` |
+  | `12,50` | Rejected: "Enter an amount like 12.50." (`,` is not the decimal mark here) |
+  | `1,250` | Rejected: "Enter an amount like 12.50." (a thousands separator, so it is not read as 1.25) |
+  | `1 250` | Rejected: "Enter an amount like 12.50." |
+
+  In a `de` locale the mark is `,`, so `12,50` is accepted and `1.250` and `12.50` are rejected with the same message.
 - **Decimal places.** The number of decimals must not exceed the currency's minor units (EUR 2, JPY 0, and so on). Check this on submit with the selected currency.
 - **Hint.** The default hint is "Use , before the cents." (or `.`, from the locale). For a currency with no minor units it is "Whole numbers only for this currency."
 - **Currency default.** The base currency from the profile. The list of currencies is the one used by the profile (`Currency` type, HEM-009).
@@ -84,11 +103,12 @@ Rules:
 | Rule | Message (under the field) |
 |---|---|
 | Empty | "Enter the amount." |
-| Not a number, or more than one decimal mark, or letters | "Enter an amount like 12.50." (use the locale's decimal mark in the example) |
+| Not a number, letters or signs; a second decimal mark; the other decimal mark (`,` in an English locale); a thousands separator | "Enter an amount like 12.50." (use the locale's decimal mark in the example) |
 | Zero or below | "Enter an amount greater than 0." |
 | Too many decimals, currency has 2 | "EUR amounts can have up to 2 decimal places." (replace EUR with the code) |
 | Too many decimals, currency has 0 | "JPY amounts are whole numbers." |
-| Server (problem+json, field `amount`) | The server message, cleaned as in `profile/problem.ts`. |
+| Server (problem+json, field `amount`) | Under the amount field. The server message, cleaned as in `profile/problem.ts`. |
+| Server (problem+json, field `currency`) | Under the row, full width (`currencyError`). The server message, cleaned the same way. |
 
 ### 3.2 Money display (`MoneyText`)
 
@@ -104,9 +124,10 @@ Rules:
 | Negative (not expected in this scope, but the rule holds) | the Intl minus sign, plus text | `-€12.00` with the word "Refund" in meta text |
 
 Rules:
-- Pass `currency` and `locale` explicitly on every screen in this spec, including the dashboard totals. Each Money value from the API carries its own currency (section 11), so the context fallback in `MoneyText` is not used here.
+- Pass `currency` and `locale` explicitly on every screen in this spec, including the dashboard totals. Record amounts take the record's flat `currency`. Computed Money values (the upcoming event amount, the dashboard totals, `base_amount`) carry their own currency (section 11). The context fallback in `MoneyText` is not used here.
 - A zero is a value, not a dash. Show "€0.00" and a short meta line that says why.
 - Amounts are `tabular-nums` and right-aligned in tables and in card lists (the amount sits on the right edge of the card).
+- **No wrapping amounts (N12).** The amount element is `shrink-0 whitespace-nowrap`. The title block next to it is `min-w-0 flex-1`, so a long title clamps (two lines) and the amount never pushes the row wider than the screen. A long converted amount (3.3) takes the same rule.
 - Never colour an amount for good or bad. `warning` tone is only for a due date chip, not the amount itself.
 
 ### 3.3 Converted amount (`ConvertedAmount`)
@@ -227,7 +248,7 @@ Used by every create and edit dialog in this spec.
 
 **Groups.** Each dialog groups its fields in `FormSection`s with a legend. Field order inside a group follows the order people fill them in.
 
-**Labels.** Every field has a visible label above it. Optional fields say "(optional)" in the label text, so the required fields are the ones without it. No asterisks.
+**Labels.** Every field has a visible label above it. Optional fields say "(optional)" in the label text, so the required fields are the ones without it. No asterisks. Every optional picker in a form, including "Applies to", says "(optional)" (N9). Required controls carry `aria-required="true"` (N8). They do not use the native `required` attribute, and the forms use `noValidate`, so the browser does not show its own messages next to the inline errors.
 
 **Validation.**
 - Validate on blur and on submit, as `design-system.md` 7.1 says.
@@ -237,6 +258,7 @@ Used by every create and edit dialog in this spec.
 
 **Server errors (problem+json).** The client parses the response with the same logic as `profile/problem.ts`:
 - `errors[]` with `loc` ending in a field name maps to that field's error. Field names are the API names (F8). Example: a 422 for a category from another space arrives with `loc` ending in `category_id`, and shows under the Category field.
+- Amount fields map as follows. `amount` shows under the amount field. `currency` shows in the currency error slot of `AmountInput`, under the row (3.1).
 - A 409 or any error with no field maps to a `FormMessage` (kind `error`) at the top of the body, with the server's `detail` when it is plain text.
 - A network failure maps to "We could not reach the server. Check your connection and try again."
 - The field keeps the user's value. Nothing is cleared on error.
@@ -311,7 +333,7 @@ A contract is a recurring obligation: insurance, a utility, a subscription, a me
 +--------------------------------------------------+
 ```
 
-**Desktop 1280 px.** Sidebar (256 px), content up to 1120 px. The page header has the title, the badge and the "Add a contract" button on the right. A filter row sits above the table. Table columns: Contract, Category, Amount, Next payment, Renewal and notice. The table is a `DataTable`.
+**Desktop 1280 px.** Sidebar (256 px), content up to 1120 px. The page header has the title, the badge and the "Add a contract" button on the right. The header button is hidden in the empty state (N5, see States). A filter row sits above the table. Table columns: Contract, Category, Amount, Next payment, Renewal and notice. The table is a `DataTable`.
 
 ```
 +-----------+--------------------------------------------------------------------------------+
@@ -367,7 +389,7 @@ A contract is a recurring obligation: insurance, a utility, a subscription, a me
 | State | What the user sees | Copy |
 |---|---|---|
 | Loading | Three skeleton cards on phone, three skeleton rows on `md` and up. Same heights as the final content. `aria-busy` on the list. Pulsing is off under reduced motion. | (sr) "Loading contracts" |
-| Empty, no contracts | `EmptyState` `page`, icon `FileText` in a 56 px `--muted` circle (tinted with the space accent, see `app-shell.md` 6). One primary button. | Title: "No contracts yet". Body: "Add insurance, subscriptions and bills in one place. We will remind you before each one renews." Primary: "Add a contract". Secondary link: "Learn how reminders work" (links to the notifications page, when it exists; hidden until then). |
+| Empty, no contracts | `EmptyState` `page`, icon `FileText` in a 56 px `--muted` circle (tinted with the space accent, see `app-shell.md` 6). One primary button, and the page header has no "Add a contract" button in this state, so the action is not shown twice (N5, the same rule as 5.1 and `app-shell.md` 6). | Title: "No contracts yet". Body: "Add insurance, subscriptions and bills in one place. We will remind you before each one renews." Primary: "Add a contract". Secondary link: "Learn how reminders work" (links to the notifications page, when it exists; hidden until then). |
 | Empty, filter has no match | `EmptyState` `inline` inside the list area. No primary button, because the header already has "Add a contract". | Title: "No matching contracts". Body: "Change or clear the filters to see more." Action: "Clear filters" (text button, 44 px). |
 | Error | `FormMessage` kind error above the list, with a Retry button (44 px). Filters stay usable. | "We could not load your contracts just now." Button: "Retry" |
 | Populated | Cards or rows as above. | none |
@@ -524,7 +546,7 @@ Opened by "Add a contract" (`/contracts?new=1`, so the empty state and the dashb
 |  How many days before renewal you must give      |
 |  notice. Leave empty if there is none.           |
 |                                                  |
-| Applies to                                       |  household only
+| Applies to (optional)                            |  household only
 |  [ Whole household                         v ]   |
 | Notes (optional)                                 |
 |  [                                           ]   |
@@ -534,7 +556,52 @@ Opened by "Add a contract" (`/contracts?new=1`, so the empty state and the dashb
 +--------------------------------------------------+
 ```
 
-**Desktop 1280 px.** Centred dialog, `max-w-lg` (512 px), body scrolls past 70 vh. Two fields per row in "Cost" and "Dates" (`md` and up), one field per row elsewhere. Footer right-aligned: "Cancel" (text) and "Save contract" (primary).
+**Dialog width (B4).** `ResponsiveDialog` sets `md:max-w-md` by default. This form passes `className="md:max-w-lg"`. `cn()` merges the classes, so `md:max-w-lg` replaces the default and is the only width class on the dialog. Every other form in this spec keeps the default `md:max-w-md` (448 px). `max-w-lg` gives 464 px of content width after the 24 px padding on each side, which is what the Starts and Ends row needs.
+
+**Rows (B4).** `AmountInput` takes a full row. Only two pairs share a row, and only from `md` (below `md` every field is one row):
+- Starts and Ends (the dates).
+- Renews every (months) and Notice period (days), when both are shown.
+
+At 464 px of content width, each half of a pair is 224 px. The Amount row is 308 px for the amount and 144 px for the currency.
+
+**Desktop 1280 px.** Centred dialog, `max-w-lg` (512 px, as set above). The body scrolls past 70 vh. Footer right-aligned: "Cancel" (text) and "Save contract" (primary).
+
+```
+ 768 px, centred dialog, max-w-lg (512 px). The rest of the screen is dimmed.
+          +----------------------------------------------+
+          | Add a contract                           (X) |
+          | [Lock Personal]                              |
+          |----------------------------------------------|
+          | About                                        |
+          |  Name                                        |
+          |  [ Car insurance                        ]    |
+          |  Provider (optional)                         |
+          |  [ Harbor Insurance                     ]    |
+          |  Category                                    |
+          |  [ Choose a category                  v ]    |
+          | Cost                                         |
+          |  Amount                      Currency        |
+          |  [ 4350                ]     [ EUR   v ]     |  full row: AmountInput
+          |  Billed                                      |
+          |  [ Yearly                             v ]    |
+          | Dates                                        |
+          |  Starts                      Ends (optional) |  share a row (224 px each)
+          |  [ 1 Jan 2026       ]        [          ]    |
+          |  Leave empty if it runs until you cancel it. |
+          | Renewal                                      |
+          |  [x] Renews automatically                    |
+          |  Renews every (months)   Notice period (days,|
+          |  [ 12            ]       [ 30          ]     |  optional label wraps
+          |  How many days before renewal you must give  |
+          |  notice. Leave empty if there is none.       |
+          | Applies to (optional)                        |
+          |  [ Whole household                    v ]    |
+          | Notes (optional)                             |
+          |  [                                      ]    |
+          |----------------------------------------------|
+          |                    [ Cancel ] [ Save contract ] |  md: footer right-aligned
+          +----------------------------------------------+
+```
 
 **Fields and API names.**
 
@@ -543,15 +610,15 @@ Opened by "Add a contract" (`/contracts?new=1`, so the empty state and the dashb
 | Name | `name` | text, max 80 | yes | Error: "Enter a name for the contract." |
 | Provider (optional) | `provider` | text, max 80 | no | |
 | Category | `category_id` | `CategorySelect` | yes | Error: "Choose a category." |
-| Amount and currency | `amount`, `currency` | `AmountInput` | yes | 3.1.1 |
+| Amount and currency | `amount`, `currency` | `AmountInput`, full row | yes | 3.1.1. The currency error slot shows a server error on `currency`. |
 | Billed | `frequency` | `FrequencySelect` (no irregular) | yes | Default monthly |
 | Starts | `start_date` | date | yes | Default today |
 | Ends (optional) | `end_date` | date | no | On or after `start_date` |
 | Renews automatically | `auto_renew` | `CheckboxRow` | no | Default off. Unchecked hides the renewal term. |
 | Renews every (months) | `renewal_term_months` | number, `inputMode="numeric"` | when auto-renew | Default 12. Whole number 1 to 120. |
 | Notice period (days, optional) | `notice_period_days` | number, `inputMode="numeric"` | no | Whole number 0 or more. |
-| Applies to | `member_user_id` | `AppliesToSelect` | no | Household only. |
-| Notes (optional) | `notes` | textarea, max 500 | no | |
+| Applies to (optional) | `member_user_id` | `AppliesToSelect` | no | Household only. |
+| Notes (optional) | `notes` | textarea, max 500 | no | The `Textarea` primitive is owned by HEM-021 (N10, 12.2). |
 
 Status is not a field in the form. Status changes use the detail page actions (F12).
 
@@ -568,6 +635,7 @@ Status is not a field in the form. Status changes use the detail page actions (F
 | Notice period not a whole number of 0 or more | "Enter a whole number of days, for example 30." |
 | Member not in the space (422, `member_user_id`) | Server message under "Applies to". |
 | Category not in the space (422, `category_id`) | Server message under "Category". |
+| Currency rejected (422, `currency`) | Server message under the amount row, in the currency error slot of `AmountInput` (B2, 3.1). |
 
 **Copy.** Hints: "Leave empty if it runs until you cancel it." (end date); "How many days before renewal you must give notice." (notice). Success toast: "Contract saved."
 
@@ -582,7 +650,7 @@ Status is not a field in the form. Status changes use the detail page actions (F
 | Server error | `FormMessage` kind error at the top of the body, with the server detail or the generic network message. Values kept. |
 | Success | Dialog closes, list or detail updates, toast "Contract saved." |
 
-**Responsive.** 375: bottom sheet, footer pinned. 768 and up: centred dialog, `max-w-lg`. Two-column rows for "Cost" and "Dates" from `md`.
+**Responsive.** 375: bottom sheet, footer pinned, every field one row. 768 and up: centred dialog, `max-w-lg` (set by the form, above). The Cost row is always full width. Starts and Ends share a row from `md`, and so do Renews every and Notice period from `md`. The 768 wireframe is in 4.3.
 
 ---
 
@@ -665,7 +733,7 @@ Expenses sits under More on phone (`app-shell.md` 3.1). A "Expenses" link on the
 | Title | `description`, or the category label when empty | `text-body-strong`, clamped to two lines |
 | Meta | category label, `merchant`, "For {member}" (household), "Linked to {contract name}" when `contract_id` is set | `text-small`, muted, joined with " · " |
 | Date | `spent_on` | "12 Nov 2026" |
-| Amount | `amount` and `currency` | `MoneyText md`, right-aligned; `showCode` when not the base currency |
+| Amount | `amount` and `currency` (flat record fields, section 11) | `MoneyText md`, right-aligned, `shrink-0 whitespace-nowrap` (3.2); `showCode` when not the base currency |
 | Converted | `base_amount` (Money or null) | `ConvertedAmount`, under the amount. Hidden when null. |
 
 The whole card (or row, on the title) is one button that opens the edit dialog. Its accessible name: "Groceries, EUR 64.20, 12 Nov 2026".
@@ -729,7 +797,7 @@ Opened by "Add an expense" (or `/expenses?new=1`). Title "Add an expense". The f
 +--------------------------------------------------+
 ```
 
-**Expanded "More details"** shows: Description (optional, max 120), Merchant (optional, max 80), Applies to (household only), and Linked contract (optional, a select of the space's active contracts). Under the contract select, the hint reads: "If the contract is deleted, this expense stays and loses the link."
+**Expanded "More details"** shows: Description (optional, max 120), Merchant (optional, max 80), Applies to (optional, household only), and Linked contract (optional, a select of the space's active contracts). Under the contract select, the hint reads: "If the contract is deleted, this expense stays and loses the link."
 
 **Rules.**
 - "Save and add another" saves, keeps the dialog open, clears the amount and keeps the category, date and currency. The amount field is focused again. A toast says "Expense added. Add another."
@@ -741,7 +809,7 @@ Opened by "Add an expense" (or `/expenses?new=1`). Title "Add an expense". The f
 
 **States.** Idle, busy ("Saving…" on both buttons, one busy at a time), validation errors, server errors (`FormMessage` at the top, values kept), success (toast, close or reset).
 
-**Desktop 1280 px.** The same dialog, centred, `max-w-md` (448 px). The fields stack, with the amount and currency on one row. The "More details" disclosure works the same way.
+**Desktop 1280 px.** The same dialog, centred, `max-w-md` (448 px, the default). The fields stack. The amount and currency row is `AmountInput` at full width of the dialog body (B4). The "More details" disclosure works the same way.
 
 ---
 
@@ -808,7 +876,7 @@ The ConvertedAmount line on income reads "About EUR 552.10" (no extra plus sign;
 | Title | `description`, or the source name when empty | clamp two lines |
 | Meta | "Income", the source's type label (Salary, Business, Other), or "No source", and "For {member}" (household) | `text-small` |
 | Date | `received_on` | |
-| Amount | `amount` and `currency` | `+` sign (`signDisplay="always"`), right-aligned, `MoneyText md` |
+| Amount | `amount` and `currency` (flat record fields, section 11) | `+` sign (`signDisplay="always"`), right-aligned, `shrink-0 whitespace-nowrap`, `MoneyText md` |
 | Converted | `base_amount` (Money or null) | `ConvertedAmount`, "About {base}". Hidden when null. |
 
 **Filters.** From, To (inclusive), Source (`source_id`, "All sources" or each source), Applies to (household). Filter sheet on phone, row on desktop.
@@ -838,11 +906,11 @@ Title "Add income" or "Edit income". Fields in this order:
 | Received on | `received_on` | date | yes | Default today. Error "Enter the date you received it." A date more than one day ahead: "The date cannot be more than a day in the future." (Q10) |
 | From source (optional) | `source_id` | select: "No source" and the space's sources | no | Sources with `active` false are listed under "Paused" in the option text, for example "Salary (paused)". |
 | Description (optional) | `description` | text, max 120 | no | |
-| Applies to | `member_user_id` | `AppliesToSelect` | no | Household only. |
+| Applies to (optional) | `member_user_id` | `AppliesToSelect` | no | Household only. |
 
 Footer: "Save income" (primary) and, when editing, a divider and "Delete income" (destructive, 3.11). Success toast "Income added." / "Income saved.".
 
-Desktop: centred dialog, `max-w-md`.
+Desktop: centred dialog, `max-w-md` (the default). The amount row is full width (3.1).
 
 ---
 
@@ -875,10 +943,9 @@ Desktop: centred dialog, `max-w-md`.
 | | [Pause] Paused                               | |  Badge outline with icon
 | +----------------------------------------------+ |
 +--------------------------------------------------+
-(the second card's amount line reads "EUR 600.00, typical amount")
 ```
 
-Hmm, "No fixed amount" would be a null amount; the API requires `amount` for income_sources (HEM-019 lists amount without nullable). So the amount is always present; for irregular sources the amount is the typical amount. Label the field "Typical amount" when frequency is irregular. Wireframe shows "EUR 600.00 typical amount". Use that.
+An income source always has an amount (HEM-019: `amount` is required, not nullable). For an irregular source the amount is the typical amount: the field is labelled "Typical amount", and the row reads "EUR 600.00, typical amount".
 
 **Source row content.** Name (clamp), type label and frequency phrase in meta ("Salary · Monthly"), amount with phrase ("EUR 2,850.00 a month", or "EUR 600.00, typical amount" for irregular), active state badge with icon: "Active" (`Check` icon, `--success` text on `--success-subtle`) or "Paused" (`Pause` icon, `--muted-foreground` on outline). "For {member}" in household.
 
@@ -890,7 +957,7 @@ Hmm, "No fixed amount" would be a null amount; the API requires `amount` for inc
 | Type | `type` | native select: Salary, Business, Other | yes | Default Salary. |
 | Typical amount (or "Amount" when regular) and currency | `amount`, `currency` | `AmountInput` | yes | 3.1.1. Label says "Typical amount" when irregular. |
 | How often | `frequency` | `FrequencySelect` with irregular | yes | Default monthly. |
-| Applies to | `member_user_id` | `AppliesToSelect` | no | Household only. |
+| Applies to (optional) | `member_user_id` | `AppliesToSelect` | no | Household only. |
 | Active | `active` | `CheckboxRow` | no | Default checked. Description: "Turn off to pause this source. Its payments stay in your list." |
 
 Footer: "Save source" (primary), and when editing, divider and "Delete source" (destructive, 3.11).
@@ -907,7 +974,33 @@ Validation messages: name ("Enter a name for the source."), type ("Choose a type
 | Paused | Badge "Paused", and the card stays in the list. | "Paused" |
 | Success | Toast. | "Source saved.", "Source deleted." |
 
-**Responsive.** 375: stacked cards. 768 and 1280: a `DataTable` with Name, Type, How often, Amount (right) and Status. Active or paused uses the badge with its icon and text.
+**Responsive (B5).** 375: stacked cards.
+
+- **768 (`md` to `xl`).** A `DataTable` with three columns: Name, Amount (right) and Status. The content width is 648 px (`app-shell.md` 2.2 and 3.3), and five columns do not fit it. Type and How often are not columns here. They move into the Name cell as meta text under the name ("Salary · Monthly"). In `DataTable` terms, the Type and How often columns use `from="xl"`, and the Name cell renders the same type and frequency text with `xl:hidden`. Nothing is lost at 768: each source's type and frequency is still on the row.
+- **1280 (`xl` and up).** A `DataTable` with all five columns: Name, Type, How often, Amount (right) and Status. The meta line under the name is hidden here (`xl:hidden`), so the words appear once.
+
+```
+ 768 px, content 648 px. Income sources (Sources is the current section link)
++--------------------------------------------------------------------------+
+| Income                                                   [ + Add a source ] |
+| [Lock Personal]                                                          |
+| [ Entries ]  [ Sources ]                                                 |
+|                                                                          |
+| +----------------------------------------------------------------------+ |
+| | Name                                    | Amount          | Status   | |
+| |-----------------------------------------+-----------------+----------| |
+| | Salary, Northwind Ltd          >        | EUR 2,850.00    | [Check]  | |
+| | Salary · Monthly                        | a month         | Active   | |
+| |-----------------------------------------+-----------------+----------| |
+| | Freelance design               >        | EUR 600.00      | [Pause]  | |
+| | Business · Irregular                    | typical amount  | Paused   | |
+| +----------------------------------------------------------------------+ |
++--------------------------------------------------------------------------+
+```
+
+Column widths at 768 (648 px): Name takes the rest (about 300 px), Amount about 170 px (right-aligned), Status about 140 px. Each row is at least 56 px tall, and the whole row is one button for editing (the name is the accessible name, as in the cards).
+
+The 768 wireframe shows the Name with its type and frequency. The 1280 table shows Type and How often as their own columns, with the same rows.
 
 **Focus order.** Section links, "Add a source", then each source card or row.
 
@@ -951,17 +1044,21 @@ Validation messages: name ("Enter a name for the source."), type ("Choose a type
 |                                                  |
 | Next 30 days                                     |  section h2
 | +----------------------------------------------+ |
-| | [CreditCard] Payment             3 Dec 2026  | |  event type with icon and text
+| | [CreditCard] Payment          3 Dec 2026     | |  event type with icon and text, date right
 | | Car insurance, Harbor Insurance              | |
-| | €362.50                  [Clock] Due in 6 days| |  DueChip
+| | €362.50                                      | |  amount on its own line
+| | [Clock] Due in 6 days                        | |  DueChip on its own line
 | +----------------------------------------------+ |
-| | [RefreshCw] Renewal             14 Dec 2026  | |
+| +----------------------------------------------+ |
+| | [RefreshCw] Renewal          14 Dec 2026     | |
 | | Music streaming, Lark Audio                  | |
-| | €11.99                 [Clock] Renews in 6 days| |
+| | €11.99                                       | |
+| | [Clock] Renews in 6 days                     | |
 | +----------------------------------------------+ |
-| | [CalendarClock] Notice deadline  2 Dec 2026  | |
+| +----------------------------------------------+ |
+| | [CalendarClock] Notice deadline  2 Dec 2026  | |  no amount line: a notice date is not a payment
 | | Car insurance                                | |
-| | Notice deadline soon, in 5 days              | |
+| | [Clock] Notice deadline soon, in 5 days      | |
 | +----------------------------------------------+ |
 |                                                  |
 | Contracts and expenses in one place. See all >   |  link, 44 px
@@ -972,25 +1069,33 @@ Validation messages: name ("Enter a name for the source."), type ("Choose a type
 
 The "Notice deadline" event has no amount (a notice date is not a payment). It shows no amount.
 
-**Desktop 1280 px.** Three totals across the top, then the upcoming list full width.
+**Desktop 1280 px.** Three totals across the top, then the upcoming list full width (960 px of content).
 
 ```
-| Dashboard  [Lock Personal]                                          [ + Add an expense ] |
-|                                                                                          |
-| +------------------------+ +------------------------+ +------------------------+        |
-| | Spent this month       | | Recurring cost         | | Income this month      |        |
-| | €812.40                | | €1,043.00 a month      | | +€2,850.00             |        |
-| | November 2026          | | Contracts, monthly     | | Received November 2026 |        |
-| +------------------------+ +------------------------+ +------------------------+        |
-|  (i) 1 amount is not in EUR. No rate for its date. Totals leave it out.                  |
-|                                                                                          |
-| +--------------------------------------------------------------------------------------+ |
-| | Next 30 days                                                                         | |
-| | Payment   Car insurance, Harbor Insurance   3 Dec 2026   EUR 362.50   [Clock] Due in 6 | |
-| | Renewal   Music streaming                   14 Dec 2026  EUR 11.99    [Clock] Renews | |
-| | Notice    Car insurance                     2 Dec 2026   -           [Clock] Notice | |
-| +--------------------------------------------------------------------------------------+ |
+| Dashboard  [Lock Personal]                                       [ + Add an expense ] |
+|                                                                                       |
+| +------------------------+ +------------------------+ +------------------------+     |
+| | Spent this month       | | Recurring cost         | | Income this month      |     |
+| | €812.40                | | €1,043.00 a month      | | +€2,850.00             |     |
+| | November 2026          | | Contracts, monthly     | | Received November 2026 |     |
+| +------------------------+ +------------------------+ +------------------------+     |
+|  (i) 1 amount is not in EUR. No rate for its date. Totals leave it out.               |
+|                                                                                       |
+| Next 30 days                                                                          |
+| Type          Contract                         Date          Amount        When       |
+| -------------------------------------------------------------------------------------- |
+| [CreditCard]  Car insurance, Harbor Insurance  3 Dec 2026    EUR 362.50    [Clock] Due in 6 days |
+|   Payment                                                                             |
+| [RefreshCw]   Music streaming, Lark Audio      14 Dec 2026   EUR 11.99     [Clock] Renews in 6 days |
+|   Renewal                                                                             |
+| [CalendarClock] Car insurance                  2 Dec 2026    (no amount)   [Clock] Notice deadline soon |
+|   Notice deadline                                                                     |
 ```
+
+**Upcoming row layout (N11).** Each event is a row on `xl` and up, and a stacked card everywhere below `xl`. Below `xl` the card is used at every width, because at 768 the Upcoming card sits in a half-width column (about 316 px).
+
+- **Stacked (below `xl`).** Four lines, in this order: type with icon and date (the date is `shrink-0` on the right), name and provider (clamped), amount (on its own line, omitted for a notice deadline), DueChip (on its own line, so a long amount never shares a line with the chip).
+- **Row (`xl`).** A fixed-column grid: type with icon (14 rem), name and provider (flexible, `min-w-0`, clamped), date (8 rem), amount (8 rem, right-aligned, `shrink-0 whitespace-nowrap`), DueChip (the rest, right-aligned, wraps under the amount only if the column is too narrow).
 
 **Layout by width.**
 
@@ -1000,7 +1105,7 @@ The "Notice deadline" event has no amount (a notice date is not a payment). It s
 | 768 | Two columns: "Spent" and "Recurring cost" on row 1, "Income" on row 2 at the left | Row 2 right, beside "Income" |
 | 1280 | Three columns on one row | Full width below, as a list |
 
-Hmm: at 768 row 2 has Income left and Upcoming right. Upcoming is a card with up to 10 events, which is tall on a 768 screen, and that is acceptable.
+At 768, row 2 has Income on the left and the Upcoming card on the right. The Upcoming card can hold up to 10 events and is tall on a 768 screen. That is acceptable, and its rows use the stacked layout (see the upcoming row layout above).
 
 **Components.** `PageHeader` (`SpaceBadge`, primary action "Add an expense"), `StatCard` (x3), `MoneyText` (`lg`, currency from the Money object), `DueChip`, `HemCard`, `EmptyState` (`page` for first run, `inline` for the upcoming list), `FormMessage` (info, for the unconverted hint, icon `CircleHelp`), `Skeleton`, `Button`, `Badge` (for "Paused" elsewhere).
 
@@ -1060,7 +1165,7 @@ Hmm: at 768 row 2 has Income left and Upcoming right. Upcoming is a card with up
 ### 7.3 Responsive summary (dashboard)
 
 - No horizontal scroll at 375, 768 or 1280. The totals grid and the upcoming card wrap. Long names clamp to two lines.
-- The three totals never shrink the figure below `text-money-lg` (28 px phone).
+- The three totals never shrink the figure below `text-money-lg` (28 px phone). A total or event amount never wraps (`whitespace-nowrap`, 3.2).
 - Tap targets: the header button, the event contract link, "See all" link and the Retry button are all 44 px.
 
 ---
@@ -1092,7 +1197,7 @@ Tone rules: plain words, short sentences, "you" for the user, the household name
 - **Tap targets.** Every button, link, filter, row or card, menu item and checkbox row is at least 44 × 44 px. Cards are one link or one button of at least 56 px height.
 - **Contrast.** Text uses `--foreground` or `--muted-foreground` on `--card` or `--background` (both pass 4.5:1, `design-system.md` 2.3). Warning chips use `--warning` on `--warning-subtle` (4.8:1 light, 7.2:1 dark). Destructive text uses `--destructive` on `--background` (6.5:1 light, 6.3:1 dark, `design-system.md` 2.3). Input borders use `--input` (3.7:1).
 - **Focus.** The global 2 px `--ring` outline with a 2 px offset, on `:focus-visible` only, in both themes (`design-system.md` 4.5). Dialogs trap focus and return it to the trigger.
-- **Labels.** Every input and select has a visible label. Hints and errors are linked with `aria-describedby`. Invalid fields have `aria-invalid="true"`.
+- **Labels.** Every input and select has a visible label. Hints and errors are linked with `aria-describedby`. Invalid fields have `aria-invalid="true"`. Required fields have `aria-required="true"` (3.10).
 - **Money.** A screen reader hears the amount with its currency code or symbol. "About" is read for a converted amount. Income rows carry the word "Income" in their meta text, so the direction is not read from the `+` sign alone.
 - **Status by text and icon.** Due chips, paused and active badges, and cancelled badges all carry text and an icon. Colour is never the only signal.
 - **Headings.** One `h1` per page. Month groups and card sections are `h2`. Card titles inside a section are `h3`.
@@ -1117,11 +1222,11 @@ Focus order summary:
 | Shell | Bottom nav, 16 px gutter | Icon rail (72 px), 24 px gutter | Sidebar (256 px), 32 px gutter |
 | Contracts list | Cards, filter sheet, full-width button | `DataTable`: Contract, Amount, Next payment. Filter row | `DataTable`: all five columns. Filter row |
 | Contract detail | One column | One column, max 640 px | Two columns (schedule, details) |
-| Contract form | Bottom sheet, footer pinned | Centred dialog, `max-w-lg`, two columns for Cost and Dates | Same as 768 |
+| Contract form | Bottom sheet, footer pinned, every field one row | Centred dialog, `max-w-lg` (set by the form). Starts and Ends share a row. Renews every and Notice period share a row. Cost is full width | Same as 768 |
 | Expenses and income lists | Cards, month headers, filter sheet | `DataTable` without Category and Applies to | `DataTable` with all columns |
 | Quick add and forms | Bottom sheet | Centred dialog, `max-w-md` | Same as 768 |
-| Income sources | Cards | `DataTable` | `DataTable` |
-| Dashboard | One column, totals stacked | Totals 2 + 1, Upcoming beside the third | Totals in 3 columns, Upcoming full width |
+| Income sources | Cards | `DataTable`: Name (type and frequency under it), Amount, Status | `DataTable`: Name, Type, How often, Amount, Status |
+| Dashboard | One column, totals stacked | Totals 2 + 1, Upcoming beside the third (stacked rows inside the card) | Totals in 3 columns, Upcoming full width (one row per event) |
 | First run | One column, primary button full width | Centred, buttons auto width | Centred, buttons side by side |
 
 Rules:
@@ -1134,7 +1239,13 @@ Rules:
 
 ## 11. API field list (check against HEM-018 to HEM-023)
 
-Field names are the API's. The UI field and its control are given so the engineer can map them. Fields marked (Q1, Q2, Q5, Q10) were decided in section 13 and must be added to the ticket named there. Money means `{amount, currency}`, with `amount` as a decimal string (Q2). Records keep flat `amount` and `currency` fields, because the forms post them that way. Money objects are used for computed values: `base_amount`, the upcoming event amount and the dashboard totals.
+Field names are the API's. The UI field and its control are given so the engineer can map them. Fields marked (Q1, Q2, Q5, Q10) were decided in section 13 and must be added to the ticket named there.
+
+**Shape rule (N13, PM decision Q12 in section 13).** There are two shapes, and each endpoint uses one of them as stated in its subsection:
+- **Records keep flat fields.** Contracts (11.2), expenses (11.4), income sources (11.5) and income entries (11.6) have a flat `amount` (a decimal string) and a flat `currency` (ISO-4217). The forms post them that way.
+- **Computed values use Money.** Money is `{amount, currency}`, with `amount` as a decimal string (Q2). It is used for the upcoming event `amount` (11.3), the dashboard totals (11.7) and `base_amount` on expenses and income entries (Q1, 11.4 and 11.6).
+
+No other field is a Money object. A `Money` value and a flat amount are never mixed on the same record.
 
 ### 11.1 Categories (HEM-018)
 
@@ -1174,17 +1285,21 @@ Field names are the API's. The UI field and its control are given so the enginee
 
 Filters: `status`, `category`, `member_user_id`. Pagination: `items` and `next_cursor` (the `Page` envelope in `core/pagination.py`).
 
+**Shape: flat `amount` and `currency`** (record).
+
 ### 11.3 Upcoming events (HEM-018)
 
 `GET /api/v1/spaces/{space_id}/contracts/upcoming?days=30`
+
+**Shape: computed event, `amount` is Money** (the upcoming event amount, Q2). This is the one event shape used on the dashboard too (11.7).
 
 | API field | UI | Notes |
 |---|---|---|
 | `date` (Q2) | date | Calendar date. The due chip (3.8) is computed from it. |
 | `type` | `payment`, `renewal` or `notice_deadline` | Label and icon (6.3, 7.1). |
 | `contract_id` | contract link | uuid |
-| `contract_name` (Q2) | contract name | string |
-| `amount` (Q2) | amount on the right | Money `{amount, currency}`, or null for `notice_deadline`. Not shown when null. |
+| `contract_name` (Q2) | contract name | string. The record's `name`, read from the contract. |
+| `amount` (Q2) | amount on the right | Money `{amount, currency}`, or null for `notice_deadline`. Not shown when null. The currency is inside the Money object, not a sibling field. |
 
 ### 11.4 Expenses (HEM-019)
 
@@ -1192,7 +1307,7 @@ Filters: `status`, `category`, `member_user_id`. Pagination: `items` and `next_c
 |---|---|---|
 | `id` | row and edit | uuid |
 | `category_id` | Category (`CategorySelect`) | uuid, required |
-| `amount`, `currency` | `AmountInput` | Decimal string, required, above 0 |
+| `amount`, `currency` | `AmountInput` | Decimal string, required, above 0 (flat record fields) |
 | `spent_on` | Spent on (date) | required, default today |
 | `description` | Description (optional, max 120) | nullable |
 | `merchant` | Merchant (optional, max 80) | nullable |
@@ -1201,6 +1316,8 @@ Filters: `status`, `category`, `member_user_id`. Pagination: `items` and `next_c
 | `base_amount` (Q1) | `ConvertedAmount` | Money or null. The caller's base currency, at the record's date. Null hides the line. Added by HEM-019 once HEM-020 exists. |
 
 Filters: `from`, `to` (inclusive), `category`, `member_user_id`, `contract_id`. Order: newest date first. `spent_on` may be at most one day in the future (Q10).
+
+**Shape: flat `amount` and `currency`** (record). `base_amount` is the one Money field on the record.
 
 ### 11.5 Income sources (HEM-019)
 
@@ -1213,6 +1330,8 @@ Filters: `from`, `to` (inclusive), `category`, `member_user_id`, `contract_id`. 
 | `frequency` | How often (`FrequencySelect` with irregular) | the contract enum plus `irregular` |
 | `member_user_id` | Applies to | uuid, nullable |
 | `active` | Active (`CheckboxRow`) | bool, default true |
+
+**Shape: flat `amount` and `currency`** (record).
 
 ### 11.6 Income entries (HEM-019)
 
@@ -1228,18 +1347,22 @@ Filters: `from`, `to` (inclusive), `category`, `member_user_id`, `contract_id`. 
 
 Filters: `from`, `to` (inclusive), `source_id`. Order: newest date first. `received_on` may be at most one day in the future (Q10).
 
+**Shape: flat `amount` and `currency`** (record). `base_amount` is the one Money field on the record.
+
 ### 11.7 Dashboard (HEM-023)
 
 `GET /api/v1/spaces/{space_id}/dashboard?month=YYYY-MM`
 
+**Shape: Money for each total, and `upcoming` uses the 11.3 event shape** (computed values). `base_currency` is a plain ISO-4217 string, because each total carries its own currency.
+
 | API field | UI | Notes |
 |---|---|---|
 | `month` (Q2) | the hint month, "November 2026" | `YYYY-MM`, echoed back from the request. |
-| `base_currency` (Q2) | currency of the unconverted hint | ISO-4217. The Money values below carry their own currency. |
+| `base_currency` (Q2) | currency of the unconverted hint | ISO-4217 string, not Money. The Money values below carry their own currency. |
 | `spent_this_month` | "Spent this month" | Money |
 | `recurring_monthly` | "Recurring cost" | Money, a monthly amount |
 | `income_this_month` | "Income this month" | Money |
-| `upcoming` | "Next 30 days" | Up to 10 events, same shape as 11.3 |
+| `upcoming` | "Next 30 days" | Up to 10 events, the 11.3 shape: `date`, `type`, `contract_id`, `contract_name`, `amount` (Money or null) |
 | `unconverted_count` | the hint in 7.1 | int, 0 or more |
 
 ### 11.8 Members (HEM-012)
@@ -1274,11 +1397,11 @@ Each takes props only, has no data fetching, and contains no business logic. Eac
 
 | File | Component | Purpose | Key props |
 |---|---|---|---|
-| `amount-input.tsx` | `AmountInput` | Amount text field with a currency select (3.1) | `id`, `name`, `value`, `onValueChange`, `currency`, `currencyOptions`, `onCurrencyChange`, `decimalSeparator`, `fractionDigits`, `error`, `hint` |
-| `converted-amount.tsx` | `ConvertedAmount` | Base-currency equivalent in muted text, or nothing (3.3) | `originalCurrency`, `baseCurrency`, `converted` (Money or null; null renders nothing), `locale` |
-| `category-select.tsx` | `CategorySelect` | Grouped native select (3.4) | `groups`, `value`, `emptyLabel`, `emptyDisabled`, `error` |
-| `frequency-select.tsx` | `FrequencySelect` (plus `FREQUENCY_LABEL` and `FREQUENCY_PHRASE`) | Frequency picker and amount phrases (3.5) | `value`, `includeIrregular`, `error` |
-| `applies-to-select.tsx` | `AppliesToSelect` | "Applies to" picker (3.7) | `options`, `value` (`""` is the whole household), `wholeLabel` |
+| `amount-input.tsx` | `AmountInput` | Amount text field with a currency select, full row (3.1) | `id`, `name`, `label`, `value`, `onValueChange`, `currency`, `currencyOptions` (code as `label`), `onCurrencyChange`, `decimalSeparator`, `fractionDigits`, `placeholder`, `hint`, `error` (amount), `currencyError`, `required` (amount, `aria-required`), `disabled`, `autoFocus` |
+| `converted-amount.tsx` | `ConvertedAmount` | Base-currency equivalent in muted text, or nothing (3.3) | `originalCurrency`, `baseCurrency`, `dateLabel`, `converted` (Money or null; null renders nothing), `locale` |
+| `category-select.tsx` | `CategorySelect` | Grouped native select (3.4) | `id`, `name`, `label`, `groups`, `value`, `onValueChange`, `emptyLabel`, `emptyDisabled`, `required` (`aria-required`), `hint`, `error` |
+| `frequency-select.tsx` | `FrequencySelect` (plus `FREQUENCY_LABEL` and `FREQUENCY_PHRASE`) | Frequency picker and amount phrases (3.5). `FREQUENCY_PHRASE.irregular` is empty. | `id`, `name` (default `frequency`), `label`, `value`, `onValueChange`, `includeIrregular`, `required` (`aria-required`), `hint`, `error` |
+| `applies-to-select.tsx` | `AppliesToSelect` | "Applies to" picker (3.7) | `id`, `name` (default `member_user_id`), `label`, `options`, `value` (`""` is the whole household), `onValueChange`, `wholeLabel`, `hint`, `error` |
 | `due-chip.tsx` | `DueChip` | Due-date status with icon and words (3.8) | `tone` (`later`, `soon`, `overdue`), children |
 | `month-header.tsx` | `MonthHeader` | Month group heading, an `h2` (F10) | `title`, `summary` |
 | `stat-card.tsx` | `StatCard` | Dashboard total, a labelled section (7.1) | `title`, `value`, `hint` |
@@ -1287,7 +1410,7 @@ Each takes props only, has no data fetching, and contains no business logic. Eac
 
 Notes:
 - `MoneyText` already exists. It reads the base currency and locale from `FormatProvider` when the props are missing. This is kept for other screens. The finance screens pass `currency` and `locale` explicitly (3.2).
-- Textarea (Notes) is not in `ui/` yet. Style it like `Input` (`min-h-22`, 16 px text, `--input` border). A shared `Textarea` is a later change.
+- **Textarea (N10).** The contract Notes field needs a `Textarea`. HEM-021 owns it and creates `web/src/components/ui/textarea.tsx` as its first web change, before the contract form uses it. Style it like `Input` (`min-h-22`, 16 px text, `--input` border, `aria-invalid` and focus styles as `Input`). It is a presentational primitive, with no logic.
 - The pickers repeat the error markup for now. Once HEM-021 moves `FieldError` to `components/ui/`, they use it (Q6).
 
 ---
@@ -1309,11 +1432,13 @@ The PM answered the questions raised while writing this spec. The decisions are 
 | Q9 | Dashboard header action. | **Confirmed:** "Add an expense". | F17, 7.1 |
 | Q10 | Expense future dates. | **Accepted.** Expense and income dates may be at most one day in the future. The API validates this in HEM-019. A later date shows "The date cannot be more than a day in the future." | 3.6, 5.2, 6.2, 11.4, 11.6 |
 | Q11 | Playwright screenshots for the new components. | **Yes.** HEM-021 to HEM-023 attach Playwright screenshots at 375, 768 and 1280 px for the states in sections 4 to 7. The reviewer checks them against those sections. | 14 |
+| Q12 | Record amounts or Money objects (review round 1, N13). | **Records keep flat `amount` and `currency`** (contracts, expenses, income sources and entries). **Computed values use Money**: the upcoming event `amount` (with `contract_name`), the dashboard totals, and `base_amount`. Section 11 states the shape per endpoint. | 3.2, 11 |
 
 **Board follow-ups from these decisions**
 - HEM-018: `name` on categories (Q5), and the upcoming event fields (Q2).
 - HEM-019: `base_amount` once HEM-020 exists (Q1), and the one-day future limit (Q10).
 - HEM-023: the dashboard fields (Q2).
+- HEM-021: the `Textarea` primitive in `web/src/components/ui/textarea.tsx` (N10).
 - A category creation screen, later (Q4).
 
 ---
@@ -1324,7 +1449,9 @@ The PM answered the questions raised while writing this spec. The decisions are 
 - [ ] Tap targets are at least 44 × 44 px on every control in the wireframes.
 - [ ] Bottom nav at 375 only. Icon rail from 768. Sidebar at 1280.
 - [ ] Tables become card lists on phone, with the amount on the right in both.
-- [ ] Dialogs are bottom sheets on phone and centred dialogs from 768.
+- [ ] Dialogs are bottom sheets on phone and centred dialogs from 768. The contract form is `md:max-w-lg`, and every other form is `md:max-w-md`.
+- [ ] The income sources table at 768 has three columns (Name, Amount, Status) and no clipped column.
+- [ ] `AmountInput` takes a full row in every form. Only Starts and Ends, and Renews every and Notice period, share a row.
 - [ ] The space badge is on every finance page header and form header, and matches the 2 px accent line.
 - [ ] Every list has an empty state, a loading state and an error state (section 4 to 7). Each empty state has one next action, or none when the header already offers it.
 - [ ] Amounts use the API's decimal strings, `MoneyText`, `tabular-nums`, and the right alignment.

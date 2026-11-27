@@ -23,10 +23,11 @@ export const FREQUENCY_PHRASE: Record<Frequency, string> = {
   quarterly: "every 3 months",
   semiannual: "every 6 months",
   annual: "a year",
-  irregular: "irregular",
+  irregular: "",
 };
 
-const CONTRACT_OPTIONS: Frequency[] = ["monthly", "quarterly", "semiannual", "annual", "weekly"];
+/** Irregular has no phrase (finance.md 3.5). Income sources add "typical amount" after the amount (6.3). */
+const CONTRACT_OPTIONS: Frequency[] = ["weekly", "monthly", "quarterly", "semiannual", "annual"];
 const INCOME_OPTIONS: Frequency[] = ["monthly", "quarterly", "semiannual", "annual", "weekly", "irregular"];
 
 export interface FrequencySelectProps {
@@ -38,6 +39,8 @@ export interface FrequencySelectProps {
   onValueChange: (value: Frequency) => void;
   /** Income sources only. Contracts never offer "irregular". */
   includeIrregular?: boolean;
+  /** Marks the field as required with aria-required (no native attribute; finance.md 3.10). */
+  required?: boolean;
   hint?: string;
   error?: string;
   disabled?: boolean;
@@ -52,6 +55,7 @@ export function FrequencySelect({
   value,
   onValueChange,
   includeIrregular,
+  required,
   hint,
   error,
   disabled,
@@ -72,6 +76,7 @@ export function FrequencySelect({
         name={name}
         value={value}
         disabled={disabled}
+        aria-required={required || undefined}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
         onChange={(e) => onValueChange(e.target.value as Frequency)}

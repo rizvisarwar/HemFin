@@ -25,6 +25,8 @@ export interface CategorySelectProps {
   emptyLabel: string;
   /** True for forms: the empty option is disabled, so a category must be chosen. */
   emptyDisabled?: boolean;
+  /** Marks the field as required with aria-required (no native attribute; finance.md 3.10). */
+  required?: boolean;
   hint?: string;
   error?: string;
   disabled?: boolean;
@@ -45,6 +47,7 @@ export function CategorySelect({
   onValueChange,
   emptyLabel,
   emptyDisabled,
+  required,
   hint,
   error,
   disabled,
@@ -64,6 +67,7 @@ export function CategorySelect({
         name={name}
         value={value}
         disabled={disabled}
+        aria-required={required || undefined}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
         onChange={(e) => onValueChange(e.target.value)}

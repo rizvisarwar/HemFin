@@ -93,4 +93,34 @@ A written spec in `docs/design/finance.md`, plus any presentational components, 
 - `docs/design/finance.md` section 13 lists each decision and where it applies.
 - Check section 11 against HEM-018, HEM-019 and HEM-023 once they are updated.
 
+### 2026-11-27 · Designer (Haiku 5.5) · Review round 1 fixes (PR #26)
+**Done** (one line per finding, in review order; spec sections in `docs/design/finance.md`, components in `web/src/components/ui/`)
+- **B2 (currency error slot).** `AmountInput` takes `currencyError`. It shows under the whole amount row, at full width, and sets `aria-invalid` on the currency select, linked with `aria-describedby`. Spec 3.1 "Where errors show" and the 3.1.1 server row. 3.10 maps a server `currency` error there.
+- **B3 (decimal mark).** Spec 3.1 "Parsing": only the locale's decimal mark is accepted. A thousands separator or the other mark gets "Enter an amount like 12.50." (3.1.1). Worked examples added in 3.1 (`1,250` in `en` is rejected, not read as 1.25).
+- **B4 (contract form width and rows).** `AmountInput` is a full row in every form. The contract form uses `className="md:max-w-lg"` (`cn()` merges it over the default `md:max-w-md`). Other forms keep `max-w-md`. Only Starts and Ends, and Renews every and Notice period, share a row, from `md`. Spec 4.3 (dialog width, rows, new 768 wireframe), 10 table and 4.3 validation rows updated.
+- **B5 (income sources at 768).** At 768 (648 px content) the table has three columns: Name (type and frequency as meta text under the name), Amount and Status. Type and How often are `from="xl"` columns. Spec 6.3 "Responsive", with a new 768 wireframe.
+- **B6 (tests).** Not added in this ticket, by PM decision: the components have no logic and HEM-021 to HEM-023 cover them with Playwright. No tests were added here.
+- **N1 (768 wireframes).** The earlier entry said each screen has 375, 768 and 1280 wireframes. That was not true. Each screen has 375 and 1280 wireframes. The 768 layouts are prose rules, plus two 768 wireframes for the screens that changed (contract form 4.3, income sources 6.3). This entry corrects the earlier wording.
+- **N2 (draft notes).** Removed the "Hmm" paragraphs and the draft note under the income sources wireframe (6.3, 7.1).
+- **N3 (irregular phrase).** `FREQUENCY_PHRASE.irregular` is empty, as in 3.5. Income sources show "typical amount" after the amount (6.3).
+- **N4 (option order).** `CONTRACT_OPTIONS` starts with Weekly, as in 3.5.
+- **N5 (empty state action).** Contracts empty state: the header "Add a contract" button is hidden, so the action appears once. Same rule as expenses (4.1).
+- **N6 (currency truncation).** The closed currency select shows the ISO code only. The 9 rem column fits the code at every width (3.1, `CurrencyOption.label` is the code).
+- **N7 (props lists).** 12.2 lists the required props of `AmountInput`, `CategorySelect`, `FrequencySelect`, `AppliesToSelect` and `ConvertedAmount` (`dateLabel`).
+- **N8 (required).** `AmountInput` (`required`, on the amount input), `CategorySelect` and `FrequencySelect` take `required` and set `aria-required`. The native attribute is not used, and forms use `noValidate` (3.10). `AppliesToSelect` is optional and has no `required`.
+- **N9 (optional).** "Applies to (optional)" in the contract form, the expense "More details", the income entry form and the source form (4.3, 5.2, 6.2, 6.3).
+- **N10 (Textarea).** Spec 12.2 names HEM-021 as the owner of `web/src/components/ui/textarea.tsx`, and Board follow-ups list it.
+- **N11 (upcoming rows).** Spec 7.1: below `xl` each event is a stacked card (type and date, name, amount, DueChip on its own line). At `xl` a fixed-column row. The phone and desktop wireframes are fixed.
+- **N12 (long amounts).** Spec 3.2: amounts are `shrink-0 whitespace-nowrap`, and the title block is `min-w-0 flex-1`. Applied to the expense and income rows and the dashboard events.
+- **N13 (shape).** PM decision Q12 in section 13. Records keep flat `amount` and `currency` (11.2, 11.4, 11.5, 11.6). Computed values use Money: the upcoming event `amount` (11.3), the dashboard totals and `upcoming` (11.7), and `base_amount` (11.4, 11.6). Each subsection states its shape.
+
+**Left**
+- B1 (gitleaks) is fixed on the HEM-020 branch, not here.
+- Not changed, for the PM: `ConvertedAmount` (`web/src/components/ui/converted-amount.tsx`) renders a "No SEK to EUR rate" line when `converted` is null. Spec 3.3 and F3 say a null `base_amount` shows nothing under the amount. Either the component or the spec needs to change. I did not pick one.
+- Not changed, for the PM: the contract list filter "Applies to" needs three options (All, Whole household, each member) (4.1). `AppliesToSelect` uses `""` for the whole household, so "All" needs a separate value. This is a spec and API-query question for HEM-021.
+
+**How to verify**
+- `docs/design/finance.md` sections 3.1, 4.3, 6.3, 7.1, 11 and 12.2.
+- `npm --prefix web run lint` and `npm --prefix web run build` (both pass).
+
 ## Review
