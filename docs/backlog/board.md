@@ -10,7 +10,7 @@ Full scope of each phase: `docs/PROJECT_PLAN.md`, section 4.
 | 2 | Households & Invitations | **Built** (HEM-012 to HEM-016; PRs #20 to #24). **Done.** The live invitation demo passed on 2026-11-27. |
 | 3 | Core Finance | **Built** (HEM-017 to HEM-023; PRs #25 to #28 and #30 to #32). Waiting for the live demo. The scheduled jobs need `JOB_SECRET` (Render and Actions) and the `API_BASE_URL` Actions variable before the FX job can run. |
 | 4 | Documents | **Dropped for the POC** (user, 2026-11-27): no document storage; manual entry instead. |
-| 5 | Notifications | Not started |
+| 5 | Notifications | **In progress** (HEM-025 to HEM-027). In-app only: no email or digest (user, 2026-11-27). The user approved the start on 2026-11-27. |
 | 6 | Reports & Forecast | Not started |
 | 7 | Agent platform + Savings Agent | Not started |
 | 8 | Contract Analysis Agent | Later. The file is processed in memory and never stored; only approved fields are saved. |
@@ -87,3 +87,13 @@ Order: HEM-017, HEM-018 and HEM-020 run in parallel. HEM-019 follows HEM-018. Th
 - Invitations follow-ups (from HEM-013): no DB-backed test yet for a stale failed resend not clobbering a newer resend (the guard is only checked in compiled SQL); add `/internal/jobs/weekly` when a ticket needs it. Live check still needed: accept works with a real Supabase token (email confirmation now relies on the REQUIRED Supabase settings).
 - EmptyState renders link actions with role="button" (`web/src/components/ui/empty-state.tsx`); make them real links (from the HEM-015 reviews).
 - Invitations follow-ups (from the HEM-016 reviews): assert the link-button font size on accept state H; add the setActiveSpace-failure toast copy to `households.md` 6.8 K; register the `requestfailed` listener once in `recordRequests`; confirming email in another tab loses the invitation token (known limitation; the user clicks the email link again); a flaky "household list: empty" tablet test seen once in CI.
+
+## Phase 5 tickets
+
+In-app notifications only. HEM-025 (spec) and HEM-026 (API) run in parallel; HEM-027 (web) follows both.
+
+| Ticket | Title | Owner | Status | PR |
+|---|---|---|---|---|
+| HEM-025 | Design spec: in-app notifications | Designer | Design | |
+| HEM-026 | API: notifications and daily generator | Engineer | In Progress | |
+| HEM-027 | Web: notification bell and centre | Engineer | Todo | |
