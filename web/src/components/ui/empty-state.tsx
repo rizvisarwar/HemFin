@@ -61,7 +61,10 @@ export function EmptyState({
         <p className={cn("mt-2 text-body text-muted-foreground", inline && "text-small")}>
           {description}
         </p>
-        <div className={cn(primaryAction || secondaryAction ? "mt-6 flex w-full flex-col" : "hidden", inline ? "items-start" : "items-center")}>
+        <div className={cn(
+            primaryAction || secondaryAction ? "mt-6 flex w-full flex-col" : "hidden",
+            inline ? "items-start" : "items-center md:flex-row md:justify-center md:gap-4",
+          )}>
           {!primaryAction ? null : primaryAction.href !== undefined ? (
             <Button
               nativeButton={false}
@@ -78,7 +81,7 @@ export function EmptyState({
           {secondaryAction ? (
             <Link
               href={secondaryAction.href}
-              className="mt-2 inline-flex min-h-11 items-center text-small font-medium text-primary underline-offset-4 hover:underline"
+              className="mt-2 inline-flex min-h-11 items-center text-small font-medium text-primary underline underline-offset-4 md:mt-0"
             >
               {secondaryAction.label}
             </Link>

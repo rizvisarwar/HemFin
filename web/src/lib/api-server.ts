@@ -5,6 +5,7 @@ import { API_URL } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import type {
   AddressResponse,
+  DashboardResponse,
   MeResponse,
   MemberResponse,
   ProfileResponse,
@@ -132,6 +133,21 @@ export const fetchMembers = cache(async (spaceId: string): Promise<MemberRespons
     return null;
   }
 });
+
+/** The space's dashboard summary for the current month, or null when it cannot be loaded. */
+export async function fetchDashboard(spaceId: string): Promise<DashboardResponse | null> {
+  try {
+    const api = await createServerApi();
+    const { data, response } = await api.GET("/api/v1/spaces/{space_id}/dashboard", {
+      params: { path: { space_id: spaceId } },
+      cache: "no-store",
+      signal: AbortSignal.timeout(4000),
+    });
+    return response.ok && data ? data : null;
+  } catch {
+    return null;
+  }
+}
 
 /** The user's saved addresses (default first), or null when the API cannot be reached. */
 export async function fetchAddresses(): Promise<AddressResponse[] | null> {

@@ -60,6 +60,28 @@ export function seedHouseholds(who: { email: string }, households: SeedHousehold
   return post<{ ids: string[]; personal_id: string }>("/__test/households", { email: who.email, households });
 }
 
+export interface SeedDashboard {
+  month: string;
+  base_currency: string;
+  spent_this_month: { amount: string; currency: string };
+  recurring_monthly: { amount: string; currency: string };
+  income_this_month: { amount: string; currency: string };
+  upcoming: {
+    type: "payment" | "renewal" | "notice_deadline";
+    date: string;
+    contract_id: string;
+    contract_name: string;
+    amount: { amount: string; currency: string } | null;
+  }[];
+  has_records: boolean;
+  unconverted_count: number;
+}
+
+/** Seeds the dashboard summary the mock API returns for a user, or makes it fail with a 500. */
+export function seedDashboard(who: { email: string }, opts: { dashboard?: SeedDashboard; fail?: boolean }) {
+  return post<void>("/__test/dashboard", { email: who.email, ...opts });
+}
+
 /** Makes the user's spaces and/or members list calls fail with a 500, to see the error states. */
 export function failLists(who: { email: string }, flags: { spaces?: boolean; members?: boolean; me?: boolean; delay_ms?: number }) {
   return post<void>("/__test/fail", { email: who.email, ...flags });

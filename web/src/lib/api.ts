@@ -13,6 +13,8 @@ export type InvitationAccepted = components["schemas"]["InvitationAccepted"];
 export type ContractResponse = components["schemas"]["ContractOut"];
 export type CategoryResponse = components["schemas"]["CategoryOut"];
 export type Role = components["schemas"]["Role"];
+export type DashboardResponse = components["schemas"]["DashboardOut"];
+export type DashboardEventResponse = components["schemas"]["DashboardEvent"];
 
 /**
  * Browser API client: sends the current Supabase access token with every request. Import from
