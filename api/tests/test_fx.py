@@ -1,5 +1,6 @@
 """FX parsing, fetching, conversion maths and the /fx job. No database, no network."""
 
+import secrets
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -15,7 +16,7 @@ from hemfin.modules.fx import service
 
 FIXTURES = Path(__file__).parent / "fixtures"
 JOB = "/internal/jobs/fx"
-SECRET = "s3cret-for-test"
+SECRET = secrets.token_urlsafe(24)
 D = date(2026, 11, 26)
 
 
